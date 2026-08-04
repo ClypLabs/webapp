@@ -76,20 +76,31 @@ export default function Hero() {
             href="https://x.com/ClypDat"
             target="_blank"
             rel="noopener noreferrer"
-            className="transition-colors hover:text-zinc-200"
+            aria-label="ClypDat on X"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-zinc-200"
           >
-            X
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4 fill-current"
+            >
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.963 6.817H1.684l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+            </svg>
           </a>
-          <span aria-hidden className="text-zinc-700">
-            /
-          </span>
           <a
             href="https://discord.gg/jt3eJf238t"
             target="_blank"
             rel="noopener noreferrer"
-            className="transition-colors hover:text-zinc-200"
+            aria-label="Join ClypDat on Discord"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-zinc-200"
           >
-            Discord
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4 fill-current"
+            >
+              <path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.027c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.042-.106 13.2 13.2 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.794 8.18 1.794 12.061 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.127c-.598.35-1.22.648-1.873.891a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.077.077 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.033-.03ZM8.02 15.33c-1.18 0-2.156-1.085-2.156-2.419 0-1.333.956-2.418 2.156-2.418 1.21 0 2.175 1.095 2.156 2.418 0 1.334-.956 2.419-2.156 2.419Zm7.974 0c-1.18 0-2.156-1.085-2.156-2.419 0-1.333.956-2.418 2.156-2.418 1.21 0 2.175 1.095 2.156 2.418 0 1.334-.956 2.419-2.156 2.419Z" />
+            </svg>
           </a>
         </div>
       </div>
