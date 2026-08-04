@@ -68,6 +68,30 @@ export default function Hero() {
         >
           Windows 10/11, x64. Installer needs no admin approval.
         </p>
+        <div
+          className="animate-rise mt-5 flex items-center gap-4 text-xs text-zinc-500"
+          style={{ animationDelay: "280ms" }}
+        >
+          <a
+            href="https://x.com/ClypDat"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-zinc-200"
+          >
+            X
+          </a>
+          <span aria-hidden className="text-zinc-700">
+            /
+          </span>
+          <a
+            href="https://discord.gg/jt3eJf238t"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-zinc-200"
+          >
+            Discord
+          </a>
+        </div>
       </div>
 
       <div
