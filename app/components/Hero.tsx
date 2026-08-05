@@ -113,7 +113,7 @@ export default function Hero() {
         </Reveal>
       </div>
 
-      <Reveal delay={720} className="relative mx-auto mt-20 max-w-5xl">
+      <Reveal delay={720} className="relative mx-auto mt-20 max-w-6xl">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
           <LibraryGraphic className="w-full" />
           <div

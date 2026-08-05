@@ -182,7 +182,9 @@ body {
 }
 
 .animate-library-scroll {
-  animation: library-scroll 38s linear infinite;
+  /* Timed against the track height - the cards got bigger, so the same duration
+     would have scrolled visibly faster. */
+  animation: library-scroll 52s linear infinite;
   will-change: transform;
 }
 

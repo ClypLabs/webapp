@@ -96,7 +96,7 @@ const rows = Array.from(
 
 function ShareIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 fill-current">
+    <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5 fill-current">
       <path d="M18 16.08a2.9 2.9 0 0 0-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.5.46 1.16.75 1.89.75a2.75 2.75 0 1 0-2.75-2.75c0 .24.04.47.09.7L8.14 10a2.75 2.75 0 1 0 0 4l7.12 4.16c-.05.21-.08.43-.08.65a2.68 2.68 0 1 0 2.68-2.73Z" />
     </svg>
   );
@@ -110,21 +110,21 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
           src={`/media/thumbs/${clip.thumb}.webp`}
           alt=""
           fill
-          sizes="200px"
+          sizes="320px"
           // The first row is on screen immediately; the rest sit below the fold
           // of the scroll window and can wait.
           loading={eager ? "eager" : "lazy"}
           className="object-cover"
         />
       </div>
-      <div className="flex items-end justify-between gap-2 px-2.5 py-2">
+      <div className="flex items-end justify-between gap-2 px-3 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-[9px] text-zinc-500">{clip.game}</p>
-          <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-100">
+          <p className="truncate text-[11px] text-zinc-500">{clip.game}</p>
+          <p className="mt-1 truncate text-[14px] font-semibold text-zinc-100">
             Clip from {clip.date}
           </p>
-          <p className="mt-1 flex items-center gap-1 truncate text-[8px] text-zinc-600">
-            <svg viewBox="0 0 24 24" aria-hidden className="h-2 w-2 fill-current">
+          <p className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-zinc-600">
+            <svg viewBox="0 0 24 24" aria-hidden className="h-2.5 w-2.5 fill-current">
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6-3.5 2-1-1.7 2.5-1.5V6h2v6.6Z" />
             </svg>
             {clip.age}
@@ -133,7 +133,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
             </span>
           </p>
         </div>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-zinc-400">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-zinc-400">
           <ShareIcon />
         </span>
       </div>
@@ -150,17 +150,17 @@ function Track({ copy }: { copy: number }) {
           {/* Header strip. Same column template as the cards, so a day label
               sits directly over the clip that starts that day and the cards
               below it stay aligned across the row. */}
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-3 gap-3.5">
             {row.map((clip) => (
               <p
                 key={`${copy}-h-${clip.thumb}`}
-                className="h-4 truncate text-[9px] font-semibold uppercase tracking-widest text-zinc-500"
+                className="h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500"
               >
                 {clip.dayLabel ?? " "}
               </p>
             ))}
           </div>
-          <div className="mt-1 mb-3 grid grid-cols-3 gap-2.5">
+          <div className="mt-1.5 mb-4 grid grid-cols-3 gap-3.5">
             {row.map((clip) => (
               <ClipCard
                 key={`${copy}-${clip.thumb}`}
@@ -185,45 +185,45 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
       aria-label="The ClypDat library, showing captured clips grouped by day"
     >
       {/* Title bar */}
-      <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
-        <span className="h-3 w-3 rounded-[4px] bg-emerald-400/80" />
-        <span className="ml-1 flex items-center gap-1.5 rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
-          <span className="animate-pulse-soft h-1 w-1 rounded-full bg-rose-400" />
+      <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-4 py-2.5">
+        <span className="h-4 w-4 rounded-[5px] bg-emerald-400/80" />
+        <span className="ml-1 flex items-center gap-1.5 rounded-md border border-rose-400/40 bg-rose-500/10 px-2.5 py-1 text-[12px] font-semibold text-rose-300">
+          <span className="animate-pulse-soft h-1.5 w-1.5 rounded-full bg-rose-400" />
           Replay On
         </span>
-        <span className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-zinc-300">
+        <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
           Clip
         </span>
-        <span className="text-[10px] text-zinc-500">Alt+V</span>
-        <span className="text-[10px] text-zinc-600">No game detected</span>
+        <span className="text-[12px] text-zinc-500">Alt+V</span>
+        <span className="text-[12px] text-zinc-600">No game detected</span>
         <span className="ml-auto flex gap-1.5">
           {[0, 1, 2].map((i) => (
-            <span key={i} className="h-1.5 w-1.5 rounded-full bg-white/15" />
+            <span key={i} className="h-2 w-2 rounded-full bg-white/15" />
           ))}
         </span>
       </div>
 
       <div className="flex">
         {/* Icon rail */}
-        <div className="flex w-9 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] py-3">
-          <span className="h-5 w-5 rounded-md bg-emerald-400/20 ring-1 ring-emerald-400/40" />
+        <div className="flex w-12 shrink-0 flex-col items-center gap-4 border-r border-white/[0.06] py-3">
+          <span className="h-7 w-7 rounded-lg bg-emerald-400/20 ring-1 ring-emerald-400/40" />
           {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="h-4 w-4 rounded bg-white/[0.07]" />
+            <span key={i} className="h-5 w-5 rounded-md bg-white/[0.07]" />
           ))}
-          <span className="mt-auto h-4 w-4 rounded-full bg-white/[0.07]" />
+          <span className="mt-auto h-5 w-5 rounded-full bg-white/[0.07]" />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <p className="text-[11px] font-semibold text-zinc-200">Clips (57)</p>
-            <span className="rounded-md bg-white/[0.04] px-2 py-1 text-[9px] text-zinc-600">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <p className="text-[14px] font-semibold text-zinc-200">Clips (57)</p>
+            <span className="rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600">
               Search clips or games
             </span>
           </div>
 
           {/* The scroll viewport. Two identical tracks stacked and translated by
               exactly half the height, so the loop has no seam. */}
-          <div className="relative h-[300px] overflow-hidden px-3 sm:h-[360px]">
+          <div className="relative h-[420px] overflow-hidden px-4 sm:h-[560px]">
             <div className="animate-library-scroll">
               <Track copy={0} />
               <Track copy={1} />
