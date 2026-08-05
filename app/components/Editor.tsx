@@ -1,3 +1,5 @@
+import EditorGraphic from "./EditorGraphic";
+import ScaleToFit from "./ScaleToFit";
 import Reveal, { RevealWords } from "./Reveal";
 
 const editorPoints = [
@@ -8,20 +10,12 @@ const editorPoints = [
   "GPU export via NVENC (H.264/H.265/AV1) with automatic CPU fallback",
 ];
 
-const contextActions = [
-  "Rename",
-  "Export",
-  "Delete",
-  "Open file location",
-  "Filter by game",
-  "Filter by clip type",
-];
 
 export default function Editor() {
   return (
     <section id="editor" className="section-lazy relative px-6 py-32 sm:py-40">
-      <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-2 lg:items-center lg:gap-20">
-        <div>
+      <div className="mx-auto max-w-6xl">
+        <div className="max-w-3xl">
           <Reveal
             as="p"
             className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
@@ -37,44 +31,31 @@ export default function Editor() {
             it, balance the audio tracks, and export &mdash; no round trip
             through another app.
           </Reveal>
-
-          <ul className="mt-10 space-y-5">
-            {editorPoints.map((point, index) => (
-              <Reveal
-                key={point}
-                as="li"
-                delay={index * 80}
-                className="flex items-start gap-3.5"
-              >
-                <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                <span className="text-sm leading-7 text-zinc-300">{point}</span>
-              </Reveal>
-            ))}
-          </ul>
         </div>
 
-        <Reveal
-          delay={120}
-          className="rounded-2xl border border-white/10 bg-white/[0.02] p-7 sm:p-9"
-        >
-          {/* A stylised context menu rather than a screenshot of one. It shows
-              the real actions, and it stays legible at any width. */}
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Right-click a clip to
-          </p>
-          <ul className="mt-4 grid grid-cols-2 gap-2.5 text-sm text-zinc-200">
-            {contextActions.map((action, index) => (
-              <Reveal
-                key={action}
-                as="li"
-                delay={160 + index * 55}
-                className="rounded-lg border border-white/10 bg-white/[0.02] px-3.5 py-3 transition-colors duration-300 hover:border-emerald-400/25 hover:bg-white/[0.05]"
-              >
-                {action}
-              </Reveal>
-            ))}
-          </ul>
+        {/* Full width, like the hero. Half a column was never enough room for a
+            window with a timeline in it. */}
+        <Reveal delay={120} className="mt-12">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
+            <ScaleToFit designWidth={1152}>
+              <EditorGraphic />
+            </ScaleToFit>
+          </div>
         </Reveal>
+
+        <ul className="mt-12 grid gap-x-10 gap-y-5 sm:grid-cols-2">
+          {editorPoints.map((point, index) => (
+            <Reveal
+              key={point}
+              as="li"
+              delay={index * 70}
+              className="flex items-start gap-3.5"
+            >
+              <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+              <span className="text-sm leading-7 text-zinc-300">{point}</span>
+            </Reveal>
+          ))}
+        </ul>
       </div>
     </section>
   );

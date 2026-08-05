@@ -388,6 +388,38 @@ body {
   animation: pop-in 4.5s ease-in-out infinite;
 }
 
+/* The editor playhead crossing the timeline. Linear and slow - it represents
+   playback, and playback does not ease. */
+@keyframes playhead {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100vw));
+  }
+}
+
+.animate-playhead {
+  animation: playhead 14s linear infinite;
+}
+
+/* The parent is the track area, so a percentage of the parent is what the
+   playhead should travel - not a viewport width. */
+@supports (width: 1cqw) {
+  .animate-playhead {
+    animation-name: playhead-container;
+  }
+}
+
+@keyframes playhead-container {
+  from {
+    left: 0;
+  }
+  to {
+    left: 100%;
+  }
+}
+
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
@@ -425,6 +457,7 @@ body {
   .animate-chip-2,
   .animate-chip-3,
   .animate-match-sweep,
+  .animate-playhead,
   .animate-shimmer,
   .animate-scan-line,
   .animate-pop-in {
