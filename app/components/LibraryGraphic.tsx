@@ -252,10 +252,10 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
       aria-label="The ClypDat library, showing captured clips grouped by day"
     >
       {/* Title bar. The mark sits in a cell exactly as wide as the rail below
-          it, so it lines up with the column of rail buttons rather than
-          floating at an arbitrary offset. */}
+          it, so it lines up with the column of rail buttons - but it keeps the
+          title bar's own background: the darker rail column starts below. */}
       <div className="flex items-stretch border-b border-white/[0.06]">
-        <div className="flex w-12 shrink-0 items-center justify-center bg-black/20">
+        <div className="flex w-12 shrink-0 items-center justify-center">
           <Image src="/icon.png" alt="" width={20} height={20} unoptimized />
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5">
