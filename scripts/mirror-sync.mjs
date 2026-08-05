@@ -104,14 +104,13 @@ async function putObject(key, body, contentType, contentLength) {
   await upload.done();
 }
 
-async function currentMirroredTag() {
+async function currentSnapshot() {
   const base = process.env.MIRROR_BASE_URL?.replace(/\/+$/, "");
   if (!base) return null;
   try {
     const response = await fetch(`${base}/${LATEST_KEY}`, { cache: "no-store" });
     if (!response.ok) return null;
-    const snapshot = await response.json();
-    return snapshot.tag_name ?? null;
+    return await response.json();
   } catch {
     return null;
   }
@@ -142,14 +141,74 @@ function contentTypeFor(name) {
   return CONTENT_TYPES[extension] ?? "application/octet-stream";
 }
 
+// Snapshots keep GitHub's response shape so the app's updater parses them with
+// no special cases. Asset URLs are rewritten to our own /download/ route, and
+// the digest is the hash this script computed rather than GitHub's - it
+// describes the bytes actually sitting in the bucket.
+async function writeSnapshots(latest, all, digests) {
+  const latestSnapshot = {
+    tag_name: latest.tag_name,
+    body: latest.body ?? "",
+    draft: false,
+    prerelease: false,
+    assets: ASSETS.map((name) => ({
+      name,
+      browser_download_url: `${SITE_BASE}/download/${name}`,
+      digest: `sha256:${digests.get(name)}`,
+    })),
+  };
+
+  // Release notes only. Assets on older releases keep their GitHub URLs because
+  // nothing reads them - the updater uses this list for bodies and tags alone.
+  const releasesSnapshot = all
+    .filter((release) => !release.draft && !release.prerelease)
+    .map((release) => ({
+      tag_name: release.tag_name,
+      body: release.body ?? "",
+      draft: false,
+      prerelease: false,
+      assets:
+        release.tag_name === latest.tag_name
+          ? latestSnapshot.assets
+          : release.assets.map((asset) => ({
+              name: asset.name,
+              browser_download_url: asset.browser_download_url,
+              digest: asset.digest ?? null,
+            })),
+    }));
+
+  const json = (value) => Buffer.from(JSON.stringify(value, null, 2));
+  const latestBody = json(latestSnapshot);
+  const releasesBody = json(releasesSnapshot);
+
+  await putObject(LATEST_KEY, latestBody, "application/json", latestBody.byteLength);
+  await putObject(RELEASES_KEY, releasesBody, "application/json", releasesBody.byteLength);
+}
+
 async function main() {
   console.log(`Reading releases from ${REPO}...`);
   const latest = await githubJson("/releases/latest");
   const all = await githubJson("/releases?per_page=100");
 
-  const mirroredTag = await currentMirroredTag();
-  if (!FORCE && mirroredTag === latest.tag_name) {
+  const mirrored = await currentSnapshot();
+  const sameTag = !FORCE && mirrored?.tag_name === latest.tag_name;
+
+  // Patch notes are written after the release is published, so the tag can be
+  // current while the mirrored body is empty or outdated. Refresh just the
+  // snapshots in that case - the binaries are already correct, and they are the
+  // 1.1 GB part.
+  if (sameTag && mirrored.body === (latest.body ?? "")) {
     console.log(`Mirror already at ${latest.tag_name}. Nothing to do (--force to re-upload).`);
+    return;
+  }
+
+  if (sameTag) {
+    console.log(`Mirror is at ${latest.tag_name} but its notes are stale. Refreshing snapshots only.`);
+    const digests = new Map(
+      mirrored.assets.map((asset) => [asset.name, String(asset.digest ?? "").replace(/^sha256:/, "")]),
+    );
+    await writeSnapshots(latest, all, digests);
+    console.log(`\nSnapshots refreshed for ${latest.tag_name}.`);
     return;
   }
 
@@ -171,7 +230,10 @@ async function main() {
       const localPath = join(workDir, name);
 
       process.stdout.write(`  ${name}: downloading... `);
-      await downloadAsset(asset.browser_download_url, localPath);
+      // asset.url (the API endpoint) rather than browser_download_url: the
+      // API form honours the token, so this keeps working when the repo is
+      // private or flagged - which is when a mirror push matters most.
+      await downloadAsset(asset.url ?? asset.browser_download_url, localPath);
 
       const { size } = await stat(localPath);
       const digest = await sha256File(localPath);
@@ -185,48 +247,7 @@ async function main() {
     await rm(workDir, { recursive: true, force: true });
   }
 
-  // Snapshot keeps GitHub's response shape so the app's updater parses it with
-  // no special cases. Asset URLs are rewritten to our own /download/ route, and
-  // the digest is the hash computed above rather than GitHub's - it describes
-  // the bytes actually sitting in the bucket.
-  const latestSnapshot = {
-    tag_name: latest.tag_name,
-    body: latest.body ?? "",
-    draft: false,
-    prerelease: false,
-    assets: ASSETS.map((name) => ({
-      name,
-      browser_download_url: `${SITE_BASE}/download/${name}`,
-      digest: `sha256:${digests.get(name)}`,
-    })),
-  };
-
-  // Release notes only. Assets here keep their GitHub URLs because nothing
-  // reads them - the updater uses this list for bodies and tags alone.
-  const releasesSnapshot = all
-    .filter((release) => !release.draft && !release.prerelease)
-    .map((release) => ({
-      tag_name: release.tag_name,
-      body: release.body ?? "",
-      draft: false,
-      prerelease: false,
-      assets:
-        release.tag_name === latest.tag_name
-          ? latestSnapshot.assets
-          : release.assets.map((asset) => ({
-              name: asset.name,
-              browser_download_url: asset.browser_download_url,
-              digest: asset.digest ?? null,
-            })),
-    }));
-
-  const json = (value) => Buffer.from(JSON.stringify(value, null, 2));
-
-  const latestBody = json(latestSnapshot);
-  const releasesBody = json(releasesSnapshot);
-
-  await putObject(LATEST_KEY, latestBody, "application/json", latestBody.byteLength);
-  await putObject(RELEASES_KEY, releasesBody, "application/json", releasesBody.byteLength);
+  await writeSnapshots(latest, all, digests);
 
   console.log(`\nMirror updated to ${latest.tag_name}.`);
   for (const [name, digest] of digests) console.log(`  ${digest}  ${name}`);

@@ -63,10 +63,31 @@ SITE_BASE_URL=https://www.clypdat.xyz        # must match MirrorHost in AppUpdat
 GITHUB_TOKEN=...                             # optional, raises the API rate limit
 ```
 
-Skips if the mirror already has the current tag; `--force` re-uploads.
+Skips if the mirror already has the current tag. If the tag matches but the
+release notes have changed - they get written after publishing - it refreshes
+just the snapshots and leaves the 1.1 GB of binaries alone. `--force`
+re-uploads everything.
 
-Runnable from a laptop on purpose. A GitHub Action is the convenient path, but
-it dies with the account - which is the scenario being insured against.
+Runnable from a laptop on purpose. The workflow below is the convenient path,
+but it dies with the account - which is the scenario being insured against.
+
+### Staying current automatically
+
+`.github/workflows/mirror.yml` runs the same script:
+
+- every 6 hours, so a missed or failed sync self-corrects
+- on `repository_dispatch` (`release-published`), fired by the app repo's
+  release workflow, so a new release mirrors within a minute
+- on manual dispatch, with an optional force flag
+
+Repository secrets it needs: `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, and `RELEASE_READ_TOKEN` (a PAT with read access to
+`ClypDat/ClypDat` - the built-in `GITHUB_TOKEN` is scoped to this repo only).
+Repository variables: `MIRROR_BASE_URL`, `SITE_BASE_URL`.
+
+The app repo needs `MIRROR_DISPATCH_TOKEN` (a PAT that can dispatch to this
+repo) for the release-triggered path. Without it the release workflow logs a
+note and the 6-hour schedule picks the release up instead.
 
 Vercel needs one env var of its own: `MIRROR_BASE_URL`. Without it every route
 falls back to GitHub-only behaviour, which is what local dev and previews get.

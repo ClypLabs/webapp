@@ -1,0 +1,61 @@
+name: Sync release mirror
+
+# Keeps the R2 mirror on the current release without anyone remembering to run
+# anything. The sync script is a no-op when the mirror already has the latest
+# tag, so running this on a schedule costs one API call most of the time.
+#
+# The schedule is the point: a release-triggered run alone would leave the
+# mirror permanently stale if that one run failed. This notices within 6 hours
+# either way.
+#
+# It is deliberately not the only path. `pnpm mirror:push` from a laptop does
+# the same job, because this workflow dies with the GitHub account - which is
+# the failure the mirror exists to survive.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-upload even if the mirror already has this tag"
+        type: boolean
+        default: false
+  # Let the app repo kick this off the moment a release is published:
+  #   gh api repos/ClypDat/webapp/dispatches -f event_type=release-published
+  repository_dispatch:
+    types: [release-published]
+
+concurrency:
+  group: mirror-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Push release to mirror
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          MIRROR_BASE_URL: ${{ vars.MIRROR_BASE_URL }}
+          SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          # A PAT with read access to ClypDat/ClypDat. The built-in GITHUB_TOKEN
+          # is scoped to this repository only, and the app repo currently 404s
+          # to anonymous callers, so an explicit token is required.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_READ_TOKEN }}
+        run: node scripts/mirror-sync.mjs ${{ inputs.force && '--force' || '' }}

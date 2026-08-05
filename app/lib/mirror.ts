@@ -53,9 +53,12 @@ export async function isGitHubReachable(url: string): Promise<boolean> {
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       cache: "no-store",
     });
-    // 404 means the asset genuinely is not published - that is an answer from a
-    // healthy GitHub, not an outage, so it must not trigger the mirror.
-    reachable = response.ok || response.status === 404;
+    // Only a real hit counts. 404 is deliberately treated as unreachable: a
+    // flagged repository is served as 404 to logged-out users while still
+    // looking public to the owner, which is precisely the case this mirror
+    // exists for. And if the asset is genuinely missing upstream, the mirror is
+    // still the better answer - it has the last release that did exist.
+    reachable = response.ok;
   } catch {
     reachable = false;
   }
