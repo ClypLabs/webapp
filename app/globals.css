@@ -91,8 +91,11 @@ body {
    plastic. Generated inline so it costs no request. */
 .page-grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  opacity: 0.035;
-  mix-blend-mode: overlay;
+  opacity: 0.025;
+  /* No mix-blend-mode. A full-viewport blend layer cannot be composited
+     independently - the GPU has to re-read what is underneath it every frame,
+     which made a static texture cost as much as the animation did. Plain alpha
+     over a dark page looks near enough. */
 }
 
 /* ---------------------------------------------------------------------------
@@ -101,15 +104,21 @@ body {
    Three offset blobs on long, mismatched durations so the loop never lines up
    visibly - a single blob on one duration reads as an obvious repeat within a
    few seconds.
+
+   Translate and opacity only. These used to scale as well, which is what made
+   the page expensive: a scaling layer cannot be reused between frames, so the
+   GPU redrew every blob from scratch sixty times a second. Moving and fading a
+   layer it already has costs nothing by comparison, and at these sizes and
+   durations the drift reads the same.
    --------------------------------------------------------------------------- */
 @keyframes drift-a {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
     opacity: 0.55;
   }
   50% {
-    transform: translate3d(6%, 4%, 0) scale(1.15);
+    transform: translate3d(6%, 4%, 0);
     opacity: 0.8;
   }
 }
@@ -117,11 +126,11 @@ body {
 @keyframes drift-b {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1.1);
+    transform: translate3d(0, 0, 0);
     opacity: 0.45;
   }
   50% {
-    transform: translate3d(-8%, 5%, 0) scale(0.92);
+    transform: translate3d(-8%, 5%, 0);
     opacity: 0.7;
   }
 }
@@ -129,11 +138,11 @@ body {
 @keyframes drift-c {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(0.95);
+    transform: translate3d(0, 0, 0);
     opacity: 0.3;
   }
   50% {
-    transform: translate3d(5%, -6%, 0) scale(1.2);
+    transform: translate3d(5%, -6%, 0);
     opacity: 0.55;
   }
 }
@@ -445,18 +454,16 @@ body {
 /* ---------------------------------------------------------------------------
    Phone performance
 
-   The expensive things on this page are not the scripts, they are the paints:
-   four 600-900px blobs each carrying a 150px+ blur, animated forever, plus a
-   full-viewport blend layer over the top. A desktop GPU shrugs at that; a phone
-   re-rasterises an enormous blurred surface every frame and the whole page
-   feels sticky.
-   --------------------------------------------------------------------------- */
+   The expensive things on this page are not the scripts, they are the paints.
+   The blobs no longer carry a blur filter at all - they are gradients now, and
+   they only translate and fade - so the desktop cost is largely gone. A phone
+   still gets fewer of them and no motion, because the cheapest layer is the one
+   that never has to be composited again. */
 @media (max-width: 767px) {
   /* Half the blobs, and the survivors stop moving. The wash is still there -
      it just is not being recomputed 60 times a second. */
   .ambience-blob {
     animation: none;
-    filter: blur(90px);
   }
 
   .ambience-extra {

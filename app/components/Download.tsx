@@ -36,7 +36,7 @@ export default function Download() {
         aria-hidden
         className="pointer-events-none absolute inset-x-0 -bottom-40 -z-10 flex justify-center"
       >
-        <div className="animate-drift-a h-[380px] w-[620px] rounded-full bg-emerald-500/15 blur-[130px]" />
+        <div className="animate-drift-a h-[640px] w-[880px] bg-[radial-gradient(closest-side,rgba(16,185,129,0.18),transparent)]" />
       </div>
 
       <div className="mx-auto max-w-3xl">

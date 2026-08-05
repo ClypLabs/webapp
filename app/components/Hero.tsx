@@ -26,9 +26,13 @@ export default function Hero() {
         className="pointer-events-none absolute inset-x-0 -top-56 -z-10 flex justify-center"
       >
         <div className="relative h-[620px] w-full max-w-5xl">
-          <div className="animate-drift-a absolute left-1/2 top-0 h-[440px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/25 blur-[130px]" />
-          <div className="animate-drift-b absolute left-[18%] top-24 h-[360px] w-[460px] rounded-full bg-teal-400/20 blur-[120px]" />
-          <div className="animate-drift-c absolute right-[14%] top-10 h-[380px] w-[420px] rounded-full bg-cyan-500/15 blur-[120px]" />
+          {/* Gradients rather than blurred circles, for the same reason as the
+              page-wide ambience: an animated blur is re-rasterised every frame.
+              Centred with a calc offset instead of -translate-x-1/2, because the
+              drift keyframes set transform outright and were overriding it. */}
+          <div className="animate-drift-a absolute left-[calc(50%-470px)] top-[-130px] h-[700px] w-[940px] bg-[radial-gradient(closest-side,rgba(16,185,129,0.30),transparent)]" />
+          <div className="animate-drift-b absolute left-[6%] top-0 h-[600px] w-[700px] bg-[radial-gradient(closest-side,rgba(45,212,191,0.24),transparent)]" />
+          <div className="animate-drift-c absolute right-[2%] top-[-40px] h-[620px] w-[660px] bg-[radial-gradient(closest-side,rgba(6,182,212,0.18),transparent)]" />
         </div>
       </div>
 

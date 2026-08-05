@@ -12,14 +12,19 @@ export default function Ambience() {
       aria-hidden
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
     >
+      {/* Radial gradients, not blurred circles. A 160px blur on a 900px box has
+          to be re-rasterised by the GPU on every frame it changes - and these
+          are fixed, so they never leave the viewport. The gradient paints the
+          same falloff once and then costs nothing to move. The boxes are larger
+          than the old ones because a blur spread well past its element. */}
       {/* Top-left wash, warm side of the accent. */}
-      <div className="ambience-blob animate-drift-a absolute -left-[10%] top-[-15%] h-[720px] w-[900px] rounded-full bg-emerald-500/[0.10] blur-[160px]" />
+      <div className="ambience-blob animate-drift-a absolute -left-[14%] top-[-22%] h-[1040px] w-[1220px] bg-[radial-gradient(closest-side,rgba(16,185,129,0.13),transparent)]" />
       {/* Counterweight on the right, cooler, so the page is not lit evenly. */}
-      <div className="ambience-blob animate-drift-b absolute -right-[15%] top-[25%] h-[640px] w-[820px] rounded-full bg-teal-400/[0.07] blur-[170px]" />
+      <div className="ambience-blob animate-drift-b absolute -right-[20%] top-[18%] h-[980px] w-[1160px] bg-[radial-gradient(closest-side,rgba(45,212,191,0.09),transparent)]" />
       {/* Low and centred, to keep the lower half of the page from going flat. */}
-      <div className="ambience-blob ambience-extra animate-drift-c absolute bottom-[-10%] left-[20%] h-[600px] w-[860px] rounded-full bg-cyan-500/[0.06] blur-[170px]" />
+      <div className="ambience-blob ambience-extra animate-drift-c absolute bottom-[-18%] left-[14%] h-[940px] w-[1200px] bg-[radial-gradient(closest-side,rgba(6,182,212,0.08),transparent)]" />
       {/* Faint fourth on its own timing, so no pair of blobs ever lines up. */}
-      <div className="ambience-blob ambience-extra animate-drift-b absolute left-[35%] top-[55%] h-[520px] w-[620px] rounded-full bg-emerald-400/[0.05] blur-[150px] [animation-duration:41s]" />
+      <div className="ambience-blob ambience-extra animate-drift-b absolute left-[30%] top-[48%] h-[820px] w-[920px] bg-[radial-gradient(closest-side,rgba(52,211,153,0.07),transparent)] [animation-duration:41s]" />
 
       {/* Grain. Breaks up the banding that large soft gradients produce on
           8-bit displays, and takes the plastic sheen off the flat areas. */}
