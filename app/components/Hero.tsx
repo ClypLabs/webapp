@@ -1,5 +1,4 @@
-import Image from "next/image";
-import appPreview from "@/public/screenshots/app-preview.webp";
+import AutoVideo from "./AutoVideo";
 import Reveal, { RevealWords } from "./Reveal";
 import { DOWNLOAD_URL, GITHUB_URL } from "./Header";
 
@@ -116,16 +115,14 @@ export default function Hero() {
 
       <Reveal delay={720} className="relative mx-auto mt-20 max-w-5xl">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
-          {/* Static import, so Next knows the dimensions at build time and
-              generates the blur placeholder itself - no layout shift, and
-              something on screen before the full image arrives. priority
-              because this is the LCP element. */}
-          <Image
-            src={appPreview}
-            alt="The ClypDat library, showing captured clips grouped by day"
-            placeholder="blur"
-            priority
-            sizes="(min-width: 1280px) 1024px, 100vw"
+          {/* A real recording of the app, not a mockup. The poster carries the
+              first frame so the box is never empty, and the file itself is not
+              fetched until the observer decides to play it. */}
+          <AutoVideo
+            base="/media/library"
+            label="The ClypDat library, scrolling through captured clips grouped by day"
+            width={1280}
+            height={938}
             className="w-full"
           />
           <div
