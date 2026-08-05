@@ -340,10 +340,8 @@ export default function Features() {
                   }}
                   onClick={() => setActive(index)}
                   aria-pressed={isActive}
-                  className={`rounded-xl border px-5 py-5 text-left transition-all duration-500 ${
-                    isActive
-                      ? "border-white/10 bg-white/[0.05]"
-                      : "border-transparent hover:bg-white/[0.02]"
+                  className={`rounded-2xl px-5 py-4 text-left transition-all duration-500 ${
+                    isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.02]"
                   }`}
                 >
                   <h3
@@ -385,12 +383,24 @@ export default function Features() {
               past it. On mobile it sits above the list and does not stick -
               a pinned panel would eat most of a phone screen. */}
           <div className="order-first lg:order-none lg:sticky lg:top-28 lg:self-start">
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-sm sm:p-8">
+            {/* A short stack of cards rather than a single flat panel - the
+                layers behind are inert, and only exist to give the front one
+                somewhere to sit. */}
+            <div className="relative">
+              <div
+                aria-hidden
+                className="absolute inset-x-8 -top-4 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]"
+              />
+              <div
+                aria-hidden
+                className="absolute inset-x-4 -top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]"
+              />
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
               {/* Every panel is absolutely positioned, including the active
                   one. Leaving the active panel in flow while the others were
                   absolute meant that during a crossfade the outgoing panel was
                   laid over live text - two diagrams legible at once. */}
-              <div className="relative min-h-[300px]">
+                <div className="relative min-h-[300px]">
                 {features.map((feature, index) => (
                   <div
                     key={feature.id}
@@ -404,6 +414,7 @@ export default function Features() {
                     <FeatureVisual id={feature.id} />
                   </div>
                 ))}
+                </div>
               </div>
             </div>
 
