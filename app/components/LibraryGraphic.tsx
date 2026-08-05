@@ -87,12 +87,8 @@ const clips: Clip[] = [
   },
 ];
 
-const COLUMNS = 3;
-
-const rows = Array.from(
-  { length: Math.ceil(clips.length / COLUMNS) },
-  (_, i) => clips.slice(i * COLUMNS, i * COLUMNS + COLUMNS),
-);
+// Nine clips divides evenly by both column counts used below (1 on mobile,
+// 3 from sm up), so no row is ever left part-empty at either size.
 
 function ShareIcon() {
   return (
@@ -110,7 +106,13 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
           src={`/media/thumbs/${clip.thumb}.webp`}
           alt=""
           fill
-          sizes="320px"
+          // One card fills most of a phone; three share the width from sm up.
+          sizes="(min-width: 640px) 380px, 92vw"
+          // These are already WebP at exactly the size they are shown at.
+          // Letting the optimizer touch them re-encodes an encoded image at
+          // q75 - visibly soft - and generates upscaled 1080w/3840w variants
+          // that carry no extra detail, because the source has none to give.
+          unoptimized
           // The first row is on screen immediately; the rest sit below the fold
           // of the scroll window and can wait.
           loading={eager ? "eager" : "lazy"}
@@ -128,7 +130,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6-3.5 2-1-1.7 2.5-1.5V6h2v6.6Z" />
             </svg>
             {clip.age}
-            <span className="text-zinc-700">
+            <span className="hidden text-zinc-700 sm:inline">
               Captured with: {clip.backend ?? "ClypDat"}
             </span>
           </p>
@@ -144,34 +146,20 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
 // `copy` only exists so the duplicated track does not emit duplicate React keys.
 function Track({ copy }: { copy: number }) {
   return (
-    <>
-      {rows.map((row, rowIndex) => (
-        <div key={`${copy}-${rowIndex}`}>
-          {/* Header strip. Same column template as the cards, so a day label
-              sits directly over the clip that starts that day and the cards
-              below it stay aligned across the row. */}
-          <div className="grid grid-cols-3 gap-3.5">
-            {row.map((clip) => (
-              <p
-                key={`${copy}-h-${clip.thumb}`}
-                className="h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500"
-              >
-                {clip.dayLabel ?? " "}
-              </p>
-            ))}
-          </div>
-          <div className="mt-1.5 mb-4 grid grid-cols-3 gap-3.5">
-            {row.map((clip) => (
-              <ClipCard
-                key={`${copy}-${clip.thumb}`}
-                clip={clip}
-                eager={copy === 0 && rowIndex === 0}
-              />
-            ))}
-          </div>
+    <div className="grid grid-cols-1 gap-x-3.5 gap-y-4 sm:grid-cols-3">
+      {clips.map((clip, index) => (
+        <div key={`${copy}-${clip.thumb}`}>
+          {/* Every cell reserves the same label height whether or not it has a
+              label. That is what keeps rows aligned, and it does so at any
+              column count - the previous full-width header strip had to assume
+              three columns, which is exactly what broke on a phone. */}
+          <p className="mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+            {clip.dayLabel ?? " "}
+          </p>
+          <ClipCard clip={clip} eager={copy === 0 && index < 3} />
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -194,8 +182,8 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
         <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
           Clip
         </span>
-        <span className="text-[12px] text-zinc-500">Alt+V</span>
-        <span className="text-[12px] text-zinc-600">No game detected</span>
+        <span className="hidden text-[12px] text-zinc-500 sm:inline">Alt+V</span>
+        <span className="hidden text-[12px] text-zinc-600 md:inline">No game detected</span>
         <span className="ml-auto flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <span key={i} className="h-2 w-2 rounded-full bg-white/15" />
@@ -205,7 +193,7 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
 
       <div className="flex">
         {/* Icon rail */}
-        <div className="flex w-12 shrink-0 flex-col items-center gap-4 border-r border-white/[0.06] py-3">
+        <div className="hidden w-12 shrink-0 flex-col items-center gap-4 border-r border-white/[0.06] py-3 sm:flex">
           <span className="h-7 w-7 rounded-lg bg-emerald-400/20 ring-1 ring-emerald-400/40" />
           {[0, 1, 2, 3].map((i) => (
             <span key={i} className="h-5 w-5 rounded-md bg-white/[0.07]" />
@@ -216,14 +204,14 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between px-4 py-3.5">
             <p className="text-[14px] font-semibold text-zinc-200">Clips (57)</p>
-            <span className="rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600">
+            <span className="hidden rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600 sm:inline">
               Search clips or games
             </span>
           </div>
 
           {/* The scroll viewport. Two identical tracks stacked and translated by
               exactly half the height, so the loop has no seam. */}
-          <div className="relative h-[420px] overflow-hidden px-4 sm:h-[560px]">
+          <div className="relative h-[360px] overflow-hidden px-3 sm:h-[560px] sm:px-4">
             <div className="animate-library-scroll">
               <Track copy={0} />
               <Track copy={1} />

@@ -188,6 +188,15 @@ body {
   will-change: transform;
 }
 
+/* The track is one card wide on a phone, so it is roughly three times taller
+   for the same nine clips. The animation moves a fixed percentage either way,
+   so without this the phone would scroll about three times faster. */
+@media (max-width: 639px) {
+  .animate-library-scroll {
+    animation-duration: 110s;
+  }
+}
+
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
