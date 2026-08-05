@@ -50,7 +50,7 @@ export default function Download() {
           {downloads.map((item) => (
             <a
               key={item.file}
-              href={`${RELEASES_URL}/download/${item.file}`}
+              href={`/download/${item.file}`}
               className="group flex flex-col items-start rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-400/40 hover:bg-white/[0.05] motion-reduce:hover:translate-y-0"
             >
               <span className="text-sm font-semibold text-zinc-100 transition-colors group-hover:text-emerald-300">
