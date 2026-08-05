@@ -168,6 +168,24 @@ body {
   animation: sheen 7s ease-in-out 1.2s infinite both;
 }
 
+/* The clip grid in the hero graphic. The track holds two identical copies of
+   the column, so translating by exactly half its height lands on a frame
+   identical to the start - the loop has no visible seam. Linear, because any
+   easing would show up as a pause at the wrap point. */
+@keyframes library-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+.animate-library-scroll {
+  animation: library-scroll 38s linear infinite;
+  will-change: transform;
+}
+
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
@@ -193,7 +211,8 @@ body {
   .animate-drift-b,
   .animate-drift-c,
   .animate-sheen,
-  .animate-pulse-soft {
+  .animate-pulse-soft,
+  .animate-library-scroll {
     animation: none;
   }
 

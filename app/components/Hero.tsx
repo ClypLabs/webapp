@@ -1,4 +1,4 @@
-import AutoVideo from "./AutoVideo";
+import LibraryGraphic from "./LibraryGraphic";
 import Reveal, { RevealWords } from "./Reveal";
 import { DOWNLOAD_URL, GITHUB_URL } from "./Header";
 
@@ -115,16 +115,7 @@ export default function Hero() {
 
       <Reveal delay={720} className="relative mx-auto mt-20 max-w-5xl">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
-          {/* A real recording of the app, not a mockup. The poster carries the
-              first frame so the box is never empty, and the file itself is not
-              fetched until the observer decides to play it. */}
-          <AutoVideo
-            base="/media/library"
-            label="The ClypDat library, scrolling through captured clips grouped by day"
-            width={1280}
-            height={938}
-            className="w-full"
-          />
+          <LibraryGraphic className="w-full" />
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 overflow-hidden"
