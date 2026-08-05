@@ -115,7 +115,16 @@ export default function Hero() {
       </div>
 
       <Reveal delay={720} className="relative mx-auto mt-20 max-w-6xl">
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
+        {/* The radius is a fixed number of pixels but the graphic inside is
+            scaled to fit, so a 16px corner reads four times rounder on a phone
+            than on a desktop. Step it down with the width. */}
+        {/* No border or tint on a phone. Both are lighter than the page, so the
+            card's own edge stayed visible through the fade even after the
+            content underneath it had dissolved. */}
+        {/* Bottom corners stay round on a phone. The fade hides the content
+            down there but not the shape, so square corners read as the window
+            being cut off rather than fading out. */}
+        <div className="relative overflow-hidden rounded-t-md rounded-b-xl shadow-2xl shadow-black/50 sm:rounded-2xl sm:border sm:border-white/10 sm:bg-white/[0.03]">
           {/* Scaled rather than restacked, so a phone shows the same three
               column library the app actually has. The design width matches the
               max-w-6xl wrapper, so at desktop it renders 1:1 and fills the card
@@ -132,10 +141,11 @@ export default function Hero() {
         </div>
 
         {/* Fades the screenshot into the page instead of ending it on a hard
-            edge, so the next section reads as continuing rather than starting. */}
+            edge, so the next section reads as continuing rather than starting.
+            Just the bottom edge - the graphic itself should stay visible. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -bottom-px h-32 bg-gradient-to-b from-transparent to-background"
+          className="pointer-events-none absolute inset-x-0 -bottom-px h-16 bg-gradient-to-b from-transparent to-background sm:h-32"
         />
       </Reveal>
     </section>

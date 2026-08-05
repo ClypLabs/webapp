@@ -36,7 +36,9 @@ export default function Editor() {
         {/* Full width, like the hero. Half a column was never enough room for a
             window with a timeline in it. */}
         <Reveal delay={120} className="mt-12">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
+          {/* Same reasoning as the hero card: the corner radius does not scale
+              with the graphic, so it has to step down with the viewport. */}
+          <div className="overflow-hidden rounded-md border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50 sm:rounded-2xl">
             <ScaleToFit designWidth={1152}>
               <EditorGraphic />
             </ScaleToFit>

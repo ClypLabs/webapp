@@ -228,13 +228,10 @@ export default function EditorGraphic({ className = "" }: { className?: string }
         {/* Icon rail, same construction as the library window - only the lit
             tile differs, because this is the editor rather than the grid. */}
         <div className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] bg-black/20 py-3">
-          <span className="text-zinc-500">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40">
             <RailIcon name="grid" />
           </span>
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40">
-            <RailIcon name="pencil" />
-          </span>
-          {(["bolt", "clapper", "download"] as const).map((name) => (
+          {(["pencil", "bolt", "clapper", "download"] as const).map((name) => (
             <span key={name} className="text-zinc-500">
               <RailIcon name={name} />
             </span>
