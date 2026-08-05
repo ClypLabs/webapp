@@ -156,9 +156,10 @@ export default function EditorGraphic({ className = "" }: { className?: string }
     const tick = () => {
       const duration = video.duration || EXCERPT_SECONDS;
       const progress = Math.min(1, video.currentTime / duration);
-      const percent = `${progress * 100}%`;
 
-      if (playheadRef.current) playheadRef.current.style.left = percent;
+      if (playheadRef.current) {
+        playheadRef.current.style.transform = `translateX(${progress * 100}%)`;
+      }
 
       const label = formatTime(video.currentTime);
       if (clockRef.current && label !== lastLabel) {
@@ -446,11 +447,18 @@ export default function EditorGraphic({ className = "" }: { className?: string }
               aria-hidden
               className="pointer-events-none absolute inset-y-2 left-[112px] right-3 overflow-hidden"
             >
+              {/* The carrier is the full width of the track area so a percentage
+                  translate is a percentage of the timeline. Moving this with
+                  `left` re-ran layout and repainted all three waveforms - nearly
+                  three hundred elements - on every frame. A transform is handled
+                  by the compositor and touches nothing else. */}
               <div
                 ref={playheadRef}
-                className="absolute inset-y-0 left-0 w-px bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                className="absolute inset-y-0 left-0 w-full will-change-transform"
               >
-                <span className="absolute -top-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 bg-white" />
+                <div className="absolute inset-y-0 left-0 w-px bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.5)]">
+                  <span className="absolute -top-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 bg-white" />
+                </div>
               </div>
             </div>
           </div>
