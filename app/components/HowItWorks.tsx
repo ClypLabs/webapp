@@ -1,3 +1,5 @@
+import Reveal, { RevealWords } from "./Reveal";
+
 const steps = [
   {
     step: "01",
@@ -18,45 +20,63 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="relative border-t border-white/10 px-6 py-24">
+    <section className="relative px-6 py-32 sm:py-40">
       <div className="mx-auto max-w-6xl">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            Recording after the fact.
+        <div className="mx-auto max-w-3xl text-center">
+          <Reveal
+            as="p"
+            className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
+          >
+            How it works
+          </Reveal>
+          <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
+            <RevealWords text="Recording" />{" "}
+            <RevealWords text="after the fact." wordClassName="text-accent" />
           </h2>
-          <p className="mt-4 text-zinc-400 text-balance">
+          <Reveal
+            delay={260}
+            as="p"
+            className="mx-auto mt-6 max-w-xl text-lg text-zinc-400 text-balance"
+          >
             Every other capture tool asks you to decide before the good thing
             happens. A replay buffer doesn&apos;t.
-          </p>
+          </Reveal>
         </div>
 
-        <div className="relative mt-16 grid gap-6 md:grid-cols-3">
-          {/* Hairline connecting the three steps. Decorative, desktop only -
-              on stacked mobile there is no line to draw between them. */}
+        <div className="relative mt-20 grid gap-12 md:mt-24 md:grid-cols-3 md:gap-8">
+          {/* Hairline connecting the three steps. Decorative, desktop only - on
+              stacked mobile there is no line to draw between them. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-9 hidden h-px bg-gradient-to-r from-transparent via-white/15 to-transparent md:block"
+            className="pointer-events-none absolute inset-x-0 top-10 hidden h-px bg-gradient-to-r from-transparent via-white/15 to-transparent md:block"
           />
 
-          {steps.map((item) => (
-            <div key={item.step} className="relative">
-              <div className="flex h-[72px] items-center justify-center">
-                <span className="relative flex h-[72px] w-[72px] items-center justify-center rounded-full border border-white/10 bg-background text-lg font-semibold text-emerald-300">
+          {steps.map((item, index) => (
+            <Reveal
+              key={item.step}
+              delay={index * 130}
+              className="group relative text-center"
+            >
+              <div className="flex h-20 items-center justify-center">
+                <span className="relative flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-background font-display text-2xl text-emerald-300 transition-colors duration-500 group-hover:border-emerald-400/40">
+                  {/* Halo, so the marker sits on the hairline rather than being
+                      crossed by it. */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 -z-10 rounded-full bg-emerald-500/10 blur-xl transition-opacity duration-500 group-hover:opacity-100 md:opacity-0"
+                  />
                   {item.step}
                 </span>
               </div>
-              <div className="mt-5 text-center">
-                <h3 className="text-base font-semibold text-zinc-100">
-                  {item.title}
-                </h3>
-                <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-400">
-                  {item.body}
-                </p>
-              </div>
-            </div>
+              <h3 className="mt-6 text-lg font-semibold text-zinc-100">
+                {item.title}
+              </h3>
+              <p className="mx-auto mt-3 max-w-xs text-sm leading-7 text-zinc-400">
+                {item.body}
+              </p>
+            </Reveal>
           ))}
         </div>
-
       </div>
     </section>
   );

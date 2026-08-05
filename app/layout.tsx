@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
@@ -10,6 +10,15 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Display face for headlines only - body copy stays on Geist. A grotesque with
+// some actual character in its shapes, rather than a serif: a serif at this
+// size is the reference site's signature, and borrowing it would read as a
+// copy rather than as a page of our own.
+const displayFont = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
@@ -49,8 +58,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
+      <head>
+        {/* Reveal-on-scroll starts elements hidden and a client observer brings
+            them in. Without JS that observer never runs, so the page would be
+            blank - this makes the hidden state conditional on JS existing. */}
+        <noscript>
+          <style
+            dangerouslySetInnerHTML={{
+              __html:
+                "[data-reveal]{opacity:1 !important;transform:none !important}",
+            }}
+          />
+        </noscript>
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <SpeedInsights />

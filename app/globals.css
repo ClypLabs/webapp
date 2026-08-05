@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0f14;
-  --foreground: #e8edf3;
+  /* Warmed very slightly off pure blue-black. The old #0b0f14 was cold enough
+     that the emerald read as clinical; a trace of warmth in the base lets the
+     accent stay the only saturated thing on the page. */
+  --background: #0a0d11;
+  --foreground: #e9eef4;
+
+  /* Headline colour. Deliberately not #fff - full white against a dark
+     background haloes at display sizes, especially on a serif. */
+  --display: #f4f7fa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-display: var(--display);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* The header is sticky, so anchor targets would otherwise land underneath it. */
+  scroll-padding-top: 5rem;
 }
 
 body {
@@ -17,9 +32,66 @@ body {
   color: var(--foreground);
 }
 
-/* Ambient hero glow. Three offset blobs on long, mismatched durations so the
-   loop never lines up visibly - a single blob on one duration reads as an
-   obvious repeat within a few seconds. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* The accent phrase in each headline. A gradient fill rather than an italic,
+   which keeps the emphasis without borrowing another site's device. Each word
+   carries its own ramp; at these sizes the seam between words is not visible. */
+.text-accent {
+  background-image: linear-gradient(100deg, #6ee7b7, #34d399 55%, #2dd4bf);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Scroll reveal
+
+   State lives in a data attribute rather than a class so the initial (hidden)
+   state is expressible in static HTML, and RevealProvider only ever flips the
+   value. Transition, not animation: an interrupted transition settles where it
+   is, while an interrupted animation snaps back to its first keyframe.
+   --------------------------------------------------------------------------- */
+[data-reveal] {
+  transition:
+    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Words rise further and start blurred - at display sizes a 18px lift is
+   imperceptible, and the blur is what makes the line read as settling rather
+   than sliding. */
+.reveal-word[data-reveal="hidden"] {
+  transform: translate3d(0, 100%, 0);
+  filter: blur(6px);
+}
+
+.reveal-word[data-reveal="shown"] {
+  filter: blur(0);
+}
+
+/* ---------------------------------------------------------------------------
+   Ambient background
+
+   Three offset blobs on long, mismatched durations so the loop never lines up
+   visibly - a single blob on one duration reads as an obvious repeat within a
+   few seconds.
+   --------------------------------------------------------------------------- */
 @keyframes drift-a {
   0%,
   100% {
@@ -96,29 +168,42 @@ body {
   animation: sheen 7s ease-in-out 1.2s infinite both;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+/* The recording dot in the hero badge and the step markers - a slow breath
+   rather than a blink, because it represents something continuously running. */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  50% {
+    opacity: 0.9;
+    transform: scale(1.6);
   }
 }
 
-.animate-rise {
-  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+.animate-pulse-soft {
+  animation: pulse-soft 2.6s ease-in-out infinite;
 }
 
-/* Anything above is decoration. Honour the OS setting and drop all of it -
-   the layout does not depend on any of these having run. */
+/* Anything above is decoration. Honour the OS setting and drop all of it - the
+   layout does not depend on any of these having run. */
 @media (prefers-reduced-motion: reduce) {
   .animate-drift-a,
   .animate-drift-b,
   .animate-drift-c,
   .animate-sheen,
-  .animate-rise {
+  .animate-pulse-soft {
     animation: none;
+  }
+
+  [data-reveal] {
+    transition: none;
+  }
+
+  [data-reveal="hidden"] {
+    opacity: 1;
+    transform: none;
+    filter: none;
   }
 }

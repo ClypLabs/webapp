@@ -5,10 +5,13 @@ import Features from "./components/Features";
 import Editor from "./components/Editor";
 import Download from "./components/Download";
 import Footer from "./components/Footer";
+import { RevealProvider } from "./components/Reveal";
 
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
+      {/* One observer drives every reveal on the page - see Reveal.tsx. */}
+      <RevealProvider />
       <Header />
       <main className="flex-1">
         <Hero />
