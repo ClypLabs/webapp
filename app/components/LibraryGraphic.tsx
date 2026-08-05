@@ -177,7 +177,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
           alt=""
           fill
           // One card fills most of a phone; three share the width from sm up.
-          sizes="(min-width: 640px) 380px, 92vw"
+          sizes="380px"
           // These are already WebP at exactly the size they are shown at.
           // Letting the optimizer touch them re-encodes an encoded image at
           // q75 - visibly soft - and generates upscaled 1080w/3840w variants
@@ -202,7 +202,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6-3.5 2-1-1.7 2.5-1.5V6h2v6.6Z" />
             </svg>
             {clip.age}
-            <span className="hidden text-zinc-500 sm:inline">
+            <span className="text-zinc-500">
               Captured with: {clip.backend ?? "ClypDat"}
             </span>
           </p>
@@ -218,7 +218,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
 // `copy` only exists so the duplicated track does not emit duplicate React keys.
 function Track({ copy }: { copy: number }) {
   return (
-    <div className="grid grid-cols-1 gap-x-3.5 gap-y-3 pb-3 sm:grid-cols-3 sm:gap-y-4 sm:pb-4">
+    <div className="grid grid-cols-3 gap-x-3.5 gap-y-4 pb-4">
       {clips.map((clip, index) => (
         <div key={`${copy}-${clip.thumb}`}>
           {/* Every cell reserves the same label height whether or not it has a
@@ -229,9 +229,7 @@ function Track({ copy }: { copy: number }) {
               column there is nothing to align to, so an empty label is just a
               gap. Collapse it on mobile, keep it from sm up. */}
           <p
-            className={`mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500 ${
-              clip.dayLabel ? "" : "hidden sm:block"
-            }`}
+            className="mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500"
           >
             {clip.dayLabel ?? " "}
           </p>
@@ -259,7 +257,7 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
           <Image src="/icon.png" alt="" width={20} height={20} unoptimized />
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5">
-          <span className="hidden items-center gap-1.5 text-zinc-500 md:flex">
+          <span className="flex items-center gap-1.5 text-zinc-500">
             <RailIcon name="back" />
             <RailIcon name="forward" />
             <RailIcon name="refresh" />
@@ -271,8 +269,8 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
           <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
             Clip
           </span>
-          <span className="hidden text-[12px] text-zinc-500 sm:inline">Alt+V</span>
-          <span className="hidden text-[12px] text-zinc-600 md:inline">No game detected</span>
+          <span className="text-[12px] text-zinc-500">Alt+V</span>
+          <span className="text-[12px] text-zinc-600">No game detected</span>
           <span className="ml-auto flex gap-1.5">
             {[0, 1, 2].map((i) => (
               <span key={i} className="h-2 w-2 rounded-full bg-white/15" />
@@ -283,7 +281,7 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
 
       <div className="flex">
         {/* Icon rail */}
-        <div className="hidden w-12 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] bg-black/20 py-3 sm:flex">
+        <div className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] bg-black/20 py-3">
           {/* All clips, selected - the one lit tile in the rail. */}
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40">
             <RailIcon name="grid" />
@@ -319,14 +317,14 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between px-4 py-3.5">
             <p className="text-[14px] font-semibold text-zinc-200">Clips (57)</p>
-            <span className="hidden rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600 sm:inline">
+            <span className="rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600">
               Search clips or games
             </span>
           </div>
 
           {/* The scroll viewport. Two identical tracks stacked and translated by
               exactly half the height, so the loop has no seam. */}
-          <div className="relative h-[360px] overflow-hidden px-3 sm:h-[560px] sm:px-4">
+          <div className="relative h-[560px] overflow-hidden px-4">
             <div className="animate-library-scroll">
               <Track copy={0} />
               <Track copy={1} />

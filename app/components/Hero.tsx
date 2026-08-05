@@ -1,4 +1,5 @@
 import LibraryGraphic from "./LibraryGraphic";
+import ScaleToFit from "./ScaleToFit";
 import Reveal, { RevealWords } from "./Reveal";
 import { DOWNLOAD_URL, GITHUB_URL } from "./Header";
 
@@ -115,7 +116,13 @@ export default function Hero() {
 
       <Reveal delay={720} className="relative mx-auto mt-20 max-w-6xl">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50">
-          <LibraryGraphic className="w-full" />
+          {/* Scaled rather than restacked, so a phone shows the same three
+              column library the app actually has. The design width matches the
+              max-w-6xl wrapper, so at desktop it renders 1:1 and fills the card
+              exactly - anything narrower left a gap down the right-hand side. */}
+          <ScaleToFit designWidth={1152}>
+            <LibraryGraphic className="w-full" />
+          </ScaleToFit>
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 overflow-hidden"

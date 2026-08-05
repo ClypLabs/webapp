@@ -261,15 +261,6 @@ export default function Features() {
 
   return (
     <section id="features" className="relative overflow-hidden px-6 py-32 sm:py-40">
-      {/* Faint wash so the section reads as its own space without a hard rule
-          across the page. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/4 -z-10 flex justify-center"
-      >
-        <div className="animate-drift-b h-[420px] w-[720px] rounded-full bg-emerald-500/[0.07] blur-[140px]" />
-      </div>
-
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
           <Reveal
