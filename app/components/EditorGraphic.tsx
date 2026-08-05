@@ -284,6 +284,11 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                   width={1280}
                   height={720}
                   aria-hidden
+                  // Promoted to its own compositing layer. Without this the
+                  // video paints into the scaled panel, so every decoded frame
+                  // marks the filmstrip, the waveforms and the whole window
+                  // dirty and re-rasterises the lot sixty times a second.
+                  style={{ willChange: "transform" }}
                   className={`h-full w-full object-contain ${fade}`}
                 />
               </div>

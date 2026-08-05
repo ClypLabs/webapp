@@ -387,7 +387,10 @@ export default function Features() {
                 aria-hidden
                 className="absolute inset-x-4 -top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]"
               />
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
+              {/* No backdrop-blur. There is nothing behind this panel but a
+                  soft gradient wash, so the blur cost a full backdrop read per
+                  frame to soften something already soft. */}
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
                 <div className="relative min-h-[300px]">
                   {features.map((feature, index) => (
                     <div
