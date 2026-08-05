@@ -23,12 +23,6 @@ const features: Feature[] = [
       "GPU-side downscaling and NVENC encoding, falling back to AMD AMF and then software libx264 - it isn't NVIDIA-only, and it isn't going to tank your frame rate.",
   },
   {
-    id: "cs2",
-    title: "CS2 auto-clipping",
-    description:
-      "Listens to CS2's own Game State Integration feed - no screen or voice analysis - and saves a clip on kills, headshots, or multi-kills automatically. (Experimental)",
-  },
-  {
     id: "session",
     title: "Full session recording",
     description:
@@ -40,11 +34,21 @@ const features: Feature[] = [
     description:
       "Foreground-window scanning against a catalog of known games and your installed Steam library, updated from GitHub. Clips are named after the game automatically.",
   },
+];
+
+// Real features, but ones that do not need a diagram to land. Keeping them as a
+// short row under the list means the section is four panels deep instead of six
+// without quietly dropping two things the app does.
+const alsoDoes = [
   {
-    id: "medal",
+    title: "CS2 auto-clipping",
+    description:
+      "Listens to CS2's own Game State Integration feed - no screen or voice analysis - and saves a clip on kills, headshots or multi-kills. (Experimental)",
+  },
+  {
     title: "Import from Medal",
     description:
-      "Scans Medal's local database (or its clips folder, as a fallback) and copies your existing clips straight into your ClypDat library with the original titles intact.",
+      "Scans Medal's local database, or its clips folder as a fallback, and copies your existing clips over with their titles intact.",
   },
 ];
 
@@ -77,6 +81,11 @@ function FeatureVisual({ id }: { id: string }) {
             <span className="text-emerald-200">DXGI Desktop Duplication</span>
             <span className="text-xs text-emerald-300/70">OS-level</span>
           </div>
+          {/* Frames arriving, one after another, without anything touching the
+              game process. */}
+          <div className="flex justify-center">
+            <span className="animate-flow-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          </div>
           <div className={row}>
             <span className="text-zinc-300">ClypDat</span>
             <span className="text-xs text-zinc-500">reads frames</span>
@@ -99,7 +108,7 @@ function FeatureVisual({ id }: { id: string }) {
               key={encoder.name}
               className={`${row} ${
                 encoder.active
-                  ? "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
+                  ? "animate-row-glow border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
                   : "text-zinc-400"
               }`}
             >
@@ -118,17 +127,19 @@ function FeatureVisual({ id }: { id: string }) {
         <div className="space-y-3">
           <div className={row}>
             <span className="text-zinc-300">Game State Integration</span>
-            <span className="text-xs text-emerald-300/80">connected</span>
+            <span className="flex items-center gap-1.5 text-xs text-emerald-300/80">
+              <span className="animate-pulse-soft h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              connected
+            </span>
           </div>
           <p className="pt-1 text-xs uppercase tracking-widest text-zinc-600">
             Saves a clip on
           </p>
+          {/* Events arriving on the feed, in turn. */}
           <div className="flex flex-wrap gap-2">
-            {["kill", "headshot", "multi-kill"].map((event) => (
-              <span key={event} className={chip}>
-                {event}
-              </span>
-            ))}
+            <span className={`${chip} animate-chip-1`}>kill</span>
+            <span className={`${chip} animate-chip-2`}>headshot</span>
+            <span className={`${chip} animate-chip-3`}>multi-kill</span>
           </div>
           <p className="pt-1 text-xs text-zinc-500">
             Reads the game&apos;s own event feed. No screen analysis, no audio
@@ -144,8 +155,18 @@ function FeatureVisual({ id }: { id: string }) {
             <p className="mb-2 text-xs uppercase tracking-widest text-zinc-600">
               Rolling buffer
             </p>
+            {/* Frames marching through a fixed window - the oldest fall off the
+                left as new ones arrive. */}
             <div className="relative h-8 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
-              <div className="absolute inset-y-0 right-0 w-1/4 bg-emerald-400/20" />
+              <div className="animate-buffer-shift flex h-full w-[200%] items-center gap-1 px-1">
+                {Array.from({ length: 48 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-4 flex-1 rounded-sm bg-emerald-400/20"
+                  />
+                ))}
+              </div>
+              <div className="absolute inset-y-0 right-0 w-1/4 bg-emerald-400/15" />
               <div className="absolute inset-y-0 right-1/4 w-px bg-emerald-400/40" />
             </div>
             <p className="mt-2 text-xs text-zinc-500">
@@ -156,7 +177,9 @@ function FeatureVisual({ id }: { id: string }) {
             <p className="mb-2 text-xs uppercase tracking-widest text-zinc-600">
               Full session
             </p>
-            <div className="h-8 rounded-lg border border-white/10 bg-gradient-to-r from-emerald-400/10 to-emerald-400/20" />
+            <div className="h-8 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
+              <div className="animate-fill-grow h-full bg-gradient-to-r from-emerald-400/10 to-emerald-400/25" />
+            </div>
             <p className="mt-2 text-xs text-zinc-500">
               Audio resyncs every 60s, so hour six is still in sync.
             </p>
@@ -172,8 +195,12 @@ function FeatureVisual({ id }: { id: string }) {
               foreground window
             </span>
           </div>
-          <div className="flex justify-center py-1 text-zinc-600">&darr;</div>
-          <div className={`${row} border-emerald-400/25 bg-emerald-400/[0.06]`}>
+          <div className="flex justify-center py-1 text-zinc-600">
+            <span className="animate-flow-dot">&darr;</span>
+          </div>
+          <div
+            className={`${row} animate-match-sweep border-emerald-400/25 bg-emerald-400/[0.06]`}
+          >
             <span className="text-emerald-200">Counter-Strike 2</span>
             <span className="text-xs text-emerald-300/70">matched</span>
           </div>
@@ -191,7 +218,10 @@ function FeatureVisual({ id }: { id: string }) {
             <span className="text-zinc-300">Medal database</span>
             <span className="text-xs text-zinc-500">read-only</span>
           </div>
-          <div className="flex justify-center py-1 text-zinc-600">&darr;</div>
+          {/* Clips moving across, one at a time. */}
+          <div className="flex justify-center py-1 text-zinc-600">
+            <span className="animate-flow-dot">&darr;</span>
+          </div>
           <div className={`${row} border-emerald-400/25 bg-emerald-400/[0.06]`}>
             <span className="text-emerald-200">Your ClypDat library</span>
             <span className="text-xs text-emerald-300/70">titles intact</span>
@@ -336,6 +366,19 @@ export default function Features() {
                 </button>
               );
             })}
+            {/* Two more things the app does, without a panel each. */}
+            <div className="mt-6 grid gap-4 border-t border-white/[0.06] pt-6 sm:grid-cols-2">
+              {alsoDoes.map((item) => (
+                <div key={item.title}>
+                  <h3 className="text-sm font-semibold text-zinc-300">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-6 text-zinc-500">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Sticky on desktop so the panel stays put while the list scrolls
@@ -343,16 +386,18 @@ export default function Features() {
               a pinned panel would eat most of a phone screen. */}
           <div className="order-first lg:order-none lg:sticky lg:top-28 lg:self-start">
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-sm sm:p-8">
-              <div className="min-h-[280px]">
+              {/* Every panel is absolutely positioned, including the active
+                  one. Leaving the active panel in flow while the others were
+                  absolute meant that during a crossfade the outgoing panel was
+                  laid over live text - two diagrams legible at once. */}
+              <div className="relative min-h-[300px]">
                 {features.map((feature, index) => (
                   <div
                     key={feature.id}
-                    // Crossfade rather than mount/unmount: swapping the subtree
-                    // would make the panel height jump on every change.
-                    className={`transition-opacity duration-500 ${
+                    className={`absolute inset-0 transition-opacity duration-500 ${
                       index === active
                         ? "opacity-100"
-                        : "pointer-events-none absolute inset-6 opacity-0 sm:inset-8"
+                        : "pointer-events-none opacity-0"
                     }`}
                     aria-hidden={index !== active}
                   >

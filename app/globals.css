@@ -204,6 +204,123 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Feature panel diagrams
+
+   Each panel states something true about the feature, and the motion is there
+   to show the direction that thing flows in - frames down a pipeline, events
+   arriving, a buffer overwriting itself. All of it is transform/opacity only.
+   --------------------------------------------------------------------------- */
+
+/* A frame travelling down a chain of boxes. */
+@keyframes flow-dot {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  12%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-flow-dot {
+  animation: flow-dot 2.2s ease-in-out infinite;
+}
+
+/* The row that is actually in use, breathing. */
+@keyframes row-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+  }
+  50% {
+    box-shadow: 0 0 20px -6px rgb(52 211 153 / 0.5);
+  }
+}
+
+.animate-row-glow {
+  animation: row-glow 3s ease-in-out infinite;
+}
+
+/* Frames continuously entering the rolling buffer and pushing the oldest out. */
+@keyframes buffer-shift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-25%);
+  }
+}
+
+.animate-buffer-shift {
+  animation: buffer-shift 3.5s linear infinite;
+}
+
+/* A session file growing, then starting over. */
+@keyframes fill-grow {
+  0% {
+    width: 8%;
+  }
+  85%,
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-fill-grow {
+  animation: fill-grow 7s ease-in-out infinite;
+}
+
+/* Game events arriving one after another on the GSI feed. */
+@keyframes chip-flash {
+  0%,
+  62%,
+  100% {
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: rgb(255 255 255 / 0.03);
+    color: rgb(161 161 170);
+  }
+  10%,
+  26% {
+    border-color: rgb(52 211 153 / 0.4);
+    background-color: rgb(52 211 153 / 0.14);
+    color: rgb(110 231 183);
+  }
+}
+
+.animate-chip-1 {
+  animation: chip-flash 4.5s ease-in-out infinite;
+}
+
+.animate-chip-2 {
+  animation: chip-flash 4.5s ease-in-out 1.5s infinite;
+}
+
+.animate-chip-3 {
+  animation: chip-flash 4.5s ease-in-out 3s infinite;
+}
+
+/* A scan settling on the matched game. */
+@keyframes match-sweep {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  45%,
+  70% {
+    opacity: 1;
+  }
+}
+
+.animate-match-sweep {
+  animation: match-sweep 3.4s ease-in-out infinite;
+}
+
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
@@ -230,7 +347,15 @@ body {
   .animate-drift-c,
   .animate-sheen,
   .animate-pulse-soft,
-  .animate-library-scroll {
+  .animate-library-scroll,
+  .animate-flow-dot,
+  .animate-row-glow,
+  .animate-buffer-shift,
+  .animate-fill-grow,
+  .animate-chip-1,
+  .animate-chip-2,
+  .animate-chip-3,
+  .animate-match-sweep {
     animation: none;
   }
 
