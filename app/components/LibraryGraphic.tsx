@@ -87,6 +87,16 @@ const clips: Clip[] = [
   },
 ];
 
+// The rail groups clips by game. Icons come from ClypDat's own game-icon cache,
+// so they are the same art the app shows rather than anything sourced elsewhere.
+const games = [
+  { file: "fortnite", name: "Fortnite" },
+  { file: "dead-by-daylight", name: "Dead by Daylight" },
+  { file: "cs2", name: "Counter-Strike 2" },
+  { file: "rainbow-six-siege", name: "Tom Clancy's Rainbow Six Siege" },
+  { file: "necrodancer", name: "Rift of the NecroDancer" },
+];
+
 // Nine clips divides evenly by both column counts used below (1 on mobile,
 // 3 from sm up), so no row is ever left part-empty at either size.
 
@@ -146,14 +156,21 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
 // `copy` only exists so the duplicated track does not emit duplicate React keys.
 function Track({ copy }: { copy: number }) {
   return (
-    <div className="grid grid-cols-1 gap-x-3.5 gap-y-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-x-3.5 gap-y-3 sm:grid-cols-3 sm:gap-y-4">
       {clips.map((clip, index) => (
         <div key={`${copy}-${clip.thumb}`}>
           {/* Every cell reserves the same label height whether or not it has a
               label. That is what keeps rows aligned, and it does so at any
               column count - the previous full-width header strip had to assume
               three columns, which is exactly what broke on a phone. */}
-          <p className="mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+          {/* The reserved height keeps rows aligned across columns, but in one
+              column there is nothing to align to, so an empty label is just a
+              gap. Collapse it on mobile, keep it from sm up. */}
+          <p
+            className={`mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500 ${
+              clip.dayLabel ? "" : "hidden sm:block"
+            }`}
+          >
             {clip.dayLabel ?? " "}
           </p>
           <ClipCard clip={clip} eager={copy === 0 && index < 3} />
@@ -193,10 +210,22 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
 
       <div className="flex">
         {/* Icon rail */}
-        <div className="hidden w-12 shrink-0 flex-col items-center gap-4 border-r border-white/[0.06] py-3 sm:flex">
+        <div className="hidden w-12 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] py-3 sm:flex">
+          {/* All clips, selected. */}
           <span className="h-7 w-7 rounded-lg bg-emerald-400/20 ring-1 ring-emerald-400/40" />
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="h-5 w-5 rounded-md bg-white/[0.07]" />
+          <span className="h-px w-5 bg-white/10" />
+          {/* Per-game shelves. These are the icons ClypDat itself caches for
+              each detected game, at the size it stores them. */}
+          {games.map((game) => (
+            <Image
+              key={game.file}
+              src={`/media/games/${game.file}.png`}
+              alt=""
+              width={28}
+              height={28}
+              unoptimized
+              className="h-7 w-7 rounded-lg object-cover"
+            />
           ))}
           <span className="mt-auto h-5 w-5 rounded-full bg-white/[0.07]" />
         </div>

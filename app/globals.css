@@ -145,27 +145,34 @@ body {
    page feeling alive, not as something demanding attention. */
 @keyframes sheen {
   0% {
-    transform: translateX(-120%);
+    transform: translateX(-150%);
     opacity: 0;
   }
-  10% {
+  6% {
     opacity: 1;
   }
-  82% {
+  /* Leaves at the same speed it travelled at, still fully opaque, and is cut
+     off by the parent's overflow rather than fading in place. The previous
+     version slowed to a crawl over the last 6% while fading, which read as the
+     highlight stopping dead in the middle of the panel and evaporating. */
+  55% {
+    transform: translateX(350%);
     opacity: 1;
   }
-  94% {
-    transform: translateX(250%);
-    opacity: 1;
+  56% {
+    transform: translateX(350%);
+    opacity: 0;
   }
   100% {
-    transform: translateX(280%);
+    transform: translateX(350%);
     opacity: 0;
   }
 }
 
 .animate-sheen {
-  animation: sheen 7s ease-in-out 1.2s infinite both;
+  /* Linear: any easing here is visible as the highlight changing speed as it
+     crosses, which is not how light moves across a surface. */
+  animation: sheen 7s linear 1.2s infinite both;
 }
 
 /* The clip grid in the hero graphic. The track holds two identical copies of

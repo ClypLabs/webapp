@@ -214,28 +214,57 @@ export default function Features() {
 
   // Scrolling through the list drives the panel, so the section tells its story
   // to someone who never clicks anything. Clicking still works and simply wins,
-  // because the observer only reacts to items crossing the middle band.
+  // because the next scroll just recomputes from wherever the page now is.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const index = itemRefs.current.indexOf(
-            entry.target as HTMLButtonElement,
-          );
-          if (index >= 0) setActive(index);
-        }
-      },
-      // A narrow band across the middle of the viewport: an item becomes active
-      // when it reaches the centre, not when it first appears at the bottom.
-      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
-    );
+    // Deliberately not an IntersectionObserver. A thin band across the middle
+    // of the viewport only fires when something lands inside it, so a fast
+    // scroll - a flick on a trackpad, a jump from a scrollbar drag - can carry
+    // every item straight past the band without a single callback, leaving the
+    // panel showing a feature nobody is looking at any more.
+    //
+    // Measuring instead always has an answer: whichever item's centre is
+    // nearest the viewport centre wins, at any scroll speed.
+    let frame = 0;
 
-    const nodes = itemRefs.current.filter(Boolean) as HTMLButtonElement[];
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
+    const update = () => {
+      frame = 0;
+      const nodes = itemRefs.current;
+      const middle = window.innerHeight / 2;
+
+      let best = -1;
+      let bestDistance = Infinity;
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (!node) continue;
+        const box = node.getBoundingClientRect();
+        const distance = Math.abs(box.top + box.height / 2 - middle);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = i;
+        }
+      }
+
+      if (best >= 0) setActive(best);
+    };
+
+    // Coalesce to one measurement per frame - scroll fires far more often than
+    // the screen refreshes, and this reads layout.
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   return (
