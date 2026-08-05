@@ -117,13 +117,17 @@ export default function EditorGraphic({ className = "" }: { className?: string }
             {/* Preview */}
             <div className="flex min-w-0 flex-1 flex-col p-3">
               <div className="relative h-[330px] flex-1 overflow-hidden rounded-lg bg-black">
+                {/* contain, not cover: this is a video player, and a player
+                    that crops the frame to fit its own box is showing you the
+                    wrong picture. Letterboxing against the black is what the
+                    app does too. */}
                 <Image
                   src="/media/editor/preview.webp"
                   alt=""
                   fill
                   sizes="760px"
                   unoptimized
-                  className="object-cover"
+                  className="object-contain"
                 />
               </div>
 
