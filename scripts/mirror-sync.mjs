@@ -104,11 +104,11 @@ async function putObject(key, body, contentType, contentLength) {
   await upload.done();
 }
 
-async function currentSnapshot() {
+async function fetchMirrored(key) {
   const base = process.env.MIRROR_BASE_URL?.replace(/\/+$/, "");
   if (!base) return null;
   try {
-    const response = await fetch(`${base}/${LATEST_KEY}`, { cache: "no-store" });
+    const response = await fetch(`${base}/${key}`, { cache: "no-store" });
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -188,22 +188,39 @@ async function writeSnapshots(latest, all, digests) {
 async function main() {
   console.log(`Reading releases from ${REPO}...`);
   const latest = await githubJson("/releases/latest");
-  const all = await githubJson("/releases?per_page=100");
+  let all = await githubJson("/releases?per_page=100");
 
-  const mirrored = await currentSnapshot();
+  // A flagged repository can serve /releases/latest normally while the list
+  // endpoint returns an empty array - that is the current state of
+  // ClypDat/ClypDat. Mirroring the empty list faithfully would strip the
+  // release notes out of the updater, so fall back to the one release we know
+  // about. Notes for older versions are lost either way; notes for the version
+  // being offered are the ones that matter.
+  if (!all.some((release) => release.tag_name === latest.tag_name)) {
+    console.log(
+      `  release list returned ${all.length} entries and omits ${latest.tag_name}; using the latest release alone for notes.`,
+    );
+    all = [latest, ...all];
+  }
+
+  const mirrored = await fetchMirrored(LATEST_KEY);
+  const mirroredList = await fetchMirrored(RELEASES_KEY);
   const sameTag = !FORCE && mirrored?.tag_name === latest.tag_name;
+  const listIsCurrent = Array.isArray(mirroredList) &&
+    mirroredList.some((release) => release.tag_name === latest.tag_name);
 
   // Patch notes are written after the release is published, so the tag can be
   // current while the mirrored body is empty or outdated. Refresh just the
   // snapshots in that case - the binaries are already correct, and they are the
-  // 1.1 GB part.
-  if (sameTag && mirrored.body === (latest.body ?? "")) {
+  // 1.1 GB part. The same applies when the mirrored list is missing the current
+  // release, which happens if a sync ran while GitHub was suppressing it.
+  if (sameTag && listIsCurrent && mirrored.body === (latest.body ?? "")) {
     console.log(`Mirror already at ${latest.tag_name}. Nothing to do (--force to re-upload).`);
     return;
   }
 
   if (sameTag) {
-    console.log(`Mirror is at ${latest.tag_name} but its notes are stale. Refreshing snapshots only.`);
+    console.log(`Mirror is at ${latest.tag_name} but its snapshots are stale. Refreshing those only.`);
     const digests = new Map(
       mirrored.assets.map((asset) => [asset.name, String(asset.digest ?? "").replace(/^sha256:/, "")]),
     );
