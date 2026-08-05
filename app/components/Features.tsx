@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Reveal, { RevealWords } from "./Reveal";
 
 type Feature = {
@@ -68,12 +68,12 @@ function FeatureVisual({ id }: { id: string }) {
         <div className="space-y-3">
           <div className={row}>
             <span className="text-zinc-300">Your game</span>
-            <span className="text-xs text-zinc-500">untouched</span>
+            <span className="text-xs text-zinc-500">Untouched</span>
           </div>
           <div className="flex items-center gap-3 px-1">
             <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             <span className="text-[11px] uppercase tracking-widest text-zinc-600">
-              no injection
+              No injection
             </span>
             <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           </div>
@@ -83,12 +83,14 @@ function FeatureVisual({ id }: { id: string }) {
           </div>
           {/* Frames arriving, one after another, without anything touching the
               game process. */}
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-2">
             <span className="animate-flow-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="animate-flow-dot-2 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="animate-flow-dot-3 h-1.5 w-1.5 rounded-full bg-emerald-400" />
           </div>
           <div className={row}>
             <span className="text-zinc-300">ClypDat</span>
-            <span className="text-xs text-zinc-500">reads frames</span>
+            <span className="text-xs text-zinc-500">Reads frames</span>
           </div>
         </div>
       );
@@ -102,18 +104,24 @@ function FeatureVisual({ id }: { id: string }) {
           {[
             { name: "NVENC", note: "NVIDIA", active: true },
             { name: "AMD AMF", note: "Radeon", active: false },
-            { name: "libx264", note: "software fallback", active: false },
+            { name: "libx264", note: "Software fallback", active: false },
           ].map((encoder) => (
             <div
               key={encoder.name}
-              className={`${row} ${
+              className={`${row} relative overflow-hidden ${
                 encoder.active
                   ? "animate-row-glow border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
                   : "text-zinc-400"
               }`}
             >
-              <span>{encoder.name}</span>
-              <span className="text-xs opacity-70">{encoder.note}</span>
+              {encoder.active ? (
+                <span
+                  aria-hidden
+                  className="animate-shimmer pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent"
+                />
+              ) : null}
+              <span className="relative">{encoder.name}</span>
+              <span className="relative text-xs opacity-70">{encoder.note}</span>
             </div>
           ))}
           <p className="pt-1 text-xs text-zinc-500">
@@ -129,7 +137,7 @@ function FeatureVisual({ id }: { id: string }) {
             <span className="text-zinc-300">Game State Integration</span>
             <span className="flex items-center gap-1.5 text-xs text-emerald-300/80">
               <span className="animate-pulse-soft h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              connected
+              Connected
             </span>
           </div>
           <p className="pt-1 text-xs uppercase tracking-widest text-zinc-600">
@@ -137,9 +145,9 @@ function FeatureVisual({ id }: { id: string }) {
           </p>
           {/* Events arriving on the feed, in turn. */}
           <div className="flex flex-wrap gap-2">
-            <span className={`${chip} animate-chip-1`}>kill</span>
-            <span className={`${chip} animate-chip-2`}>headshot</span>
-            <span className={`${chip} animate-chip-3`}>multi-kill</span>
+            <span className={`${chip} animate-chip-1`}>Kill</span>
+            <span className={`${chip} animate-chip-2`}>Headshot</span>
+            <span className={`${chip} animate-chip-3`}>Multi-kill</span>
           </div>
           <p className="pt-1 text-xs text-zinc-500">
             Reads the game&apos;s own event feed. No screen analysis, no audio
@@ -192,21 +200,25 @@ function FeatureVisual({ id }: { id: string }) {
         <div className="space-y-3">
           <div className={row}>
             <span className="font-mono text-xs text-zinc-500">
-              foreground window
+              Foreground window
             </span>
           </div>
           <div className="flex justify-center py-1 text-zinc-600">
             <span className="animate-flow-dot">&darr;</span>
           </div>
           <div
-            className={`${row} animate-match-sweep border-emerald-400/25 bg-emerald-400/[0.06]`}
+            className={`${row} relative overflow-hidden border-emerald-400/25 bg-emerald-400/[0.06]`}
           >
-            <span className="text-emerald-200">Counter-Strike 2</span>
-            <span className="text-xs text-emerald-300/70">matched</span>
+            <span
+              aria-hidden
+              className="animate-scan-line pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-emerald-300/20 to-transparent"
+            />
+            <span className="relative text-emerald-200">Counter-Strike 2</span>
+            <span className="relative text-xs text-emerald-300/70">Matched</span>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <span className={chip}>known-game catalog</span>
-            <span className={chip}>your Steam library</span>
+            <span className={chip}>Known-game catalog</span>
+            <span className={chip}>Your Steam library</span>
           </div>
         </div>
       );
@@ -216,15 +228,16 @@ function FeatureVisual({ id }: { id: string }) {
         <div className="space-y-3">
           <div className={row}>
             <span className="text-zinc-300">Medal database</span>
-            <span className="text-xs text-zinc-500">read-only</span>
+            <span className="text-xs text-zinc-500">Read-only</span>
           </div>
           {/* Clips moving across, one at a time. */}
-          <div className="flex justify-center py-1 text-zinc-600">
-            <span className="animate-flow-dot">&darr;</span>
+          <div className="flex justify-center gap-2 py-1">
+            <span className="animate-flow-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="animate-flow-dot-2 h-1.5 w-1.5 rounded-full bg-emerald-400" />
           </div>
-          <div className={`${row} border-emerald-400/25 bg-emerald-400/[0.06]`}>
+          <div className={`${row} animate-pop-in border-emerald-400/25 bg-emerald-400/[0.06]`}>
             <span className="text-emerald-200">Your ClypDat library</span>
-            <span className="text-xs text-emerald-300/70">titles intact</span>
+            <span className="text-xs text-emerald-300/70">Titles intact</span>
           </div>
           <p className="pt-1 text-xs text-zinc-500">
             Falls back to scanning the clips folder if the database isn&apos;t
@@ -240,65 +253,14 @@ function FeatureVisual({ id }: { id: string }) {
 
 export default function Features() {
   const [active, setActive] = useState(0);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Scrolling through the list drives the panel, so the section tells its story
-  // to someone who never clicks anything. Clicking still works and simply wins,
-  // because the next scroll just recomputes from wherever the page now is.
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // Selection is click-only. It used to follow scroll position, which meant
+  // the panel changed under you while you were reading whichever one you had
+  // deliberately picked - more fidgety than useful.
 
-    // Deliberately not an IntersectionObserver. A thin band across the middle
-    // of the viewport only fires when something lands inside it, so a fast
-    // scroll - a flick on a trackpad, a jump from a scrollbar drag - can carry
-    // every item straight past the band without a single callback, leaving the
-    // panel showing a feature nobody is looking at any more.
-    //
-    // Measuring instead always has an answer: whichever item's centre is
-    // nearest the viewport centre wins, at any scroll speed.
-    let frame = 0;
-
-    const update = () => {
-      frame = 0;
-      const nodes = itemRefs.current;
-      const middle = window.innerHeight / 2;
-
-      let best = -1;
-      let bestDistance = Infinity;
-
-      for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        if (!node) continue;
-        const box = node.getBoundingClientRect();
-        const distance = Math.abs(box.top + box.height / 2 - middle);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = i;
-        }
-      }
-
-      if (best >= 0) setActive(best);
-    };
-
-    // Coalesce to one measurement per frame - scroll fires far more often than
-    // the screen refreshes, and this reads layout.
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(update);
-    };
-
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
 
   return (
-    <section id="features" className="relative px-6 py-32 sm:py-40">
+    <section id="features" className="relative overflow-hidden px-6 py-32 sm:py-40">
       {/* Faint wash so the section reads as its own space without a hard rule
           across the page. */}
       <div
@@ -327,7 +289,53 @@ export default function Features() {
           </Reveal>
         </div>
 
-        <div className="mt-16 grid gap-10 lg:mt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
+        {/* Phone: a tab row, then the active description, then its diagram.
+            A stacked list with a diagram under each item is far taller than a
+            phone wants, and a panel above the list updates something you have
+            already scrolled past. */}
+        <div className="mt-12 lg:hidden">
+          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {features.map((feature, index) => (
+              <button
+                key={feature.id}
+                type="button"
+                onClick={() => setActive(index)}
+                aria-pressed={index === active}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
+                  index === active
+                    ? "bg-white/[0.08] text-zinc-50"
+                    : "text-zinc-500"
+                }`}
+              >
+                {feature.title}
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-5 text-sm leading-7 text-zinc-400">
+            {features[active].description}
+          </p>
+
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <FeatureVisual id={features[active].id} />
+          </div>
+
+          <div className="mt-8 grid gap-5 border-t border-white/[0.06] pt-6">
+            {alsoDoes.map((item) => (
+              <div key={item.title}>
+                <h3 className="text-sm font-semibold text-zinc-300">
+                  {item.title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-6 text-zinc-500">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop keeps the list beside a panel that stays put as you read. */}
+        <div className="mt-16 hidden gap-10 lg:mt-20 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
           <div className="flex flex-col gap-2">
             {features.map((feature, index) => {
               const isActive = index === active;
@@ -335,9 +343,6 @@ export default function Features() {
                 <button
                   key={feature.id}
                   type="button"
-                  ref={(node) => {
-                    itemRefs.current[index] = node;
-                  }}
                   onClick={() => setActive(index)}
                   aria-pressed={isActive}
                   className={`rounded-2xl px-5 py-4 text-left transition-all duration-500 ${
@@ -352,8 +357,7 @@ export default function Features() {
                     {feature.title}
                   </h3>
                   {/* Body copy is always present rather than collapsed - an
-                      accordion here would hide the substance behind a click and
-                      make the section shorter than it deserves to be. */}
+                      accordion here would hide the substance behind a click. */}
                   <p
                     className={`mt-2 text-sm leading-7 transition-colors duration-500 ${
                       isActive ? "text-zinc-400" : "text-zinc-500"
@@ -364,7 +368,7 @@ export default function Features() {
                 </button>
               );
             })}
-            {/* Two more things the app does, without a panel each. */}
+
             <div className="mt-6 grid gap-4 border-t border-white/[0.06] pt-6 sm:grid-cols-2">
               {alsoDoes.map((item) => (
                 <div key={item.title}>
@@ -379,10 +383,7 @@ export default function Features() {
             </div>
           </div>
 
-          {/* Sticky on desktop so the panel stays put while the list scrolls
-              past it. On mobile it sits above the list and does not stick -
-              a pinned panel would eat most of a phone screen. */}
-          <div className="order-first lg:order-none lg:sticky lg:top-28 lg:self-start">
+          <div className="lg:sticky lg:top-28 lg:self-start">
             {/* A short stack of cards rather than a single flat panel - the
                 layers behind are inert, and only exist to give the front one
                 somewhere to sit. */}
@@ -396,37 +397,22 @@ export default function Features() {
                 className="absolute inset-x-4 -top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]"
               />
               <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
-              {/* Every panel is absolutely positioned, including the active
-                  one. Leaving the active panel in flow while the others were
-                  absolute meant that during a crossfade the outgoing panel was
-                  laid over live text - two diagrams legible at once. */}
                 <div className="relative min-h-[300px]">
-                {features.map((feature, index) => (
-                  <div
-                    key={feature.id}
-                    className={`absolute inset-0 transition-opacity duration-500 ${
-                      index === active
-                        ? "opacity-100"
-                        : "pointer-events-none opacity-0"
-                    }`}
-                    aria-hidden={index !== active}
-                  >
-                    <FeatureVisual id={feature.id} />
-                  </div>
-                ))}
+                  {features.map((feature, index) => (
+                    <div
+                      key={feature.id}
+                      className={`absolute inset-0 transition-opacity duration-500 ${
+                        index === active
+                          ? "opacity-100"
+                          : "pointer-events-none opacity-0"
+                      }`}
+                      aria-hidden={index !== active}
+                    >
+                      <FeatureVisual id={feature.id} />
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-4 flex gap-1.5 lg:hidden">
-              {features.map((feature, index) => (
-                <span
-                  key={feature.id}
-                  className={`h-0.5 flex-1 rounded-full transition-colors duration-500 ${
-                    index === active ? "bg-emerald-400/70" : "bg-white/10"
-                  }`}
-                />
-              ))}
             </div>
           </div>
         </div>

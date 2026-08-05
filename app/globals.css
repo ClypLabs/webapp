@@ -216,20 +216,32 @@ body {
 @keyframes flow-dot {
   0% {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-14px) scale(0.6);
   }
-  12%,
-  88% {
+  18% {
     opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: translateY(4px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px) scale(0.6);
   }
 }
 
 .animate-flow-dot {
-  animation: flow-dot 2.2s ease-in-out infinite;
+  animation: flow-dot 1.8s ease-in-out infinite;
+}
+
+.animate-flow-dot-2 {
+  animation: flow-dot 1.8s ease-in-out 0.6s infinite;
+}
+
+.animate-flow-dot-3 {
+  animation: flow-dot 1.8s ease-in-out 1.2s infinite;
 }
 
 /* The row that is actually in use, breathing. */
@@ -321,6 +333,60 @@ body {
   animation: match-sweep 3.4s ease-in-out infinite;
 }
 
+
+/* A highlight sweeping through the row that is actually in use. */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  60%,
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.8s ease-in-out infinite;
+}
+
+/* A scan passing over the candidate before it locks on. */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(320%);
+    opacity: 0;
+  }
+}
+
+.animate-scan-line {
+  animation: scan-line 3.4s ease-in-out infinite;
+}
+
+/* The moment a clip lands. */
+@keyframes pop-in {
+  0%,
+  55%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  62% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 4.5s ease-in-out infinite;
+}
+
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
@@ -349,13 +415,18 @@ body {
   .animate-pulse-soft,
   .animate-library-scroll,
   .animate-flow-dot,
+  .animate-flow-dot-2,
+  .animate-flow-dot-3,
   .animate-row-glow,
   .animate-buffer-shift,
   .animate-fill-grow,
   .animate-chip-1,
   .animate-chip-2,
   .animate-chip-3,
-  .animate-match-sweep {
+  .animate-match-sweep,
+  .animate-shimmer,
+  .animate-scan-line,
+  .animate-pop-in {
     animation: none;
   }
 
