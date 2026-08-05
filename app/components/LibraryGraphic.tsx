@@ -95,7 +95,7 @@ const games = [
   { file: "cs2", name: "Counter-Strike 2" },
   { file: "rainbow-six-siege", name: "Tom Clancy's Rainbow Six Siege" },
   { file: "necrodancer", name: "Rift of the NecroDancer" },
-  { file: "machine-party", name: "Machine Party" },
+  { file: "honkai", name: "Honkai: Star Rail" },
 ];
 
 // Nine clips divides evenly by both column counts used below (1 on mobile,
