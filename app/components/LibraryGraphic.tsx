@@ -67,23 +67,23 @@ const clips: Clip[] = [
     thumb: "fortnite-3",
   },
   {
-    dayLabel: "Sun, Aug 2",
-    game: "Machine Party",
-    date: "Aug 2, 2026",
-    age: "2 days ago",
-    thumb: "machine-1",
+    dayLabel: "Wed, Jul 29",
+    game: "Fortnite",
+    date: "Jul 29, 2026",
+    age: "6 days ago",
+    thumb: "fortnite-4",
   },
   {
-    game: "Machine Party",
-    date: "Aug 2, 2026",
-    age: "2 days ago",
-    thumb: "machine-2",
+    game: "Honkai: Star Rail",
+    date: "Jul 29, 2026",
+    age: "6 days ago",
+    thumb: "honkai",
   },
   {
-    game: "Machine Party",
-    date: "Aug 2, 2026",
-    age: "2 days ago",
-    thumb: "machine-3",
+    game: "Tom Clancy's Rainbow Six Siege",
+    date: "Jul 29, 2026",
+    age: "6 days ago",
+    thumb: "r6-siege",
   },
 ];
 
@@ -194,10 +194,10 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
       <div className="flex items-center justify-between gap-2 bg-[#232b37] px-3.5 py-2.5">
         <div className="min-w-0">
           <p className="truncate text-[11px] text-zinc-400">{clip.game}</p>
-          <p className="mt-1 truncate text-[14px] font-semibold text-zinc-50">
+          <p className="mt-0.5 truncate text-[14px] font-semibold text-zinc-50">
             Clip from {clip.date}
           </p>
-          <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-zinc-400">
+          <p className="mt-1.5 flex items-center gap-1.5 truncate text-[11px] text-zinc-400">
             <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 shrink-0 fill-current">
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6-3.5 2-1-1.7 2.5-1.5V6h2v6.6Z" />
             </svg>
@@ -324,17 +324,19 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
 
           {/* The scroll viewport. Two identical tracks stacked and translated by
               exactly half the height, so the loop has no seam. */}
-          <div className="relative h-[560px] overflow-hidden px-4">
-            <div className="animate-library-scroll">
-              <Track copy={0} />
-              <Track copy={1} />
+          {/* The fades sit outside the scrolling box. Inside it they were
+              clipped by its own overflow, so the top one could never reach up
+              over the boundary with the header - which is exactly where the
+              hairline of un-faded card edge was showing. */}
+          <div className="relative px-4">
+            <div className="relative h-[560px] overflow-hidden">
+              <div className="animate-library-scroll">
+                <Track copy={0} />
+                <Track copy={1} />
+              </div>
             </div>
 
-            {/* Fades the grid out at both edges instead of clipping it mid-card. */}
-            {/* Starts a pixel above the viewport rather than flush with it: at
-                fractional scales the boundary between the header and the scroll
-                area rounds to a visible hairline of un-faded card edge. */}
-            <div className="pointer-events-none absolute inset-x-0 -top-px h-7 bg-gradient-to-b from-[#0d1218] via-[#0d1218] to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 -top-2 h-8 bg-gradient-to-b from-[#0d1218] via-[#0d1218] to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0d1218] to-transparent" />
           </div>
         </div>
