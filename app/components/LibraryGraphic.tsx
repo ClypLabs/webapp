@@ -194,7 +194,7 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
       <div className="flex items-center justify-between gap-2 bg-[#232b37] px-3.5 py-2.5">
         <div className="min-w-0">
           <p className="truncate text-[11px] text-zinc-400">{clip.game}</p>
-          <p className="mt-0.5 truncate text-[14px] font-semibold text-zinc-50">
+          <p className="mt-[3px] truncate text-[14px] font-semibold text-zinc-50">
             Clip from {clip.date}
           </p>
           <p className="mt-1.5 flex items-center gap-1.5 truncate text-[11px] text-zinc-400">
