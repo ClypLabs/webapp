@@ -213,7 +213,7 @@ function FeatureVisual({ id }: { id: string }) {
               aria-hidden
               className="animate-scan-line pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-emerald-300/20 to-transparent"
             />
-            <span className="relative text-emerald-200">Counter-Strike 2</span>
+            <span className="relative text-emerald-200">Fortnite</span>
             <span className="relative text-xs text-emerald-300/70">Matched</span>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
