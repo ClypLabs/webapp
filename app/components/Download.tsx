@@ -30,7 +30,7 @@ export default function Download() {
   return (
     <section
       id="download"
-      className="relative overflow-hidden px-6 py-32 text-center sm:py-40"
+      className="section-lazy relative overflow-hidden px-6 py-32 text-center sm:py-40"
     >
       <div
         aria-hidden

@@ -19,7 +19,7 @@ const contextActions = [
 
 export default function Editor() {
   return (
-    <section id="editor" className="relative px-6 py-32 sm:py-40">
+    <section id="editor" className="section-lazy relative px-6 py-32 sm:py-40">
       <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-2 lg:items-center lg:gap-20">
         <div>
           <Reveal

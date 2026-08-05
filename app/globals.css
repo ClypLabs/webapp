@@ -441,3 +441,45 @@ body {
     filter: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Phone performance
+
+   The expensive things on this page are not the scripts, they are the paints:
+   four 600-900px blobs each carrying a 150px+ blur, animated forever, plus a
+   full-viewport blend layer over the top. A desktop GPU shrugs at that; a phone
+   re-rasterises an enormous blurred surface every frame and the whole page
+   feels sticky.
+   --------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  /* Half the blobs, and the survivors stop moving. The wash is still there -
+     it just is not being recomputed 60 times a second. */
+  .ambience-blob {
+    animation: none;
+    filter: blur(90px);
+  }
+
+  .ambience-extra {
+    display: none;
+  }
+
+  /* A full-screen blend pass costs more than the banding it hides. */
+  .page-grain {
+    display: none;
+  }
+
+  /* backdrop-filter forces the layers underneath to be re-read and blurred on
+     every composite. Not worth it at this size. */
+  .backdrop-blur,
+  .backdrop-blur-sm {
+    backdrop-filter: none;
+  }
+}
+
+/* Sections below the fold are not rendered - and their animations do not run -
+   until they are close to the viewport. The reserved size keeps the scrollbar
+   honest so this does not cause jumps. */
+.section-lazy {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}

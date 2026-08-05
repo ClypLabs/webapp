@@ -260,7 +260,7 @@ export default function Features() {
 
 
   return (
-    <section id="features" className="relative overflow-hidden px-6 py-32 sm:py-40">
+    <section id="features" className="section-lazy relative overflow-hidden px-6 py-32 sm:py-40">
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
           <Reveal
