@@ -1,103 +1,78 @@
+import Image from "next/image";
+
 // A designed rendering of the ClypDat library, not a screenshot and not a
 // screen recording. Both were tried: a still says nothing about what the
 // library is for, and a raw 30fps window capture is visibly choppy next to
 // everything else on the page.
 //
 // This is DOM, so it scrolls on a GPU transform at the display's own refresh
-// rate, loops seamlessly, stays sharp at any resolution, and costs no bandwidth.
+// rate, loops seamlessly, and stays sharp at any resolution.
 //
-// Layout, labels and clip data come from the real app. Thumbnails are
-// deliberately abstract - a fake game frame would be prettier and would be
-// pretending to be a screenshot.
+// Layout, labels and clip data come from the real app, and the thumbnails are
+// real frames cropped out of a capture of it - each one paired with the clip it
+// actually belongs to, durations included. Nothing here describes a clip that
+// does not exist.
 
 type Clip = {
   game: string;
   date: string;
   age: string;
-  duration: string;
+  thumb: string;
   backend?: string;
-  edited?: boolean;
-};
-
-// Each game gets a stable gradient so the grid reads as a set of distinct
-// captures rather than one tile repeated.
-const gameTint: Record<string, string> = {
-  "Dead by Daylight": "from-rose-500/30 via-zinc-700/40 to-zinc-900",
-  Fortnite: "from-sky-400/30 via-indigo-500/25 to-zinc-900",
-  "Rift of the NecroDancer": "from-fuchsia-500/30 via-purple-600/25 to-zinc-900",
-  "Machine Party": "from-emerald-400/25 via-teal-600/20 to-zinc-900",
-  "Honkai: Star Rail": "from-amber-400/25 via-orange-600/20 to-zinc-900",
-  "Tom Clancy's Rainbow Six Siege": "from-cyan-400/25 via-slate-600/25 to-zinc-900",
 };
 
 const groups: { label: string; clips: Clip[] }[] = [
   {
     label: "Wed, Aug 5",
     clips: [
-      { game: "Dead by Daylight", date: "Aug 5, 2026", age: "3 hours ago", duration: "1:01" },
-      { game: "Dead by Daylight", date: "Aug 5, 2026", age: "3 hours ago", duration: "1:00" },
-      { game: "Fortnite", date: "Aug 4, 2026", age: "16 hours ago", duration: "0:41" },
+      { game: "Dead by Daylight", date: "Aug 5, 2026", age: "3 hours ago", thumb: "dbd-1" },
+      { game: "Dead by Daylight", date: "Aug 5, 2026", age: "3 hours ago", thumb: "dbd-2" },
+    ],
+  },
+  {
+    label: "Tue, Aug 4",
+    clips: [
+      { game: "Fortnite", date: "Aug 4, 2026", age: "16 hours ago", thumb: "fortnite-1" },
+      { game: "Fortnite", date: "Aug 4, 2026", age: "16 hours ago", thumb: "fortnite-2" },
+      {
+        game: "Rift of the NecroDancer",
+        date: "Aug 4, 2026",
+        age: "17 hours ago",
+        thumb: "necrodancer",
+        backend: "Windows Capture",
+      },
     ],
   },
   {
     label: "Mon, Aug 3",
     clips: [
-      { game: "Fortnite", date: "Aug 4, 2026", age: "16 hours ago", duration: "1:00" },
-      {
-        game: "Rift of the NecroDancer",
-        date: "Aug 4, 2026",
-        age: "17 hours ago",
-        duration: "0:59",
-        backend: "Windows Capture",
-      },
-      { game: "Fortnite", date: "Aug 3, 2026", age: "1 day ago", duration: "0:14", edited: true },
+      { game: "Fortnite", date: "Aug 3, 2026", age: "1 day ago", thumb: "fortnite-3" },
     ],
   },
   {
     label: "Sun, Aug 2",
     clips: [
-      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", duration: "0:21" },
-      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", duration: "0:15" },
-      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", duration: "0:16" },
-    ],
-  },
-  {
-    label: "Tue, Jul 29",
-    clips: [
-      { game: "Honkai: Star Rail", date: "Jul 29, 2026", age: "6 days ago", duration: "0:12", edited: true },
-      {
-        game: "Tom Clancy's Rainbow Six Siege",
-        date: "Jul 29, 2026",
-        age: "6 days ago",
-        duration: "1:01",
-      },
-      {
-        game: "Tom Clancy's Rainbow Six Siege",
-        date: "Jul 29, 2026",
-        age: "6 days ago",
-        duration: "1:01",
-      },
+      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", thumb: "machine-1" },
+      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", thumb: "machine-2" },
+      { game: "Machine Party", date: "Aug 2, 2026", age: "2 days ago", thumb: "machine-3" },
     ],
   },
 ];
 
-function ClipCard({ clip }: { clip: Clip }) {
-  const tint = gameTint[clip.game] ?? "from-zinc-600/30 via-zinc-700/30 to-zinc-900";
-
+function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
   return (
     <div className="overflow-hidden rounded-lg bg-white/[0.03] ring-1 ring-white/[0.06]">
-      <div className={`relative aspect-video bg-gradient-to-br ${tint}`}>
-        {/* Suggests a HUD without drawing one. */}
-        <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-black/40 to-transparent" />
-        <div className="absolute left-1.5 top-1.5 flex gap-0.5">
-          {[6, 9, 5].map((w, i) => (
-            <span key={i} className="h-0.5 rounded-full bg-white/25" style={{ width: w }} />
-          ))}
-        </div>
-        <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-medium text-white/90 backdrop-blur-sm">
-          {clip.edited ? <span className="text-emerald-300">&#9998;</span> : null}
-          {clip.duration}
-        </span>
+      <div className="relative aspect-video">
+        <Image
+          src={`/media/thumbs/${clip.thumb}.webp`}
+          alt=""
+          fill
+          sizes="180px"
+          // The first row is on screen immediately; the rest are below the fold
+          // of the scroll window and can wait.
+          loading={eager ? "eager" : "lazy"}
+          className="object-cover"
+        />
       </div>
       <div className="px-2.5 py-2">
         <p className="truncate text-[9px] text-zinc-500">{clip.game}</p>
@@ -112,17 +87,22 @@ function ClipCard({ clip }: { clip: Clip }) {
   );
 }
 
-function Column() {
+// `copy` exists only so the duplicated track does not emit duplicate React keys.
+function Column({ copy }: { copy: number }) {
   return (
     <>
-      {groups.map((group) => (
-        <div key={group.label} className="mb-4">
+      {groups.map((group, groupIndex) => (
+        <div key={`${copy}-${group.label}`} className="mb-4">
           <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
             {group.label}
           </p>
           <div className="grid grid-cols-3 gap-2.5">
-            {group.clips.map((clip, index) => (
-              <ClipCard key={`${group.label}-${index}`} clip={clip} />
+            {group.clips.map((clip) => (
+              <ClipCard
+                key={`${copy}-${clip.thumb}`}
+                clip={clip}
+                eager={copy === 0 && groupIndex === 0}
+              />
             ))}
           </div>
         </div>
@@ -135,8 +115,8 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
   return (
     <div
       className={`relative overflow-hidden rounded-xl bg-[#0d1218] ring-1 ring-white/10 ${className}`}
-      // The whole thing is decorative - the surrounding copy already says what
-      // the app does, and reading a fake window to a screen reader is noise.
+      // Decorative as a whole - the surrounding copy already says what the app
+      // does, and reading a rebuilt window out element by element is noise.
       role="img"
       aria-label="The ClypDat library, showing captured clips grouped by day"
     >
@@ -153,8 +133,8 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
         <span className="text-[10px] text-zinc-500">Alt+V</span>
         <span className="text-[10px] text-zinc-600">No game detected</span>
         <span className="ml-auto flex gap-1.5">
-          {["bg-white/15", "bg-white/15", "bg-white/15"].map((c, i) => (
-            <span key={i} className={`h-1.5 w-1.5 rounded-full ${c}`} />
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-1.5 w-1.5 rounded-full bg-white/15" />
           ))}
         </span>
       </div>
@@ -181,8 +161,8 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
               by exactly half the track height, so the loop has no seam. */}
           <div className="relative h-[300px] overflow-hidden px-3 sm:h-[360px]">
             <div className="animate-library-scroll">
-              <Column />
-              <Column />
+              <Column copy={0} />
+              <Column copy={1} />
             </div>
 
             {/* Fades the grid out at both edges instead of clipping it mid-card. */}
