@@ -88,7 +88,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
           </span>
           {/* The metadata strip the app shows for the open clip. */}
           <span className="truncate text-[11px] text-zinc-600">
-            1080p@60 &middot; 222.6 MB &middot; Captured with: ClypDat
+            Created: 3 Aug 2026, 14:25 &middot; 1080p@54 &middot; 215.2 MB &middot; Captured with: ClypDat
           </span>
           <span className="ml-auto flex gap-1.5">
             {[0, 1, 2].map((i) => (
@@ -116,7 +116,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
           <div className="flex items-stretch">
             {/* Preview */}
             <div className="flex min-w-0 flex-1 flex-col p-3">
-              <div className="relative h-[330px] flex-1 overflow-hidden rounded-lg bg-black">
+              <div className="relative aspect-[2014/1122] overflow-hidden rounded-lg bg-black">
                 {/* contain, not cover: this is a video player, and a player
                     that crops the frame to fit its own box is showing you the
                     wrong picture. Letterboxing against the black is what the
@@ -131,29 +131,45 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                 />
               </div>
 
-              {/* Transport */}
+              {/* Transport. Spans the full width of the video with the
+                  buttons centred on it - time and volume pinned left, zoom and
+                  fullscreen pinned right, exactly as the app lays it out. */}
               <div className="mt-2.5 flex items-center gap-3 px-1">
-                <span className="font-mono text-[11px] text-zinc-400">
-                  0:05 <span className="text-zinc-600">/ 1:00</span>
+                <span className="font-mono text-[11px] text-zinc-300">
+                  0:00 <span className="text-zinc-600">/ 1:00</span>
                 </span>
-                <div className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-3/4 rounded-full bg-zinc-400" />
+                <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5 shrink-0 fill-zinc-400">
+                  <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+                </svg>
+                <span className="relative h-0.5 w-20 rounded-full bg-white/15">
+                  <span className="absolute inset-y-0 left-0 w-3/4 rounded-full bg-sky-400" />
+                  <span className="absolute top-1/2 left-[calc(75%-4px)] h-2 w-2 -translate-y-1/2 rounded-full bg-zinc-100" />
+                </span>
+                <span className="font-mono text-[11px] text-zinc-500">100%</span>
+                <span className="text-[11px] text-zinc-600">Reset</span>
+
+                <div className="mx-auto flex items-center gap-4 text-zinc-300">
+                  {[
+                    "M6 6h2v12H6Zm3.5 6 8.5 6V6Z",
+                    "M15 6v12L6 12l9-6Z",
+                    "M8 5v14l11-7L8 5Z",
+                    "M9 6v12l9-6-9-6Z",
+                    "M16 6h2v12h-2Zm-1.5 6L6 6v12Z",
+                  ].map((d, i) => (
+                    <svg
+                      key={i}
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                      className={`fill-current ${i === 2 ? "h-4 w-4 text-zinc-50" : "h-3 w-3 text-zinc-400"}`}
+                    >
+                      <path d={d} />
+                    </svg>
+                  ))}
                 </div>
-                <div className="mx-auto flex items-center gap-3 text-zinc-400">
-                  {["M18 6v12L9 12l9-6Z", "M8 5v14l11-7L8 5Z", "M6 6v12l9-6-9-6Z"].map(
-                    (d, i) => (
-                      <svg
-                        key={i}
-                        viewBox="0 0 24 24"
-                        aria-hidden
-                        className={`fill-current ${i === 1 ? "h-4 w-4 text-zinc-100" : "h-3 w-3"}`}
-                      >
-                        <path d={d} />
-                      </svg>
-                    ),
-                  )}
-                </div>
-                <span className="font-mono text-[11px] text-zinc-600">100%</span>
+
+                <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5 shrink-0 fill-zinc-400">
+                  <path d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z" />
+                </svg>
               </div>
             </div>
 
@@ -167,7 +183,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                   Title
                 </p>
                 <p className="mt-1.5 truncate rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-200">
-                  Fortnite - Aug-04-2026
+                  Fortnite - Aug-03-2026 - 14-25-40
                 </p>
                 <p className="mt-3 text-[9px] uppercase tracking-widest text-zinc-600">
                   Description
