@@ -331,7 +331,10 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
             </div>
 
             {/* Fades the grid out at both edges instead of clipping it mid-card. */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#0d1218] to-transparent" />
+            {/* Starts a pixel above the viewport rather than flush with it: at
+                fractional scales the boundary between the header and the scroll
+                area rounds to a visible hairline of un-faded card edge. */}
+            <div className="pointer-events-none absolute inset-x-0 -top-px h-7 bg-gradient-to-b from-[#0d1218] via-[#0d1218] to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0d1218] to-transparent" />
           </div>
         </div>
