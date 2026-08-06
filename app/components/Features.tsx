@@ -346,14 +346,22 @@ export default function Features() {
                 layers behind are inert, and only exist to give the front one
                 somewhere to sit. */}
             <div className="relative">
+              {/* Only the sliver that sits above the front panel is drawn.
+                  These are full 40px cards, and the front panel is a 4% white
+                  tint rather than an opaque surface - it used to carry a
+                  backdrop blur that smeared their lower halves away, and when
+                  that went (it cost a backdrop read per frame) the halves
+                  behind the panel started showing straight through it as two
+                  stray lines across every diagram. Clipping at the panel's top
+                  edge fixes it without the panel having to be opaque, and
+                  without paying for a blur. */}
               <div
                 aria-hidden
-                className="absolute inset-x-8 -top-4 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]"
-              />
-              <div
-                aria-hidden
-                className="absolute inset-x-4 -top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]"
-              />
+                className="pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden"
+              >
+                <div className="absolute inset-x-8 top-0 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+                <div className="absolute inset-x-4 top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]" />
+              </div>
               {/* No backdrop-blur. There is nothing behind this panel but a
                   soft gradient wash, so the blur cost a full backdrop read per
                   frame to soften something already soft. */}
