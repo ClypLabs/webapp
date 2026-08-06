@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import PauseOffscreen from "./components/PauseOffscreen";
+import PerfMode from "./components/PerfMode";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <PauseOffscreen />
+        <PerfMode />
         <SpeedInsights />
       </body>
     </html>

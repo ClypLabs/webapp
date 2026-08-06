@@ -30,7 +30,10 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-500 ${
+      // transition-colors, not transition-all: `all` on a sticky element makes
+      // the browser watch every animatable property on it for changes, and the
+      // only two that ever change here are the border and the background.
+      className={`sticky top-0 z-50 transition-colors duration-500 ${
         scrolled
           ? "border-b border-white/10 bg-background/95"
           : "border-b border-transparent"

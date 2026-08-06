@@ -30,11 +30,22 @@ export default function PauseOffscreen() {
       { rootMargin: "200px" },
     );
 
+    // Observing an element twice re-delivers an entry for it, which meant every
+    // rescan walked the whole page and then wrote inline styles to forty
+    // elements that had not changed. Only genuinely new nodes are handed over.
+    const known = new WeakSet<Element>();
+
     // The animated elements are all marked by an `animate-` utility class.
+    // This is a substring match against every class attribute on the page, so
+    // it is not something to run more often than it has to.
     const scan = () => {
       document
         .querySelectorAll<HTMLElement>('[class*="animate-"]')
-        .forEach((element) => observer.observe(element));
+        .forEach((element) => {
+          if (known.has(element)) return;
+          known.add(element);
+          observer.observe(element);
+        });
     };
 
     scan();
@@ -42,10 +53,24 @@ export default function PauseOffscreen() {
     // The editor graphic swaps its contents as clips rotate, and the feature
     // panels mount their diagrams on selection - both introduce animated
     // elements after this first pass.
-    const mutations = new MutationObserver(scan);
+    //
+    // Coalesced, because this watches the entire document: a single React
+    // commit fires the callback several times, and without the delay each one
+    // paid for a full-page query. The delay only postpones the point at which a
+    // newly mounted animation starts being pause-managed, which nothing depends
+    // on being immediate.
+    let queued: ReturnType<typeof setTimeout> | null = null;
+    const mutations = new MutationObserver(() => {
+      if (queued) return;
+      queued = setTimeout(() => {
+        queued = null;
+        scan();
+      }, 300);
+    });
     mutations.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+      if (queued) clearTimeout(queued);
       observer.disconnect();
       mutations.disconnect();
     };

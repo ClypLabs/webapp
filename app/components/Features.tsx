@@ -108,17 +108,31 @@ function FeatureVisual({ id }: { id: string }) {
           ].map((encoder) => (
             <div
               key={encoder.name}
-              className={`${row} relative overflow-hidden ${
+              className={`${row} relative ${
                 encoder.active
-                  ? "animate-row-glow border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
+                  ? "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
                   : "text-zinc-400"
               }`}
             >
               {encoder.active ? (
-                <span
-                  aria-hidden
-                  className="animate-shimmer pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent"
-                />
+                <>
+                  {/* The glow, as a layer that fades rather than a box-shadow
+                      keyframe. It sits outside the clip below because an outer
+                      shadow spreads past its own element and would be cut off
+                      by an overflow-hidden parent. */}
+                  <span
+                    aria-hidden
+                    className="animate-row-glow pointer-events-none absolute inset-0 rounded-lg shadow-[0_0_20px_-6px_rgb(52_211_153_/_0.5)]"
+                  />
+                  {/* The clip the shimmer needs, on its own element, so the row
+                      itself is free of overflow-hidden. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg"
+                  >
+                    <span className="animate-shimmer absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent" />
+                  </span>
+                </>
               ) : null}
               <span className="relative">{encoder.name}</span>
               <span className="relative text-xs opacity-70">{encoder.note}</span>
@@ -126,32 +140,6 @@ function FeatureVisual({ id }: { id: string }) {
           ))}
           <p className="pt-1 text-xs text-zinc-500">
             Downscaling happens on the GPU, before the encoder ever sees a frame.
-          </p>
-        </div>
-      );
-
-    case "cs2":
-      return (
-        <div className="space-y-3">
-          <div className={row}>
-            <span className="text-zinc-300">Game State Integration</span>
-            <span className="flex items-center gap-1.5 text-xs text-emerald-300/80">
-              <span className="animate-pulse-soft h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Connected
-            </span>
-          </div>
-          <p className="pt-1 text-xs uppercase tracking-widest text-zinc-600">
-            Saves a clip on
-          </p>
-          {/* Events arriving on the feed, in turn. */}
-          <div className="flex flex-wrap gap-2">
-            <span className={`${chip} animate-chip-1`}>Kill</span>
-            <span className={`${chip} animate-chip-2`}>Headshot</span>
-            <span className={`${chip} animate-chip-3`}>Multi-kill</span>
-          </div>
-          <p className="pt-1 text-xs text-zinc-500">
-            Reads the game&apos;s own event feed. No screen analysis, no audio
-            analysis.
           </p>
         </div>
       );
@@ -186,7 +174,9 @@ function FeatureVisual({ id }: { id: string }) {
               Full session
             </p>
             <div className="h-8 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
-              <div className="animate-fill-grow h-full bg-gradient-to-r from-emerald-400/10 to-emerald-400/25" />
+              {/* Full width, scaled down. The bar used to animate its own
+                  `width`, which ran layout on every frame - see globals.css. */}
+              <div className="animate-fill-grow h-full w-full bg-gradient-to-r from-emerald-400/10 to-emerald-400/25" />
             </div>
             <p className="mt-2 text-xs text-zinc-500">
               Audio resyncs every 60s, so hour six is still in sync.
@@ -220,29 +210,6 @@ function FeatureVisual({ id }: { id: string }) {
             <span className={chip}>Known-game catalog</span>
             <span className={chip}>Your Steam library</span>
           </div>
-        </div>
-      );
-
-    case "medal":
-      return (
-        <div className="space-y-3">
-          <div className={row}>
-            <span className="text-zinc-300">Medal database</span>
-            <span className="text-xs text-zinc-500">Read-only</span>
-          </div>
-          {/* Clips moving across, one at a time. */}
-          <div className="flex justify-center gap-2 py-1">
-            <span className="animate-flow-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="animate-flow-dot-2 h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          </div>
-          <div className={`${row} animate-pop-in border-emerald-400/25 bg-emerald-400/[0.06]`}>
-            <span className="text-emerald-200">Your ClypDat library</span>
-            <span className="text-xs text-emerald-300/70">Titles intact</span>
-          </div>
-          <p className="pt-1 text-xs text-zinc-500">
-            Falls back to scanning the clips folder if the database isn&apos;t
-            readable.
-          </p>
         </div>
       );
 
@@ -395,6 +362,11 @@ export default function Features() {
                   {features.map((feature, index) => (
                     <div
                       key={feature.id}
+                      // The three panels behind the visible one stay mounted so
+                      // the crossfade has something to fade to, but their
+                      // animations are held - opacity 0 hides an animation, it
+                      // does not stop it. See globals.css.
+                      data-visual={index === active ? "on" : "off"}
                       className={`absolute inset-0 transition-opacity duration-500 ${
                         index === active
                           ? "opacity-100"

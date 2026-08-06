@@ -254,14 +254,21 @@ body {
   animation: flow-dot 1.8s ease-in-out 1.2s infinite;
 }
 
-/* The row that is actually in use, breathing. */
+/* The row that is actually in use, breathing.
+
+   Opacity on a separate glow element rather than an animated box-shadow. A
+   box-shadow keyframe is a paint property: the browser re-rasterises the whole
+   row on every frame of a 3s loop that never ends. Fading a layer that already
+   carries a static shadow is handled by the compositor and repaints nothing.
+   The glow element must not sit inside an `overflow-hidden` box, or the shadow
+   - which spreads outside its own bounds - gets clipped away. */
 @keyframes row-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+    opacity: 0;
   }
   50% {
-    box-shadow: 0 0 20px -6px rgb(52 211 153 / 0.5);
+    opacity: 1;
   }
 }
 
@@ -283,66 +290,25 @@ body {
   animation: buffer-shift 3.5s linear infinite;
 }
 
-/* A session file growing, then starting over. */
+/* A session file growing, then starting over.
+
+   scaleX, not width. Animating width runs layout on every frame - the whole
+   section is re-measured 60+ times a second to draw a bar. A transform is
+   composited and touches nothing outside its own layer. */
 @keyframes fill-grow {
   0% {
-    width: 8%;
+    transform: scaleX(0.08);
   }
   85%,
   100% {
-    width: 100%;
+    transform: scaleX(1);
   }
 }
 
 .animate-fill-grow {
+  transform-origin: left center;
   animation: fill-grow 7s ease-in-out infinite;
 }
-
-/* Game events arriving one after another on the GSI feed. */
-@keyframes chip-flash {
-  0%,
-  62%,
-  100% {
-    border-color: rgb(255 255 255 / 0.1);
-    background-color: rgb(255 255 255 / 0.03);
-    color: rgb(161 161 170);
-  }
-  10%,
-  26% {
-    border-color: rgb(52 211 153 / 0.4);
-    background-color: rgb(52 211 153 / 0.14);
-    color: rgb(110 231 183);
-  }
-}
-
-.animate-chip-1 {
-  animation: chip-flash 4.5s ease-in-out infinite;
-}
-
-.animate-chip-2 {
-  animation: chip-flash 4.5s ease-in-out 1.5s infinite;
-}
-
-.animate-chip-3 {
-  animation: chip-flash 4.5s ease-in-out 3s infinite;
-}
-
-/* A scan settling on the matched game. */
-@keyframes match-sweep {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  45%,
-  70% {
-    opacity: 1;
-  }
-}
-
-.animate-match-sweep {
-  animation: match-sweep 3.4s ease-in-out infinite;
-}
-
 
 /* A highlight sweeping through the row that is actually in use. */
 @keyframes shimmer {
@@ -379,24 +345,6 @@ body {
   animation: scan-line 3.4s ease-in-out infinite;
 }
 
-/* The moment a clip lands. */
-@keyframes pop-in {
-  0%,
-  55%,
-  100% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  62% {
-    transform: scale(1.06);
-    opacity: 1;
-  }
-}
-
-.animate-pop-in {
-  animation: pop-in 4.5s ease-in-out infinite;
-}
-
 /* The recording dot in the hero badge and the step markers - a slow breath
    rather than a blink, because it represents something continuously running. */
 @keyframes pulse-soft {
@@ -416,28 +364,14 @@ body {
 }
 
 /* Anything above is decoration. Honour the OS setting and drop all of it - the
-   layout does not depend on any of these having run. */
+   layout does not depend on any of these having run.
+
+   Matched on the class prefix rather than an explicit list: the list drifted
+   out of date every time a diagram was added or removed, and a decoration that
+   was forgotten here kept animating for someone who had asked it not to. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-drift-a,
-  .animate-drift-b,
-  .animate-drift-c,
-  .animate-sheen,
-  .animate-pulse-soft,
-  .animate-library-scroll,
-  .animate-flow-dot,
-  .animate-flow-dot-2,
-  .animate-flow-dot-3,
-  .animate-row-glow,
-  .animate-buffer-shift,
-  .animate-fill-grow,
-  .animate-chip-1,
-  .animate-chip-2,
-  .animate-chip-3,
-  .animate-match-sweep,
-  .animate-shimmer,
-  .animate-scan-line,
-  .animate-pop-in {
-    animation: none;
+  [class*="animate-"] {
+    animation: none !important;
   }
 
   [data-reveal] {
@@ -449,6 +383,48 @@ body {
     transform: none;
     filter: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced effects
+
+   Set by PerfMode when the machine cannot actually keep up - see PerfMode.tsx.
+   Integrated laptop GPUs are fill-rate bound long before they are shader
+   bound, and this page's cost is almost entirely large translucent layers
+   being re-composited at the display's refresh rate. On a 144Hz panel that is
+   the same layer blended 144 times a second whether or not anyone can tell it
+   moved.
+
+   Everything dropped here is decoration. The page reads identically still.
+   --------------------------------------------------------------------------- */
+[data-fx="low"] [class*="animate-"] {
+  animation: none !important;
+}
+
+[data-fx="low"] .page-grain {
+  display: none;
+}
+
+[data-fx="low"] .backdrop-blur,
+[data-fx="low"] .backdrop-blur-sm {
+  backdrop-filter: none;
+}
+
+/* The blur is the expensive half of the reveal - it forces the text to be
+   re-rasterised on every frame of the transition. The lift is free. */
+[data-fx="low"] [data-reveal] {
+  transition-property: opacity, transform;
+}
+
+[data-fx="low"] .reveal-word[data-reveal="hidden"] {
+  filter: none;
+}
+
+/* The three feature diagrams that are faded out are still fully live: an
+   opacity of 0 does not stop an animation, it just stops you seeing it. Four
+   diagrams' worth of layers were being composited to show one. */
+[data-visual="off"] * {
+  animation-play-state: paused !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -468,6 +444,19 @@ body {
 
   .ambience-extra {
     display: none;
+  }
+
+  /* The hero's own glow and the download section's are separate elements from
+     the page-wide ambience, and they were still drifting here: three overlapping
+     translucent layers the size of the viewport, re-composited every frame, on
+     the hardware least able to afford it. The sheen goes for the same reason -
+     it promotes the entire hero card to a layer that has to be re-composited
+     for the whole time it is on screen. */
+  .animate-drift-a,
+  .animate-drift-b,
+  .animate-drift-c,
+  .animate-sheen {
+    animation: none;
   }
 
   /* A full-screen blend pass costs more than the banding it hides. */

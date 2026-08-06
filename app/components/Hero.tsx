@@ -37,7 +37,12 @@ export default function Hero() {
       </div>
 
       <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
-        <Reveal className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300 backdrop-blur">
+        {/* No backdrop-blur. It sits over the hero's own gradient glow and
+            nothing else, so the blur cost a backdrop read and a blur pass per
+            composite to soften something that was already a soft gradient -
+            and it sits over one of the few things on the page that moves, so
+            that read happened on every frame of the drift. */}
+        <Reveal className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300">
           <span className="relative flex h-1.5 w-1.5">
             <span className="animate-pulse-soft absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />

@@ -34,9 +34,18 @@ export default function ScaleToFit({
     const inner = innerRef.current;
     if (!outer || !inner) return;
 
+    // Measured fractionally, and snapped. The card this sits in is a hair
+    // narrower than the design width at desktop - a 1px border is enough - so
+    // the scale came out at 0.9991 rather than 1, which is invisible and is not
+    // free: a non-integer scale means every card image and every label in the
+    // graphic is re-rasterised off its own pixel grid, and the animating layers
+    // inside get resampled on the way out. Under a pixel of difference is not
+    // worth any of that; the parent clips it.
+    const available = outer.getBoundingClientRect().width;
+
     // Never scale up - at wide viewports the graphic should sit at its natural
     // size rather than stretching to fill the column.
-    const next = Math.min(1, outer.clientWidth / designWidth);
+    const next = available >= designWidth - 1.5 ? 1 : available / designWidth;
     setScale(next);
     setHeight(inner.offsetHeight * next);
   }, [designWidth]);
@@ -52,14 +61,22 @@ export default function ScaleToFit({
     return () => observer.disconnect();
   }, [measure]);
 
+  // At desktop widths the scale is exactly 1, and `scale(1)` is not free: it
+  // still makes this element a containing block with its own render surface,
+  // so the animating layers inside it - the scrolling clip grid, the sheen,
+  // the playhead - get composited into that surface and then blitted again,
+  // every frame, to apply an identity transform. Dropping the property when
+  // there is nothing to scale takes that whole pass out on desktop.
+  const scaled = scale < 1;
+
   return (
-    <div ref={outerRef} className={className} style={{ height }}>
+    <div ref={outerRef} className={className} style={{ height: scaled ? height : undefined }}>
       <div
         ref={innerRef}
         style={{
           width: designWidth,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
+          transform: scaled ? `scale(${scale})` : undefined,
+          transformOrigin: scaled ? "top left" : undefined,
         }}
       >
         {children}

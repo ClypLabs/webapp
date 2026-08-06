@@ -146,14 +146,9 @@ export default function EditorGraphic({ className = "" }: { className?: string }
     const video = videoRef.current;
     if (!video || still || !visible) return;
 
-    let frame = 0;
     let lastLabel = "";
-    // Stall watchdog. A clip that stops decoding would otherwise hold the
-    // rotation forever, since `ended` never fires for it.
-    let lastTime = -1;
-    let lastMoved = performance.now();
 
-    const tick = () => {
+    const draw = () => {
       const duration = video.duration || EXCERPT_SECONDS;
       const progress = Math.min(1, video.currentTime / duration);
 
@@ -162,25 +157,59 @@ export default function EditorGraphic({ className = "" }: { className?: string }
       }
 
       const label = formatTime(video.currentTime);
-      if (clockRef.current && label !== lastLabel) {
-        clockRef.current.textContent = label;
+      const clock = clockRef.current;
+      if (clock && label !== lastLabel) {
         lastLabel = label;
+        // nodeValue rather than textContent. Assigning textContent replaces the
+        // child text node, which is a childList mutation, which wakes the
+        // document-wide MutationObserver in PauseOffscreen - once a second, for
+        // a clock tick. Writing through the existing node changes nothing but
+        // the characters.
+        if (clock.firstChild) clock.firstChild.nodeValue = label;
+        else clock.textContent = label;
       }
+    };
 
+    // The playhead can only be somewhere new when the video has a new frame.
+    // requestAnimationFrame ties it to the display instead, so a 144Hz monitor
+    // ran this - and repositioned a composited layer - roughly five times per
+    // decoded frame, to put it back where it already was.
+    const host = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: () => void) => number;
+      cancelVideoFrameCallback?: (handle: number) => void;
+    };
+    const perFrame = typeof host.requestVideoFrameCallback === "function";
+    let handle = 0;
+
+    const tick = () => {
+      draw();
+      handle = perFrame
+        ? host.requestVideoFrameCallback!(tick)
+        : requestAnimationFrame(tick);
+    };
+    tick();
+
+    // Stall watchdog. A clip that stops decoding would otherwise hold the
+    // rotation forever, since `ended` never fires for it - and it cannot live
+    // in the draw loop any more, because a stalled video stops producing the
+    // frame callbacks that would drive it.
+    let lastTime = -1;
+    let lastMoved = performance.now();
+    const watchdog = setInterval(() => {
       const now = performance.now();
       if (video.currentTime !== lastTime) {
         lastTime = video.currentTime;
         lastMoved = now;
       } else if (now - lastMoved > 4000) {
         advance();
-        return;
       }
+    }, 1000);
 
-      frame = requestAnimationFrame(tick);
+    return () => {
+      clearInterval(watchdog);
+      if (perFrame) host.cancelVideoFrameCallback?.(handle);
+      else cancelAnimationFrame(handle);
     };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
   }, [visible, index, still, advance]);
 
   // Everything that belongs to the open clip fades together - the footage, the
@@ -373,7 +402,13 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                 <span className="rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-200">
                   Save Trim
                 </span>
-                <span className="animate-row-glow rounded-md bg-sky-500 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
+                <span className="relative rounded-md bg-sky-500 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
+                  {/* Glow as a fading layer rather than an animated box-shadow,
+                      which would repaint the button every frame. */}
+                  <span
+                    aria-hidden
+                    className="animate-row-glow pointer-events-none absolute inset-0 rounded-md shadow-[0_0_20px_-6px_rgb(52_211_153_/_0.5)]"
+                  />
                   Export
                 </span>
               </div>
