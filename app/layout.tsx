@@ -38,6 +38,21 @@ export const metadata: Metadata = {
   // No explicit icon entry - app/favicon.ico is picked up automatically by
   // Next's file convention, and duplicating it here just risks the two
   // drifting if one gets swapped and not the other.
+  //
+  // Google was pulling one of the in-page screenshots as a search-result
+  // thumbnail, and a grid of tiny unreadable frames sitting next to the title
+  // does the listing no favours. max-image-preview:none drops the thumbnail
+  // while leaving the text snippet and indexing untouched.
+  robots: {
+    index: true,
+    follow: true,
+    "max-image-preview": "none",
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "none",
+    },
+  },
   openGraph: {
     title: "ClypDat - Instant replay buffer for Windows",
     description:
