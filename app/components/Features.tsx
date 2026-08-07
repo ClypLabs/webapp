@@ -416,17 +416,17 @@ export default function Features() {
                 })}
               </div>
 
-              {/* Stretched to the list beside it rather than sized to whichever
-                  diagram is showing. The diagrams are all shorter than the list,
-                  so a self-start panel left a column of empty page next to the
-                  bottom half of the features - and it also resized on every
-                  selection change, which is a strange thing for the one element
-                  that is meant to be holding still. */}
-              <div className="lg:self-stretch">
+              {/* Centred against the list rather than stretched to it. Matching
+                  the list's height meant a 300px diagram adrift in a 600px box,
+                  and spreading the diagram out to fill that box only made the
+                  drawing itself look broken - a flow chart with a screen of
+                  nothing between its steps. The panel is the size of its
+                  contents, and the leftover height sits outside it. */}
+              <div className="lg:self-center">
                 {/* A short stack of cards rather than a single flat panel - the
                     layers behind are inert, and only exist to give the front one
                     somewhere to sit. */}
-                <div className="relative h-full">
+                <div className="relative">
                   {/* Only the sliver that sits above the front panel is drawn.
                       These are full 40px cards, and the front panel is a 4% white
                       tint rather than an opaque surface - it used to carry a
@@ -446,8 +446,11 @@ export default function Features() {
                   {/* No backdrop-blur. There is nothing behind this panel but a
                       soft gradient wash, so the blur cost a full backdrop read per
                       frame to soften something already soft. */}
-                  <div className="relative flex h-full items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
-                    <div className="relative min-h-[300px] w-full">
+                  <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
+                    {/* One fixed height for all four diagrams on desktop, so the
+                        panel does not resize under you as the scroll steps
+                        through them - the tallest of them sets it. */}
+                    <div className="relative min-h-[240px] w-full lg:h-[240px]">
                       {features.map((feature, index) => (
                         <div
                           key={feature.id}
