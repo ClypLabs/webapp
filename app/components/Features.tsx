@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Reveal, { RevealWords } from "./Reveal";
 
 type Feature = {
@@ -218,177 +218,278 @@ function FeatureVisual({ id }: { id: string }) {
   }
 }
 
+// The conditions under which the section is scroll-driven. Both are duplicated
+// in globals.css - the CSS builds the runway, this decides whether to read it,
+// and they have to agree.
+const PIN_QUERY = "(min-width: 1024px) and (min-height: 820px)";
+const STILL_QUERY = "(prefers-reduced-motion: reduce)";
+
 export default function Features() {
   const [active, setActive] = useState(0);
+  const trackRef = useRef<HTMLDivElement>(null);
 
-  // Selection is click-only. It used to follow scroll position, which meant
-  // the panel changed under you while you were reading whichever one you had
-  // deliberately picked - more fidgety than useful.
+  // Whether the scroll-driven behaviour applies right now. It has to match the
+  // CSS in globals.css exactly, or the runway and the selection disagree.
+  const pinnedNow = () =>
+    window.matchMedia(PIN_QUERY).matches &&
+    !window.matchMedia(STILL_QUERY).matches;
 
+  // Position within the runway picks the feature: the runway is divided into
+  // one equal band per feature, and whichever band the scroll sits in is the
+  // one on screen.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const desktop = window.matchMedia(PIN_QUERY);
+    const still = window.matchMedia(STILL_QUERY);
+
+    let frame = 0;
+
+    const measure = () => {
+      frame = 0;
+      // The distance the stage spends stuck: everything past the one viewport
+      // the stage itself occupies.
+      const travel = track.offsetHeight - window.innerHeight;
+      if (travel <= 0) return;
+      const progress = -track.getBoundingClientRect().top / travel;
+      const band = Math.floor(progress * features.length);
+      const index = Math.min(features.length - 1, Math.max(0, band));
+      setActive((current) => (current === index ? current : index));
+    };
+
+    // Scroll fires far more often than the screen refreshes, and the read here
+    // forces layout - one measurement per frame is all that can be shown.
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+
+    const detach = () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+
+    const attach = () => {
+      detach();
+      if (!desktop.matches || still.matches) return;
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+      measure();
+    };
+
+    attach();
+    desktop.addEventListener("change", attach);
+    still.addEventListener("change", attach);
+
+    return () => {
+      detach();
+      desktop.removeEventListener("change", attach);
+      still.removeEventListener("change", attach);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  // Clicking a feature still works, but while pinned the selection belongs to
+  // the scroll position - setting it without moving the page would have the
+  // next wheel notch snap it straight back. So a click scrolls to the middle of
+  // that feature's band and lets the measurement above do the selecting.
+  const select = useCallback((index: number) => {
+    setActive(index);
+
+    const track = trackRef.current;
+    if (!track || !pinnedNow()) return;
+
+    const travel = track.offsetHeight - window.innerHeight;
+    if (travel <= 0) return;
+
+    const top =
+      track.getBoundingClientRect().top +
+      window.scrollY +
+      (travel * (index + 0.5)) / features.length;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, []);
 
   return (
-    <section id="features" className="section-lazy relative overflow-hidden px-6 py-32 sm:py-40">
+    // No `overflow-hidden` here and no `section-lazy`: the first breaks a
+    // sticky descendant outright (it becomes a scrollport of its own, and the
+    // stage sticks to that instead of to the viewport), and the second reserves
+    // a 900px placeholder for a section that is now several viewports tall,
+    // which makes the scrollbar lie and the runway jump as it resolves.
+    // `overflow-x-clip` still contains the ambient wash sideways without
+    // creating a scroll container.
+    <section id="features" className="relative overflow-x-clip px-6 py-32 sm:py-40">
       <div className="mx-auto max-w-6xl">
-        <div className="max-w-3xl">
-          <Reveal
-            as="p"
-            className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
-          >
-            Capture
-          </Reveal>
-          <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-            <RevealWords text="Built for how you" />{" "}
-            <RevealWords text="actually play." wordClassName="text-accent" />
-          </h2>
-          <Reveal delay={280} as="p" className="mt-6 max-w-xl text-lg text-zinc-400">
-            Two capture backends, switchable in Settings - ClypDat&apos;s own
-            native engine by default, with Windows Capture as a fallback.
-            Neither one hooks into your game.
-          </Reveal>
-        </div>
-
-        {/* Phone: a tab row, then the active description, then its diagram.
-            A stacked list with a diagram under each item is far taller than a
-            phone wants, and a panel above the list updates something you have
-            already scrolled past. */}
-        <div className="mt-12 lg:hidden">
-          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {features.map((feature, index) => (
-              <button
-                key={feature.id}
-                type="button"
-                onClick={() => setActive(index)}
-                aria-pressed={index === active}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
-                  index === active
-                    ? "bg-white/[0.08] text-zinc-50"
-                    : "text-zinc-500"
-                }`}
+        {/* The runway. Its only job is to be tall: one viewport for the stage,
+            plus one step of scroll per feature after the first. */}
+        <div
+          ref={trackRef}
+          className="pin-track"
+          style={{ "--pin-steps": features.length } as CSSProperties}
+        >
+          <div className="pin-stage">
+            <div className="max-w-3xl">
+              <Reveal
+                as="p"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
               >
-                {feature.title}
-              </button>
-            ))}
-          </div>
+                Capture
+              </Reveal>
+              <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
+                <RevealWords text="Built for how you" />{" "}
+                <RevealWords text="actually play." wordClassName="text-accent" />
+              </h2>
+              <Reveal delay={280} as="p" className="mt-6 max-w-xl text-lg text-zinc-400">
+                Two capture backends, switchable in Settings - ClypDat&apos;s own
+                native engine by default, with Windows Capture as a fallback.
+                Neither one hooks into your game.
+              </Reveal>
+            </div>
 
-          <p className="mt-5 text-sm leading-7 text-zinc-400">
-            {features[active].description}
-          </p>
-
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <FeatureVisual id={features[active].id} />
-          </div>
-
-          <div className="mt-8 grid gap-5 border-t border-white/[0.06] pt-6">
-            {alsoDoes.map((item) => (
-              <div key={item.title}>
-                <h3 className="text-sm font-semibold text-zinc-300">
-                  {item.title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-6 text-zinc-500">
-                  {item.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Desktop keeps the list beside a panel that stays put as you read. */}
-        <div className="mt-16 hidden gap-10 lg:mt-20 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
-          <div className="flex flex-col gap-2">
-            {features.map((feature, index) => {
-              const isActive = index === active;
-              return (
-                <button
-                  key={feature.id}
-                  type="button"
-                  onClick={() => setActive(index)}
-                  aria-pressed={isActive}
-                  className={`rounded-2xl px-5 py-4 text-left transition-all duration-500 ${
-                    isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.02]"
-                  }`}
-                >
-                  <h3
-                    className={`text-lg font-semibold transition-colors duration-500 ${
-                      isActive ? "text-zinc-50" : "text-zinc-400"
+            {/* Phone: a tab row, then the active description, then its diagram.
+                A stacked list with a diagram under each item is far taller than a
+                phone wants, and a panel above the list updates something you have
+                already scrolled past. */}
+            <div className="mt-12 lg:hidden">
+              <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {features.map((feature, index) => (
+                  <button
+                    key={feature.id}
+                    type="button"
+                    onClick={() => setActive(index)}
+                    aria-pressed={index === active}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
+                      index === active
+                        ? "bg-white/[0.08] text-zinc-50"
+                        : "text-zinc-500"
                     }`}
                   >
                     {feature.title}
-                  </h3>
-                  {/* Body copy is always present rather than collapsed - an
-                      accordion here would hide the substance behind a click. */}
-                  <p
-                    className={`mt-2 text-sm leading-7 transition-colors duration-500 ${
-                      isActive ? "text-zinc-400" : "text-zinc-500"
-                    }`}
-                  >
-                    {feature.description}
-                  </p>
-                </button>
-              );
-            })}
-
-            <div className="mt-6 grid gap-4 border-t border-white/[0.06] pt-6 sm:grid-cols-2">
-              {alsoDoes.map((item) => (
-                <div key={item.title}>
-                  <h3 className="text-sm font-semibold text-zinc-300">
-                    {item.title}
-                  </h3>
-                  <p className="mt-1.5 text-sm leading-6 text-zinc-500">
-                    {item.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            {/* A short stack of cards rather than a single flat panel - the
-                layers behind are inert, and only exist to give the front one
-                somewhere to sit. */}
-            <div className="relative">
-              {/* Only the sliver that sits above the front panel is drawn.
-                  These are full 40px cards, and the front panel is a 4% white
-                  tint rather than an opaque surface - it used to carry a
-                  backdrop blur that smeared their lower halves away, and when
-                  that went (it cost a backdrop read per frame) the halves
-                  behind the panel started showing straight through it as two
-                  stray lines across every diagram. Clipping at the panel's top
-                  edge fixes it without the panel having to be opaque, and
-                  without paying for a blur. */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden"
-              >
-                <div className="absolute inset-x-8 top-0 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
-                <div className="absolute inset-x-4 top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]" />
+                  </button>
+                ))}
               </div>
-              {/* No backdrop-blur. There is nothing behind this panel but a
-                  soft gradient wash, so the blur cost a full backdrop read per
-                  frame to soften something already soft. */}
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
-                <div className="relative min-h-[300px]">
-                  {features.map((feature, index) => (
-                    <div
+
+              <p className="mt-5 text-sm leading-7 text-zinc-400">
+                {features[active].description}
+              </p>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <FeatureVisual id={features[active].id} />
+              </div>
+            </div>
+
+            {/* Desktop: the list beside its panel, both inside the stuck stage. */}
+            <div className="mt-12 hidden gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
+              <div className="flex flex-col gap-2">
+                {features.map((feature, index) => {
+                  const isActive = index === active;
+                  return (
+                    <button
                       key={feature.id}
-                      // The three panels behind the visible one stay mounted so
-                      // the crossfade has something to fade to, but their
-                      // animations are held - opacity 0 hides an animation, it
-                      // does not stop it. See globals.css.
-                      data-visual={index === active ? "on" : "off"}
-                      className={`absolute inset-0 transition-opacity duration-500 ${
-                        index === active
-                          ? "opacity-100"
-                          : "pointer-events-none opacity-0"
+                      type="button"
+                      onClick={() => select(index)}
+                      aria-pressed={isActive}
+                      className={`rounded-2xl px-5 py-4 text-left transition-all duration-500 ${
+                        isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.02]"
                       }`}
-                      aria-hidden={index !== active}
                     >
-                      <FeatureVisual id={feature.id} />
+                      <h3
+                        className={`text-lg font-semibold transition-colors duration-500 ${
+                          isActive ? "text-zinc-50" : "text-zinc-400"
+                        }`}
+                      >
+                        {feature.title}
+                      </h3>
+                      {/* Body copy is always present rather than collapsed - an
+                          accordion here would hide the substance behind a click,
+                          and the four of them together are what fills the stage.
+                          Collapsing the inactive three left half a viewport of
+                          nothing under the section. */}
+                      <p
+                        className={`mt-2 text-sm leading-7 transition-colors duration-500 ${
+                          isActive ? "text-zinc-400" : "text-zinc-500"
+                        }`}
+                      >
+                        {feature.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Stretched to the list beside it rather than sized to whichever
+                  diagram is showing. The diagrams are all shorter than the list,
+                  so a self-start panel left a column of empty page next to the
+                  bottom half of the features - and it also resized on every
+                  selection change, which is a strange thing for the one element
+                  that is meant to be holding still. */}
+              <div className="lg:self-stretch">
+                {/* A short stack of cards rather than a single flat panel - the
+                    layers behind are inert, and only exist to give the front one
+                    somewhere to sit. */}
+                <div className="relative h-full">
+                  {/* Only the sliver that sits above the front panel is drawn.
+                      These are full 40px cards, and the front panel is a 4% white
+                      tint rather than an opaque surface - it used to carry a
+                      backdrop blur that smeared their lower halves away, and when
+                      that went (it cost a backdrop read per frame) the halves
+                      behind the panel started showing straight through it as two
+                      stray lines across every diagram. Clipping at the panel's top
+                      edge fixes it without the panel having to be opaque, and
+                      without paying for a blur. */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden"
+                  >
+                    <div className="absolute inset-x-8 top-0 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+                    <div className="absolute inset-x-4 top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]" />
+                  </div>
+                  {/* No backdrop-blur. There is nothing behind this panel but a
+                      soft gradient wash, so the blur cost a full backdrop read per
+                      frame to soften something already soft. */}
+                  <div className="relative flex h-full items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
+                    <div className="relative min-h-[300px] w-full">
+                      {features.map((feature, index) => (
+                        <div
+                          key={feature.id}
+                          // The three panels behind the visible one stay mounted so
+                          // the crossfade has something to fade to, but their
+                          // animations are held - opacity 0 hides an animation, it
+                          // does not stop it. See globals.css.
+                          data-visual={index === active ? "on" : "off"}
+                          className={`absolute inset-0 transition-opacity duration-500 ${
+                            index === active
+                              ? "opacity-100"
+                              : "pointer-events-none opacity-0"
+                          }`}
+                          aria-hidden={index !== active}
+                        >
+                          <FeatureVisual id={feature.id} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* The rest of the section, below the runway - reached once the last
+            feature has had its turn and the stage lets go. */}
+        {/* No extra top margin on desktop: the stage already ends with half a
+            viewport of centring slack under it, and stacking a margin on top of
+            that put the divider most of a screen away from anything. */}
+        <div className="mt-12 grid gap-5 border-t border-white/[0.06] pt-8 sm:grid-cols-2 sm:gap-8 lg:mt-0">
+          {alsoDoes.map((item) => (
+            <div key={item.title}>
+              <h3 className="text-sm font-semibold text-zinc-300">
+                {item.title}
+              </h3>
+              <p className="mt-1.5 text-sm leading-6 text-zinc-500">
+                {item.description}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

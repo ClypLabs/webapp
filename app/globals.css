@@ -479,3 +479,54 @@ body {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }
+
+/* ---------------------------------------------------------------------------
+   Scroll-driven feature section
+
+   The track is a tall, empty scroll runway; the stage inside it sticks to the
+   viewport for the whole run. Scrolling through the runway therefore advances
+   the selection instead of moving the section, and once the last feature is
+   reached the stage unsticks and the page carries on normally.
+
+   The runway length is one viewport (the stage itself) plus one step per extra
+   feature, so the step count is a variable the component sets rather than a
+   number duplicated here.
+
+   Desktop only. On a phone the section is a tab row, and hijacking the scroll
+   of the one input the user has for getting past it is hostile.
+
+   The height floor matters as much as the width one: a stage that is taller
+   than the viewport it is stuck to has its bottom cut off with no way to scroll
+   to it, because the scroll is being spent on the runway. Short viewports get
+   the plain section instead. The component tests the same query - keep the two
+   in step. */
+@media (min-width: 1024px) and (min-height: 820px) {
+  .pin-track {
+    height: calc(100vh + (var(--pin-steps) - 1) * var(--pin-step, 70vh));
+  }
+
+  .pin-stage {
+    position: sticky;
+    top: 0;
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 3rem;
+  }
+}
+
+/* Anyone who has asked for less motion gets the plain, click-driven section:
+   no runway, no pinning, nothing that moves on its own as they scroll. The
+   component skips its scroll listener under the same query. */
+@media (prefers-reduced-motion: reduce) {
+  .pin-track {
+    height: auto;
+  }
+
+  .pin-stage {
+    position: static;
+    min-height: 0;
+    padding-block: 0;
+  }
+}
