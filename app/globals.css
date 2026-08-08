@@ -32,26 +32,26 @@ html {
    screen of nothing before the heading. The negative margin eats the pad back,
    leaving the heading just clear of the bar; the padding still does its job
    for anyone arriving by scroll. */
-.section-anchor {
+.section-anchor,
+.section-anchor-pinned {
   scroll-margin-top: -7.5rem;
 }
 
-/* The capture section's content is inside a sticky stage, so the pad is not the
-   only thing above it: landing on the section top leaves the stage still short
-   of the point where it pins. This eats the pad and that gap both, so the jump
-   arrives with the stage already stuck to the top of the viewport - the state
-   it holds for the rest of the section. */
-.section-anchor-pinned {
-  scroll-margin-top: -13rem;
-}
-
 @media (min-width: 640px) {
-  .section-anchor {
+  .section-anchor,
+  .section-anchor-pinned {
     scroll-margin-top: -9.5rem;
   }
+}
 
+/* The capture section's content is inside a sticky stage, which adds its own
+   pad on top of the section's - so the same landing needs a deeper cut here.
+   Only where the stage exists: below this the section is a plain one and the
+   shared offset above is already right. Keep the query in step with the
+   pin-track rules. */
+@media (min-width: 1024px) and (min-height: 820px) {
   .section-anchor-pinned {
-    scroll-margin-top: -15rem;
+    scroll-margin-top: -8.5rem;
   }
 }
 
