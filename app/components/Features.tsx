@@ -317,7 +317,10 @@ export default function Features() {
     // which makes the scrollbar lie and the runway jump as it resolves.
     // `overflow-x-clip` still contains the ambient wash sideways without
     // creating a scroll container.
-    <section id="features" className="relative overflow-x-clip px-6 py-32 sm:py-40">
+    <section
+      id="features"
+      className="section-anchor relative overflow-x-clip px-6 py-32 sm:py-40"
+    >
       <div className="mx-auto max-w-6xl">
         {/* The runway. Its only job is to be tall: one viewport for the stage,
             plus one step of scroll per feature after the first. */}

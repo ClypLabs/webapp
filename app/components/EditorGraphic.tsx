@@ -390,11 +390,20 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                   {/* The disclaimer lives in the one field on this panel that
                       is a free text box in the real app, so it reads as
                       something typed into the editor rather than as chrome
-                      bolted onto the mock. */}
+                      bolted onto the mock.
+
+                      Only while the window is near its design width, though.
+                      The whole graphic scales with the column, and below lg
+                      that puts 10px type under 9px - unreadable. There the
+                      field goes back to its placeholder and the section prints
+                      the disclaimer under the window instead. */}
                   <p className="mt-1 h-20 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[10px] leading-[1.5] text-zinc-500">
-                    Preview footage is a six-second excerpt, re-encoded to 720p
-                    and muted for the page. The clip details are the original
-                    recording&apos;s.
+                    <span className="hidden lg:inline">
+                      Preview footage is a six-second excerpt, re-encoded to 720p
+                      and muted for the page. The clip details are the original
+                      recording&apos;s.
+                    </span>
+                    <span className="text-zinc-600 lg:hidden">Add a description</span>
                   </p>
                 </div>
 
