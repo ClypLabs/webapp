@@ -447,10 +447,12 @@ export default function Features() {
                       lets the card stay translucent and still have a stack
                       behind it.
 
-                      One card per feature still, so the deck actually thins out
-                      as the scroll steps through it: the slivers slide down and
-                      fade as their card is dealt, rather than sitting there as
-                      two painted lines that never move. */}
+                      One sliver per feature still to come, so the deck actually
+                      thins out as the scroll steps through it rather than
+                      sitting there as two painted lines that never move. They
+                      move on transform alone - animating `left`/`right` made
+                      each sliver snap to its new width while it slid, which is
+                      what the movement was catching on. */}
                   <div
                     aria-hidden
                     className="pointer-events-none absolute inset-x-0 -top-5 h-5 overflow-hidden"
@@ -461,21 +463,18 @@ export default function Features() {
                       // front of it, so the deck stops there.
                       const depth = index - active;
                       const shown = depth > 0 && depth <= 3;
+                      const step = Math.min(depth, 3);
                       return (
                         <div
                           key={feature.id}
-                          className="absolute top-0 h-12 rounded-2xl border transition-[transform,opacity,border-color] duration-500 ease-out"
+                          className="absolute inset-x-0 top-0 h-12 rounded-2xl border border-white/[0.07] bg-white/[0.03] transition-[transform,opacity] duration-500 ease-out"
                           style={{
                             // Each card sits a little further up and a little
                             // narrower than the one in front of it. Cards not in
                             // the deck park at the front card's own edge, so
                             // arriving is a slide rather than a pop.
-                            left: `${Math.min(depth, 3) * 14}px`,
-                            right: `${Math.min(depth, 3) * 14}px`,
-                            transform: `translate3d(0, ${shown ? 20 - depth * 7 : 20}px, 0)`,
-                            opacity: shown ? 0.55 - (depth - 1) * 0.18 : 0,
-                            borderColor: `rgba(255, 255, 255, ${0.08 - (depth - 1) * 0.02})`,
-                            background: "rgba(255, 255, 255, 0.03)",
+                            transform: `translate3d(0, ${shown ? 20 - depth * 7 : 20}px, 0) scaleX(${1 - step * 0.04})`,
+                            opacity: shown ? 0.6 - (depth - 1) * 0.2 : 0,
                             zIndex: features.length - depth,
                           }}
                         />
@@ -483,33 +482,37 @@ export default function Features() {
                     })}
                   </div>
 
-                  {features.map((feature, index) => {
-                    const isActive = index === active;
-                    return (
-                      <div
-                        key={feature.id}
-                        aria-hidden={!isActive}
-                        // The diagrams behind the visible one stay mounted so the
-                        // crossfade has something to fade to, but their
-                        // animations are held - opacity 0 hides an animation, it
-                        // does not stop it. See globals.css.
-                        data-visual={isActive ? "on" : "off"}
-                        // No backdrop-blur. There is nothing behind this card but
-                        // a soft gradient wash, so the blur cost a full backdrop
-                        // read per frame to soften something already soft.
-                        className={`absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 transition-[transform,opacity] duration-500 ease-out sm:p-8 ${
-                          isActive
-                            ? "translate-y-0 scale-100 opacity-100"
-                            : "pointer-events-none -translate-y-3 scale-[0.97] opacity-0"
-                        }`}
-                        style={{ zIndex: isActive ? features.length + 1 : 0 }}
-                      >
-                        <div className="h-[260px] w-full">
-                          <FeatureVisual id={feature.id} />
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {/* One card, not four stacked on top of each other. Four
+                      translucent surfaces crossfading meant two of them were
+                      part-visible at once mid-step, and two 4% tints over each
+                      other is a brighter panel than either - the card flashed on
+                      every step. The surface stays put and its contents are what
+                      change. */}
+                  <div className="absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
+                    <div className="relative h-[260px] w-full">
+                      {features.map((feature, index) => {
+                        const isActive = index === active;
+                        return (
+                          <div
+                            key={feature.id}
+                            aria-hidden={!isActive}
+                            // The diagrams behind the visible one stay mounted so
+                            // the crossfade has something to fade to, but their
+                            // animations are held - opacity 0 hides an animation,
+                            // it does not stop it. See globals.css.
+                            data-visual={isActive ? "on" : "off"}
+                            className={`absolute inset-0 transition-[transform,opacity] duration-500 ease-out ${
+                              isActive
+                                ? "translate-y-0 opacity-100"
+                                : "pointer-events-none translate-y-2 opacity-0"
+                            }`}
+                          >
+                            <FeatureVisual id={feature.id} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
