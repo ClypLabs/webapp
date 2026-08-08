@@ -439,59 +439,73 @@ export default function Features() {
                     which pushes the section heading off the top while it is
                     pinned. */}
                 <div className="relative h-[324px]">
-                  {features.map((feature, index) => {
-                    const offset = index - active;
-                    // How far back in the deck: only the next two are drawn, and
-                    // anything deeper sits at the same place with nothing left to
-                    // show, so the stack does not grow a tail.
-                    const depth = Math.min(Math.max(offset, 0), 3);
-                    // Cards already stepped past leave towards the reader.
-                    const passed = offset < 0;
-                    const isActive = offset === 0;
+                  {/* The deck behind the front card, clipped to the strip above
+                      it. The front card is a white tint rather than an opaque
+                      surface - which is what gives it its glass - so anything
+                      drawn under its footprint reads straight through the
+                      diagram as stray lines. Clipping at its top edge is what
+                      lets the card stay translucent and still have a stack
+                      behind it.
 
+                      One card per feature still, so the deck actually thins out
+                      as the scroll steps through it: the slivers slide down and
+                      fade as their card is dealt, rather than sitting there as
+                      two painted lines that never move. */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 -top-5 h-5 overflow-hidden"
+                  >
+                    {features.map((feature, index) => {
+                      // Only the cards still to come are behind the front one.
+                      // Past the third the sliver would land under the ones in
+                      // front of it, so the deck stops there.
+                      const depth = index - active;
+                      const shown = depth > 0 && depth <= 3;
+                      return (
+                        <div
+                          key={feature.id}
+                          className="absolute top-0 h-12 rounded-2xl border transition-[transform,opacity,border-color] duration-500 ease-out"
+                          style={{
+                            // Each card sits a little further up and a little
+                            // narrower than the one in front of it. Cards not in
+                            // the deck park at the front card's own edge, so
+                            // arriving is a slide rather than a pop.
+                            left: `${Math.min(depth, 3) * 14}px`,
+                            right: `${Math.min(depth, 3) * 14}px`,
+                            transform: `translate3d(0, ${shown ? 20 - depth * 7 : 20}px, 0)`,
+                            opacity: shown ? 0.55 - (depth - 1) * 0.18 : 0,
+                            borderColor: `rgba(255, 255, 255, ${0.08 - (depth - 1) * 0.02})`,
+                            background: "rgba(255, 255, 255, 0.03)",
+                            zIndex: features.length - depth,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {features.map((feature, index) => {
+                    const isActive = index === active;
                     return (
                       <div
                         key={feature.id}
                         aria-hidden={!isActive}
-                        // The diagrams on the cards behind stay mounted so the
-                        // deal has something to move, but their animations are
-                        // held - opacity 0 hides an animation, it does not stop
-                        // it. See globals.css.
+                        // The diagrams behind the visible one stay mounted so the
+                        // crossfade has something to fade to, but their
+                        // animations are held - opacity 0 hides an animation, it
+                        // does not stop it. See globals.css.
                         data-visual={isActive ? "on" : "off"}
-                        className={`absolute inset-x-0 top-0 overflow-hidden rounded-2xl border shadow-2xl shadow-black/40 transition-[transform,opacity] duration-500 ease-out ${
+                        // No backdrop-blur. There is nothing behind this card but
+                        // a soft gradient wash, so the blur cost a full backdrop
+                        // read per frame to soften something already soft.
+                        className={`absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 transition-[transform,opacity] duration-500 ease-out sm:p-8 ${
                           isActive
-                            ? // Opaque, not a white tint: a translucent front
-                              // card let the borders of the cards behind it show
-                              // straight through the diagram.
-                              "border-white/10 bg-[#13171c]"
-                            : "pointer-events-none border-white/[0.07] bg-[#0f1319]"
+                            ? "translate-y-0 scale-100 opacity-100"
+                            : "pointer-events-none -translate-y-3 scale-[0.97] opacity-0"
                         }`}
-                        style={{
-                          // Back of the deck: smaller, higher, dimmer, one step
-                          // per card. Front of the deck: larger and gone.
-                          transform: passed
-                            ? "translate3d(0, 22px, 0) scale(1.04)"
-                            : `translate3d(0, ${depth * -14}px, 0) scale(${1 - depth * 0.04})`,
-                          opacity: passed ? 0 : [1, 0.7, 0.4, 0][depth],
-                          zIndex: features.length - Math.abs(offset),
-                        }}
+                        style={{ zIndex: isActive ? features.length + 1 : 0 }}
                       >
-                        {/* No backdrop-blur. There is nothing behind these cards
-                            but a soft gradient wash, so the blur cost a full
-                            backdrop read per frame to soften something already
-                            soft. */}
-                        <div className="p-6 sm:p-8">
-                          {/* Only the front card shows its diagram. The ones
-                              behind are surfaces - four diagrams stacked at
-                              different scales read as a mess, and the point of
-                              the cards behind is depth, not content. */}
-                          <div
-                            className={`h-[260px] w-full transition-opacity duration-500 ease-out ${
-                              isActive ? "opacity-100" : "opacity-0"
-                            }`}
-                          >
-                            <FeatureVisual id={feature.id} />
-                          </div>
+                        <div className="h-[260px] w-full">
+                          <FeatureVisual id={feature.id} />
                         </div>
                       </div>
                     );
