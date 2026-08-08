@@ -51,7 +51,7 @@ html {
    pin-track rules. */
 @media (min-width: 1024px) and (min-height: 820px) {
   .section-anchor-pinned {
-    scroll-margin-top: -8.5rem;
+    scroll-margin-top: -15rem;
   }
 }
 
@@ -542,10 +542,23 @@ body {
     /* Top aligned rather than centred. Centring split the leftover height
        evenly, which put ~180px of nothing above the heading on a tall screen -
        fine when you scroll into it, wrong when the nav drops you on it. The
-       top pad clears the sticky header; the leftover now collects underneath,
-       where it reads as breathing room. */
+       leftover now collects underneath, where it reads as breathing room.
+
+       The pad is what holds the content off the header for the whole pinned
+       run, so it is also where the section sits when the nav lands on it -
+       the two match, and scrolling into the pin moves nothing. */
     justify-content: flex-start;
     padding-block: 5rem 3rem;
+  }
+
+  /* Only once there is height to spend. Below this the stage is barely taller
+     than its content and the pad would push the bottom of the section out of
+     reach - the scroll is being spent on the runway, so there is no way to
+     get to it. */
+  @media (min-height: 1000px) {
+    .pin-stage {
+      padding-block-start: 11.5rem;
+    }
   }
 }
 
