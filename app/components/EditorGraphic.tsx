@@ -387,8 +387,14 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                     {clip.title}
                   </p>
                   <p className="mt-2.5 text-[10px] text-zinc-400">Description</p>
-                  <p className="mt-1 h-14 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-600">
-                    Add a description
+                  {/* The disclaimer lives in the one field on this panel that
+                      is a free text box in the real app, so it reads as
+                      something typed into the editor rather than as chrome
+                      bolted onto the mock. */}
+                  <p className="mt-1 h-20 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[10px] leading-[1.5] text-zinc-500">
+                    Preview footage is a six-second excerpt, re-encoded to 720p
+                    and muted for the page. The clip details are the original
+                    recording&apos;s.
                   </p>
                 </div>
 
