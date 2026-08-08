@@ -55,7 +55,7 @@ const alsoDoes = [
 // Panel styling shared by every visual, so they read as one family rather than
 // six unrelated illustrations.
 const row =
-  "flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[15px]";
+  "flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm";
 const chip =
   "rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-400";
 
@@ -226,19 +226,7 @@ const PIN_QUERY = "(min-width: 1024px) and (min-height: 820px)";
 const STILL_QUERY = "(prefers-reduced-motion: reduce)";
 
 export default function Features() {
-  // The step, and which way it was taken. The card that arrives comes from the
-  // side the scroll came from, so moving back up the list does not look like
-  // moving down it - which is why the direction is part of the same state
-  // rather than something derived afterwards.
-  const [step, setStep] = useState({ index: 0, forward: true });
-  const active = step.index;
-  const setActive = useCallback((next: number | ((current: number) => number)) => {
-    setStep((current) => {
-      const index = typeof next === "function" ? next(current.index) : next;
-      if (index === current.index) return current;
-      return { index, forward: index > current.index };
-    });
-  }, []);
+  const [active, setActive] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
 
   // Whether the scroll-driven behaviour applies right now. It has to match the
@@ -404,7 +392,7 @@ export default function Features() {
                       type="button"
                       onClick={() => select(index)}
                       aria-pressed={isActive}
-                      className={`rounded-2xl px-6 py-5 text-left transition-all duration-500 ${
+                      className={`rounded-2xl px-6 py-4 text-left transition-all duration-500 ${
                         isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.02]"
                       }`}
                     >
@@ -442,11 +430,7 @@ export default function Features() {
                 {/* A short stack of cards rather than a single flat panel - the
                     layers behind are inert, and only exist to give the front one
                     somewhere to sit. */}
-                {/* Keyed on the step so the deal animation replays on every
-                    change - a CSS animation only runs when the element is new to
-                    the DOM, and re-adding the class on an existing node does
-                    nothing. The visuals inside are the same four either way. */}
-                <div className="relative" key={active}>
+                <div className="relative">
                   {/* Only the sliver that sits above the front panel is drawn.
                       These are full 40px cards, and the front panel is a 4% white
                       tint rather than an opaque surface - it used to carry a
@@ -458,9 +442,7 @@ export default function Features() {
                       without paying for a blur. */}
                   <div
                     aria-hidden
-                    className={`pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden ${
-                      step.forward ? "animate-stack-back" : "animate-stack-back-up"
-                    }`}
+                    className="pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden"
                   >
                     <div className="absolute inset-x-8 top-0 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
                     <div className="absolute inset-x-4 top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]" />
@@ -468,15 +450,14 @@ export default function Features() {
                   {/* No backdrop-blur. There is nothing behind this panel but a
                       soft gradient wash, so the blur cost a full backdrop read per
                       frame to soften something already soft. */}
-                  <div
-                    className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8 lg:p-10 ${
-                      step.forward ? "animate-stack-deal" : "animate-stack-deal-up"
-                    }`}
-                  >
+                  <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
                     {/* One fixed height for all four diagrams on desktop, so the
                         panel does not resize under you as the scroll steps
-                        through them - the tallest of them sets it. */}
-                    <div className="relative min-h-[300px] w-full lg:h-[300px]">
+                        through them - the tallest of them, the four-row encoder
+                        list, sets it. Any taller and the stage stops fitting a
+                        viewport, which pushes the section heading off the top
+                        while it is pinned. */}
+                    <div className="relative min-h-[260px] w-full lg:h-[260px]">
                       {features.map((feature, index) => (
                         <div
                           key={feature.id}
@@ -485,10 +466,15 @@ export default function Features() {
                           // animations are held - opacity 0 hides an animation, it
                           // does not stop it. See globals.css.
                           data-visual={index === active ? "on" : "off"}
-                          className={`absolute inset-0 transition-opacity duration-500 ${
+                          // The diagram slides as it fades, so a step reads as
+                          // the next card coming forward rather than as the
+                          // panel's contents blinking over. A transition rather
+                          // than a keyframe: the node stays mounted, so there is
+                          // nothing to replay and nothing to key.
+                          className={`absolute inset-0 transition-[opacity,transform] duration-500 ease-out ${
                             index === active
-                              ? "opacity-100"
-                              : "pointer-events-none opacity-0"
+                              ? "translate-y-0 opacity-100"
+                              : "pointer-events-none translate-y-3 opacity-0"
                           }`}
                           aria-hidden={index !== active}
                         >
