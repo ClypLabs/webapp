@@ -460,8 +460,11 @@ export default function Features() {
                         data-visual={isActive ? "on" : "off"}
                         className={`absolute inset-x-0 top-0 overflow-hidden rounded-2xl border shadow-2xl shadow-black/40 transition-[transform,opacity] duration-500 ease-out ${
                           isActive
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "pointer-events-none border-white/[0.07] bg-white/[0.02]"
+                            ? // Opaque, not a white tint: a translucent front
+                              // card let the borders of the cards behind it show
+                              // straight through the diagram.
+                              "border-white/10 bg-[#13171c]"
+                            : "pointer-events-none border-white/[0.07] bg-[#0f1319]"
                         }`}
                         style={{
                           // Back of the deck: smaller, higher, dimmer, one step
