@@ -36,9 +36,22 @@ html {
   scroll-margin-top: -7.5rem;
 }
 
+/* The capture section's content is inside a sticky stage, so the pad is not the
+   only thing above it: landing on the section top leaves the stage still short
+   of the point where it pins. This eats the pad and that gap both, so the jump
+   arrives with the stage already stuck to the top of the viewport - the state
+   it holds for the rest of the section. */
+.section-anchor-pinned {
+  scroll-margin-top: -13rem;
+}
+
 @media (min-width: 640px) {
   .section-anchor {
     scroll-margin-top: -9.5rem;
+  }
+
+  .section-anchor-pinned {
+    scroll-margin-top: -15rem;
   }
 }
 
@@ -526,8 +539,13 @@ body {
     display: flex;
     min-height: 100vh;
     flex-direction: column;
-    justify-content: center;
-    padding-block: 3rem;
+    /* Top aligned rather than centred. Centring split the leftover height
+       evenly, which put ~180px of nothing above the heading on a tall screen -
+       fine when you scroll into it, wrong when the nav drops you on it. The
+       top pad clears the sticky header; the leftover now collects underneath,
+       where it reads as breathing room. */
+    justify-content: flex-start;
+    padding-block: 5rem 3rem;
   }
 }
 

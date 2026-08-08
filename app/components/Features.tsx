@@ -319,7 +319,7 @@ export default function Features() {
     // creating a scroll container.
     <section
       id="features"
-      className="section-anchor relative overflow-x-clip px-6 py-32 sm:py-40"
+      className="section-anchor-pinned relative overflow-x-clip px-6 py-32 sm:py-40"
     >
       <div className="mx-auto max-w-6xl">
         {/* The runway. Its only job is to be tall: one viewport for the stage,
