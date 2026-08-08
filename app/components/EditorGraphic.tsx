@@ -458,7 +458,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                 <div className="flex w-[92px] shrink-0 items-center rounded-md border border-white/[0.06] bg-white/[0.02] px-2 text-[10px] text-zinc-400">
                   Video
                 </div>
-                <div className="relative h-9 min-w-0 flex-1 overflow-hidden rounded-md">
+                <div className="relative h-9 min-w-0 flex-1 overflow-hidden rounded-md ring-1 ring-emerald-400/60">
                   <Image
                     key={clip.slug}
                     src={`/media/editor/${clip.slug}/filmstrip.webp`}

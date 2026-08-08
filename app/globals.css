@@ -391,6 +391,75 @@ body {
   animation: pulse-soft 2.6s ease-in-out infinite;
 }
 
+/* The feature panel is a short stack of cards, and stepping through the list
+   deals the next one onto it: the front card arrives from the direction the
+   scroll came from, and the inert cards behind it settle a beat later so the
+   stack reads as depth rather than as one flat panel sliding.
+
+   Both run once per step - the element is keyed on the step in Features.tsx, so
+   it is a new node each time and the animation replays. */
+@keyframes stack-deal {
+  0% {
+    transform: translate3d(0, -14px, 0) scale(0.985);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes stack-deal-up {
+  0% {
+    transform: translate3d(0, 14px, 0) scale(0.985);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-stack-deal {
+  animation: stack-deal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-stack-deal-up {
+  animation: stack-deal-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The sliver of the cards behind. It moves the opposite way and further, which
+   is what sells the front card as having come off the top of the stack. */
+@keyframes stack-back {
+  0% {
+    transform: translate3d(0, 6px, 0);
+    opacity: 0.2;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes stack-back-up {
+  0% {
+    transform: translate3d(0, -6px, 0);
+    opacity: 0.2;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-stack-back {
+  animation: stack-back 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-stack-back-up {
+  animation: stack-back-up 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Anything above is decoration. Honour the OS setting and drop all of it - the
    layout does not depend on any of these having run.
 
