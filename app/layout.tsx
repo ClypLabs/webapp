@@ -90,7 +90,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           />
         </noscript>
       </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      {/* No background here - it belongs on `html`, or it paints over the
+          ambience layer. See globals.css. */}
+      <body className="min-h-full flex flex-col text-foreground">
         {children}
         <PauseOffscreen />
         <PerfMode />

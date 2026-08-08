@@ -131,7 +131,10 @@ function FeatureVisual({ id }: { id: string }) {
                     aria-hidden
                     className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg"
                   >
-                    <span className="animate-shimmer absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent" />
+                    <span
+                      data-pause-anchor
+                      className="animate-shimmer absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent"
+                    />
                   </span>
                 </>
               ) : null}
@@ -202,6 +205,7 @@ function FeatureVisual({ id }: { id: string }) {
           >
             <span
               aria-hidden
+              data-pause-anchor
               className="animate-scan-line pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-emerald-300/20 to-transparent"
             />
             <span className="relative text-emerald-200">Fortnite</span>

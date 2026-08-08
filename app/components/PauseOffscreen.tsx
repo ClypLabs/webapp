@@ -18,10 +18,18 @@ export default function PauseOffscreen() {
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
 
+    // An element whose animation carries it out of a clipping ancestor - the
+    // hero's sheen, the sweeps inside the feature diagrams - stops intersecting
+    // partway through its own cycle, which paused it out there for good: the
+    // sheen crossed the screenshot once and never came back. Those elements are
+    // marked `data-pause-anchor`, and it is their parent (which does not move)
+    // that gets watched, with the play state still written to the child.
+    const watched = new Map<Element, HTMLElement>();
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const element = entry.target as HTMLElement;
+          const element = watched.get(entry.target) ?? (entry.target as HTMLElement);
           element.style.animationPlayState = entry.isIntersecting ? "" : "paused";
         }
       },
@@ -44,7 +52,13 @@ export default function PauseOffscreen() {
         .forEach((element) => {
           if (known.has(element)) return;
           known.add(element);
-          observer.observe(element);
+
+          const anchor =
+            element.dataset.pauseAnchor !== undefined && element.parentElement
+              ? element.parentElement
+              : element;
+          if (anchor !== element) watched.set(anchor, element);
+          observer.observe(anchor);
         });
     };
 

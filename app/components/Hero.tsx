@@ -143,7 +143,12 @@ export default function Hero() {
             aria-hidden
             className="pointer-events-none absolute inset-0 overflow-hidden"
           >
-            <div className="animate-sheen h-full w-1/3 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+            {/* Travels out of the clip above, so it is the wrapper that decides
+                whether this is on screen - see PauseOffscreen.tsx. */}
+            <div
+              data-pause-anchor
+              className="animate-sheen h-full w-1/3 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"
+            />
           </div>
 
           {/* Fades the screenshot into the page instead of ending it on a hard

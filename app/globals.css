@@ -25,6 +25,19 @@ html {
   scroll-behavior: smooth;
   /* The header is sticky, so anchor targets would otherwise land underneath it. */
   scroll-padding-top: 5rem;
+
+  /* The same colour as the body, on the root as well.
+
+     Only `body` carried it, which is normally enough - the root canvas adopts
+     the body's background. It is not enough for the two places the canvas is
+     painted before the document is: the area past the end of the page while a
+     phone is rubber-banding, and the tiles Chrome has not rasterised yet during
+     a fast fling. Both fall back to the browser's own base colour, which is
+     where the pale block at the foot of the page came from. */
+  background: var(--background);
+
+  /* And no rubber-band past the ends at all, so there is no gutter to paint. */
+  overscroll-behavior-y: none;
 }
 
 /* Sections carry py-32 (sm:py-40) so they breathe when scrolled past. Landing
@@ -56,7 +69,15 @@ html {
 }
 
 body {
-  background: var(--background);
+  /* Deliberately transparent, with the colour on `html` above instead.
+
+     The ambience layer sits at -z-10, behind everything - including the body's
+     own background if the body has one. It only ever worked because a body
+     background is normally propagated up to the root canvas, which leaves the
+     body itself painting nothing. Giving `html` a background stops that
+     propagation, so a colour here would paint over the wash and flatten the
+     whole page. */
+  background: transparent;
   color: var(--foreground);
 }
 
