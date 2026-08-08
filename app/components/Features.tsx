@@ -489,28 +489,19 @@ export default function Features() {
                       every step. The surface stays put and its contents are what
                       change. */}
                   <div className="absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
+                    {/* Only the open diagram is mounted. Crossfading them meant
+                        two diagrams were legible at once for half a second -
+                        two sets of labels overlapping, neither readable - which
+                        is worse than no transition at all. The outgoing one
+                        leaves at once and the incoming one fades up in its
+                        place, so there is only ever one thing to read. */}
                     <div className="relative h-[260px] w-full">
-                      {features.map((feature, index) => {
-                        const isActive = index === active;
-                        return (
-                          <div
-                            key={feature.id}
-                            aria-hidden={!isActive}
-                            // The diagrams behind the visible one stay mounted so
-                            // the crossfade has something to fade to, but their
-                            // animations are held - opacity 0 hides an animation,
-                            // it does not stop it. See globals.css.
-                            data-visual={isActive ? "on" : "off"}
-                            className={`absolute inset-0 transition-[transform,opacity] duration-500 ease-out ${
-                              isActive
-                                ? "translate-y-0 opacity-100"
-                                : "pointer-events-none translate-y-2 opacity-0"
-                            }`}
-                          >
-                            <FeatureVisual id={feature.id} />
-                          </div>
-                        );
-                      })}
+                      <div
+                        key={features[active].id}
+                        className="animate-visual-in absolute inset-0"
+                      >
+                        <FeatureVisual id={features[active].id} />
+                      </div>
                     </div>
                   </div>
                 </div>

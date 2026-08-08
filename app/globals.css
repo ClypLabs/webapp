@@ -391,6 +391,24 @@ body {
   animation: pulse-soft 2.6s ease-in-out infinite;
 }
 
+/* The diagram arriving on the capture card. Only one is mounted at a time, so
+   this is an entrance rather than half of a crossfade - nothing is underneath it
+   to read through. Keyed on the feature in Features.tsx so it replays. */
+@keyframes visual-in {
+  0% {
+    transform: translate3d(0, 8px, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-visual-in {
+  animation: visual-in 320ms ease-out both;
+}
+
 /* Anything above is decoration. Honour the OS setting and drop all of it - the
    layout does not depend on any of these having run.
 
