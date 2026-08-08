@@ -43,6 +43,14 @@ export default function Editor() {
               <EditorGraphic />
             </ScaleToFit>
           </div>
+          {/* The metadata strip in the panel belongs to the source recording,
+              which really is 1080p60. What is playing inside it is a 720p
+              excerpt, because shipping the original down the wire would cost a
+              visitor 30 MB to look at a screenshot that moves. */}
+          <p className="mt-3 text-xs text-zinc-500">
+            Preview footage is a six-second excerpt, re-encoded to 720p and
+            muted for the page. The clip details are the original recording&apos;s.
+          </p>
         </Reveal>
 
         <ul className="mt-12 grid gap-x-10 gap-y-5 sm:grid-cols-2">
