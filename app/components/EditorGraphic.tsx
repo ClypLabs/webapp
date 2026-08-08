@@ -367,54 +367,67 @@ export default function EditorGraphic({ className = "" }: { className?: string }
               </div>
             </div>
 
-            {/* Clip details */}
-            <div className="w-[240px] shrink-0 border-l border-white/[0.06] p-3">
-              <p className="text-[11px] font-semibold tracking-wide text-zinc-300">
+            {/* Clip details. Three bands, as the app has them: a titled
+                header, the fields, and an action bar pinned to the bottom of
+                the column rather than floating under the last card. */}
+            <div className="flex w-[240px] shrink-0 flex-col border-l border-white/[0.06]">
+              <p className="border-b border-white/[0.06] px-3 py-2.5 text-[11px] font-semibold tracking-wide text-zinc-200">
                 CLIP DETAILS
               </p>
-              <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
-                <p className="text-[9px] uppercase tracking-widest text-zinc-600">
-                  Title
-                </p>
-                <p
-                  className={`mt-1.5 truncate rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-200 ${fade}`}
-                >
-                  {clip.title}
-                </p>
-                <p className="mt-3 text-[9px] uppercase tracking-widest text-zinc-600">
-                  Description
-                </p>
-                <p className="mt-1.5 h-10 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-600">
-                  Add a description
-                </p>
+
+              <div className="p-3">
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-sky-400">
+                    Details
+                  </p>
+                  <p className="mt-2 text-[10px] text-zinc-400">Title</p>
+                  <p
+                    className={`mt-1 truncate rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] font-semibold text-zinc-100 ${fade}`}
+                  >
+                    {clip.title}
+                  </p>
+                  <p className="mt-2.5 text-[10px] text-zinc-400">Description</p>
+                  <p className="mt-1 h-14 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-600">
+                    Add a description
+                  </p>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
+                  <p className="text-[10px] text-zinc-400">Export codec</p>
+                  <p className="mt-1 flex items-center justify-between rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-100">
+                    H.264
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                      className="h-3 w-3 shrink-0 fill-none stroke-zinc-400 stroke-2"
+                    >
+                      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
-                <p className="text-[9px] uppercase tracking-widest text-zinc-600">
-                  Export codec
-                </p>
-                <p className="mt-1.5 flex items-center justify-between rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-[11px] text-zinc-200">
-                  H.264 <span className="text-zinc-600">&#9662;</span>
-                </p>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <span className="rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-200">
-                  Save Trim
-                </span>
-                <span className="relative rounded-md bg-sky-500 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
-                  {/* Glow as a fading layer rather than an animated box-shadow,
-                      which would repaint the button every frame. */}
-                  <span
-                    aria-hidden
-                    className="animate-row-glow pointer-events-none absolute inset-0 rounded-md shadow-[0_0_20px_-6px_rgb(52_211_153_/_0.5)]"
-                  />
-                  Export
+              {/* mt-auto, so the actions sit on the floor of the panel the way
+                  they do in the app - the empty space belongs above them. */}
+              <div className="mt-auto border-t border-white/[0.06] p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <span className="rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-200">
+                    Save Trim
+                  </span>
+                  <span className="relative rounded-md bg-sky-500 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
+                    {/* Glow as a fading layer rather than an animated box-shadow,
+                        which would repaint the button every frame. */}
+                    <span
+                      aria-hidden
+                      className="animate-row-glow pointer-events-none absolute inset-0 rounded-md shadow-[0_0_20px_-6px_rgb(52_211_153_/_0.5)]"
+                    />
+                    Export
+                  </span>
+                </div>
+                <span className="mt-2 block rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-300">
+                  Share
                 </span>
               </div>
-              <span className="mt-2 block rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-300">
-                Share
-              </span>
             </div>
           </div>
 
