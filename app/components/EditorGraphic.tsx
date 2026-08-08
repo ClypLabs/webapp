@@ -429,7 +429,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
                   <span className="rounded-md border border-white/10 px-2 py-1.5 text-center text-[11px] text-zinc-200">
                     Save Trim
                   </span>
-                  <span className="relative rounded-md bg-sky-500 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
+                  <span className="relative rounded-md bg-emerald-400 px-2 py-1.5 text-center text-[11px] font-semibold text-emerald-950">
                     {/* Glow as a fading layer rather than an animated box-shadow,
                         which would repaint the button every frame. */}
                     <span
