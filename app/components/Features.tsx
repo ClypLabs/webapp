@@ -427,62 +427,72 @@ export default function Features() {
                   nothing between its steps. The panel is the size of its
                   contents, and the leftover height sits outside it. */}
               <div className="lg:self-center">
-                {/* A short stack of cards rather than a single flat panel - the
-                    layers behind are inert, and only exist to give the front one
-                    somewhere to sit. */}
-                <div className="relative">
-                  {/* Only the sliver that sits above the front panel is drawn.
-                      These are full 40px cards, and the front panel is a 4% white
-                      tint rather than an opaque surface - it used to carry a
-                      backdrop blur that smeared their lower halves away, and when
-                      that went (it cost a backdrop read per frame) the halves
-                      behind the panel started showing straight through it as two
-                      stray lines across every diagram. Clipping at the panel's top
-                      edge fixes it without the panel having to be opaque, and
-                      without paying for a blur. */}
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 -top-4 h-4 overflow-hidden"
-                  >
-                    <div className="absolute inset-x-8 top-0 h-10 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
-                    <div className="absolute inset-x-4 top-2 h-10 rounded-2xl border border-white/[0.08] bg-white/[0.03]" />
-                  </div>
-                  {/* No backdrop-blur. There is nothing behind this panel but a
-                      soft gradient wash, so the blur cost a full backdrop read per
-                      frame to soften something already soft. */}
-                  <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
-                    {/* One fixed height for all four diagrams on desktop, so the
-                        panel does not resize under you as the scroll steps
-                        through them - the tallest of them, the four-row encoder
-                        list, sets it. Any taller and the stage stops fitting a
-                        viewport, which pushes the section heading off the top
-                        while it is pinned. */}
-                    <div className="relative min-h-[260px] w-full lg:h-[260px]">
-                      {features.map((feature, index) => (
-                        <div
-                          key={feature.id}
-                          // The three panels behind the visible one stay mounted so
-                          // the crossfade has something to fade to, but their
-                          // animations are held - opacity 0 hides an animation, it
-                          // does not stop it. See globals.css.
-                          data-visual={index === active ? "on" : "off"}
-                          // The diagram slides as it fades, so a step reads as
-                          // the next card coming forward rather than as the
-                          // panel's contents blinking over. A transition rather
-                          // than a keyframe: the node stays mounted, so there is
-                          // nothing to replay and nothing to key.
-                          className={`absolute inset-0 transition-[opacity,transform] duration-500 ease-out ${
-                            index === active
-                              ? "translate-y-0 opacity-100"
-                              : "pointer-events-none translate-y-3 opacity-0"
-                          }`}
-                          aria-hidden={index !== active}
-                        >
-                          <FeatureVisual id={feature.id} />
+                {/* A real deck rather than a panel with two painted slivers
+                    behind it: every feature is its own card, and the scroll deals
+                    them. The card in front is the open feature, the ones after it
+                    are stacked behind, and the ones already seen have come
+                    forward and off the front of the stack.
+
+                    The stack is a fixed height because the cards are absolutely
+                    positioned - the tallest diagram, the four-row encoder list,
+                    sets it. Any taller and the stage stops fitting a viewport,
+                    which pushes the section heading off the top while it is
+                    pinned. */}
+                <div className="relative h-[324px]">
+                  {features.map((feature, index) => {
+                    const offset = index - active;
+                    // How far back in the deck: only the next two are drawn, and
+                    // anything deeper sits at the same place with nothing left to
+                    // show, so the stack does not grow a tail.
+                    const depth = Math.min(Math.max(offset, 0), 3);
+                    // Cards already stepped past leave towards the reader.
+                    const passed = offset < 0;
+                    const isActive = offset === 0;
+
+                    return (
+                      <div
+                        key={feature.id}
+                        aria-hidden={!isActive}
+                        // The diagrams on the cards behind stay mounted so the
+                        // deal has something to move, but their animations are
+                        // held - opacity 0 hides an animation, it does not stop
+                        // it. See globals.css.
+                        data-visual={isActive ? "on" : "off"}
+                        className={`absolute inset-x-0 top-0 overflow-hidden rounded-2xl border shadow-2xl shadow-black/40 transition-[transform,opacity] duration-500 ease-out ${
+                          isActive
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "pointer-events-none border-white/[0.07] bg-white/[0.02]"
+                        }`}
+                        style={{
+                          // Back of the deck: smaller, higher, dimmer, one step
+                          // per card. Front of the deck: larger and gone.
+                          transform: passed
+                            ? "translate3d(0, 22px, 0) scale(1.04)"
+                            : `translate3d(0, ${depth * -14}px, 0) scale(${1 - depth * 0.04})`,
+                          opacity: passed ? 0 : [1, 0.7, 0.4, 0][depth],
+                          zIndex: features.length - Math.abs(offset),
+                        }}
+                      >
+                        {/* No backdrop-blur. There is nothing behind these cards
+                            but a soft gradient wash, so the blur cost a full
+                            backdrop read per frame to soften something already
+                            soft. */}
+                        <div className="p-6 sm:p-8">
+                          {/* Only the front card shows its diagram. The ones
+                              behind are surfaces - four diagrams stacked at
+                              different scales read as a mess, and the point of
+                              the cards behind is depth, not content. */}
+                          <div
+                            className={`h-[260px] w-full transition-opacity duration-500 ease-out ${
+                              isActive ? "opacity-100" : "opacity-0"
+                            }`}
+                          >
+                            <FeatureVisual id={feature.id} />
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
