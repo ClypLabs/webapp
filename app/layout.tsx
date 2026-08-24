@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import PauseOffscreen from "./components/PauseOffscreen";
 import PerfMode from "./components/PerfMode";
 import "./globals.css";
@@ -97,6 +98,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <PauseOffscreen />
         <PerfMode />
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
