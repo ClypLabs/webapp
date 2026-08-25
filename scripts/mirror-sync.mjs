@@ -24,12 +24,20 @@ import { Readable } from "node:stream";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-const ASSETS = [
+// Every asset the release workflow can produce, in the order they should appear
+// in the mirrored manifest. A release is not required to carry all of them -
+// the MSI step can fail on its own without invalidating the rest - so the
+// mirror takes whichever of these the release actually has.
+const KNOWN_ASSETS = [
   "ClypDat-Setup.exe",
   "ClypDat-Portable.exe",
   "ClypDat-win-x64.zip",
   "ClypDat.msi",
 ];
+
+// AppUpdateService.cs looks for ClypDat-Setup.exe by name; a mirror without it
+// cannot serve an in-app update, so that one is still fatal when absent.
+const REQUIRED_ASSETS = ["ClypDat-Setup.exe"];
 
 const LATEST_KEY = "api/releases/latest.json";
 const RELEASES_KEY = "api/releases/index.json";
@@ -151,7 +159,7 @@ async function writeSnapshots(latest, all, digests) {
     body: latest.body ?? "",
     draft: false,
     prerelease: false,
-    assets: ASSETS.map((name) => ({
+    assets: KNOWN_ASSETS.filter((name) => digests.has(name)).map((name) => ({
       name,
       browser_download_url: `${SITE_BASE}/download/${name}`,
       digest: `sha256:${digests.get(name)}`,
@@ -229,18 +237,27 @@ async function main() {
     return;
   }
 
-  const missing = ASSETS.filter(
-    (name) => !latest.assets.some((asset) => asset.name.toLowerCase() === name.toLowerCase()),
-  );
-  if (missing.length > 0) {
-    throw new Error(`Release ${latest.tag_name} is missing assets: ${missing.join(", ")}`);
+  const hasAsset = (name) =>
+    latest.assets.some((asset) => asset.name.toLowerCase() === name.toLowerCase());
+
+  const missingRequired = REQUIRED_ASSETS.filter((name) => !hasAsset(name));
+  if (missingRequired.length > 0) {
+    throw new Error(
+      `Release ${latest.tag_name} is missing required assets: ${missingRequired.join(", ")}`,
+    );
+  }
+
+  const present = KNOWN_ASSETS.filter(hasAsset);
+  const absent = KNOWN_ASSETS.filter((name) => !hasAsset(name));
+  if (absent.length > 0) {
+    console.log(`  ${latest.tag_name} has no ${absent.join(", ")}; mirroring the rest.`);
   }
 
   const workDir = await mkdtemp(join(tmpdir(), "clypdat-mirror-"));
   const digests = new Map();
 
   try {
-    for (const name of ASSETS) {
+    for (const name of present) {
       const asset = latest.assets.find(
         (item) => item.name.toLowerCase() === name.toLowerCase(),
       );
