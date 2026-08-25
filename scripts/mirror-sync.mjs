@@ -57,7 +57,7 @@ const SECRET_ACCESS_KEY = required("R2_SECRET_ACCESS_KEY");
 // rather than at R2 directly. Keeps the redirect logic in one place.
 const SITE_BASE = required("SITE_BASE_URL").replace(/\/+$/, "");
 
-const REPO = process.env.GITHUB_REPO ?? "ClypDat/ClypDat";
+const REPO = process.env.GITHUB_REPO ?? "ClypLabs/ClypDat";
 const TOKEN = process.env.GITHUB_TOKEN ?? "";
 const FORCE = process.argv.includes("--force");
 
@@ -192,7 +192,7 @@ async function main() {
 
   // A flagged repository can serve /releases/latest normally while the list
   // endpoint returns an empty array - that is the current state of
-  // ClypDat/ClypDat. Mirroring the empty list faithfully would strip the
+  // ClypLabs/ClypDat. Mirroring the empty list faithfully would strip the
   // release notes out of the updater, so fall back to the one release we know
   // about. Notes for older versions are lost either way; notes for the version
   // being offered are the ones that matter.

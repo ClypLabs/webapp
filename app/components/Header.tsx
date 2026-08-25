@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const GITHUB_URL = "https://github.com/ClypDat/ClypDat";
+const GITHUB_URL = "https://github.com/ClypLabs/ClypDat";
 // Own-domain download URL, so it survives GitHub being unreachable - see
 // app/download/[asset]/route.ts.
 const DOWNLOAD_URL = "/download/ClypDat-Setup.exe";

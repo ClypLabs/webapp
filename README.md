@@ -1,6 +1,6 @@
 # ClypDat marketing site
 
-Landing page for [ClypDat](https://github.com/ClypDat/ClypDat), built with
+Landing page for [ClypDat](https://github.com/ClypLabs/ClypDat), built with
 Next.js (App Router) + Tailwind CSS 4.
 
 ## Developing
@@ -82,7 +82,7 @@ but it dies with the account - which is the scenario being insured against.
 
 Repository secrets it needs: `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
 `R2_SECRET_ACCESS_KEY`, and `RELEASE_READ_TOKEN` (a PAT with read access to
-`ClypDat/ClypDat` - the built-in `GITHUB_TOKEN` is scoped to this repo only).
+`ClypLabs/ClypDat` - the built-in `GITHUB_TOKEN` is scoped to this repo only).
 Repository variables: `MIRROR_BASE_URL`, `SITE_BASE_URL`.
 
 The app repo needs `MIRROR_DISPATCH_TOKEN` (a PAT that can dispatch to this

@@ -1,6 +1,6 @@
 import Reveal, { RevealWords } from "./Reveal";
 
-const GITHUB_URL = "https://github.com/ClypDat/ClypDat";
+const GITHUB_URL = "https://github.com/ClypLabs/ClypDat";
 const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
 const downloads = [

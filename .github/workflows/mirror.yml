@@ -22,7 +22,7 @@ on:
         type: boolean
         default: false
   # Let the app repo kick this off the moment a release is published:
-  #   gh api repos/ClypDat/webapp/dispatches -f event_type=release-published
+  #   gh api repos/ClypLabs/webapp/dispatches -f event_type=release-published
   repository_dispatch:
     types: [release-published]
 
@@ -54,7 +54,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           MIRROR_BASE_URL: ${{ vars.MIRROR_BASE_URL }}
           SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
-          # A PAT with read access to ClypDat/ClypDat. The built-in GITHUB_TOKEN
+          # A PAT with read access to ClypLabs/ClypDat. The built-in GITHUB_TOKEN
           # is scoped to this repository only, and the app repo currently 404s
           # to anonymous callers, so an explicit token is required.
           GITHUB_TOKEN: ${{ secrets.RELEASE_READ_TOKEN }}
