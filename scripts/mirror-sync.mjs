@@ -33,6 +33,12 @@ const KNOWN_ASSETS = [
   "ClypDat-Portable.exe",
   "ClypDat-win-x64.zip",
   "ClypDat.msi",
+  // The signed release manifest and its detached signature. The updater verifies these
+  // against a key pinned in the app before it will trust any digest, so a mirror that
+  // serves the installers but not the manifest would make every update fail closed.
+  // Both are a few hundred bytes.
+  "ClypDat-Release.manifest.json",
+  "ClypDat-Release.manifest.sig",
 ];
 
 // AppUpdateService.cs looks for ClypDat-Setup.exe by name; a mirror without it
@@ -46,6 +52,8 @@ const CONTENT_TYPES = {
   ".exe": "application/vnd.microsoft.portable-executable",
   ".msi": "application/x-msi",
   ".zip": "application/zip",
+  ".json": "application/json",
+  ".sig": "text/plain",
 };
 
 function required(name) {
