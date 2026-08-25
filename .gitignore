@@ -41,3 +41,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code
+# Machine-local permission grants, not shared configuration. .claude/settings.json
+# is deliberately NOT ignored, so a project-wide config can still be committed.
+.claude/settings.local.json
