@@ -16,11 +16,20 @@ export const MIRROR_BASE = process.env.MIRROR_BASE_URL?.replace(/\/+$/, "") ?? "
 
 // Only these names are ever redirected. An open redirect keyed on a path
 // segment would let anyone hand out links that look like they come from us.
+// Must stay in step with KNOWN_ASSETS in scripts/mirror-sync.mjs: that list decides
+// what gets uploaded to R2, this one decides what /download/<asset> will serve. An
+// asset missing from HERE is mirrored but returns 404, which is how the signed
+// manifest first shipped - the bytes were in the bucket and the route refused them.
 export const MIRRORED_ASSETS = [
   "ClypDat-Setup.exe",
   "ClypDat-Portable.exe",
   "ClypDat-win-x64.zip",
   "ClypDat.msi",
+  // The signed release manifest and its detached signature. The in-app updater
+  // verifies these against a key pinned in the binary before it will trust any
+  // digest, so a 404 here makes every update fail closed.
+  "ClypDat-Release.manifest.json",
+  "ClypDat-Release.manifest.sig",
 ] as const;
 
 export type MirroredAsset = (typeof MIRRORED_ASSETS)[number];
