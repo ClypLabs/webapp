@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ClypDat logo</title>
+  <desc id="desc">Two nested light hexagonal outlines on a black background.</desc>
+
+  <rect width="256" height="256" fill="#000"/>
+
+  <g fill="none" stroke="#F1F5F9" stroke-linejoin="round">
+    <path
+      d="M128 25 218 77v102l-90 52-90-52V77l90-52Z"
+      stroke-width="25"
+    />
+    <path
+      d="m128 78 40 23v54l-40 23-40-23v-54l40-23Z"
+      stroke-width="15"
+    />
+  </g>
+</svg>
