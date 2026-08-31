@@ -112,7 +112,7 @@ export default function AccountPage() {
           : result === "failed" || result === "invalid-state"
             ? "Xbox linking could not be completed."
             : oauthError === "account_not_linked" && linkProvider
-              ? `This ${linkProvider} email already has a ClypDat account. Enter that account's password once to link ${linkProvider}.`
+              ? `This ${linkProvider} email already has a ClypDat account. Sign in with that account's email and password once to link ${linkProvider}.`
               : oauthError === "email_does_not_match"
                 ? `That ${linkProvider ?? "social"} email does not match this ClypDat account.`
                 : oauthError === "access_denied"
