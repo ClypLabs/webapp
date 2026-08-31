@@ -5,7 +5,7 @@ const databaseUrl = process.env.DATABASE_URL;
 const authSecret = process.env.BETTER_AUTH_SECRET;
 
 // The fallback keeps `next build` useful before Vercel variables are pulled
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: databaseUrl ?? "postgresql://localhost/clypdat",
   max: 1,
   idleTimeoutMillis: 10_000,

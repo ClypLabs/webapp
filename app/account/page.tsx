@@ -2,10 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { authClient } from "@/app/lib/auth-client";
 
 type Mode = "sign-in" | "sign-up";
+
+type XboxStatus = {
+  connected: boolean;
+  account?: {
+    gamertag: string | null;
+    consoleName: string | null;
+    updatedAt: string;
+  } | null;
+};
+
+type XboxActivity = {
+  title: string | null;
+  consoleName: string | null;
+};
 
 export default function AccountPage() {
   const [mode, setMode] = useState<Mode>("sign-in");
@@ -14,8 +28,56 @@ export default function AccountPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [xbox, setXbox] = useState<XboxStatus | null>(null);
+  const [xboxActivity, setXboxActivity] = useState<XboxActivity | null>(null);
+  const [xboxBusy, setXboxBusy] = useState(false);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const userId = session?.user?.id;
+  const xboxConnected = xbox?.connected ?? false;
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("xbox");
+    const message = result === "connected"
+      ? "Xbox connected successfully."
+      : result === "cancelled"
+        ? "Xbox linking was cancelled."
+        : result === "not-configured"
+          ? "Xbox linking is not configured yet."
+          : result === "failed" || result === "invalid-state"
+            ? "Xbox linking could not be completed."
+            : null;
+    if (!message) return;
+    const timer = window.setTimeout(() => setError(message), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    async function loadXbox() {
+      const response = await fetch("/api/xbox/status", { cache: "no-store" });
+      if (!response.ok || cancelled) return;
+      const status = (await response.json()) as XboxStatus;
+      if (!cancelled) setXbox(status);
+    }
+    void loadXbox();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!xboxConnected) return;
+    let cancelled = false;
+    async function loadActivity() {
+      const response = await fetch("/api/xbox/activity", { cache: "no-store" });
+      if (!response.ok || cancelled) return;
+      const result = (await response.json()) as { activity?: XboxActivity | null };
+      if (!cancelled) setXboxActivity(result.activity ?? null);
+    }
+    void loadActivity();
+    const timer = window.setInterval(loadActivity, 30_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [xboxConnected]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +103,14 @@ export default function AccountPage() {
     if (result.error) setError(result.error.message ?? `${provider} sign-in is not configured yet.`);
   }
 
+  async function disconnectXbox() {
+    setXboxBusy(true);
+    await fetch("/api/xbox/disconnect", { method: "POST" });
+    setXbox({ connected: false });
+    setXboxActivity(null);
+    setXboxBusy(false);
+  }
+
   if (isPending) {
     return <main className="flex min-h-screen items-center justify-center text-zinc-400">Loading account…</main>;
   }
@@ -53,6 +123,31 @@ export default function AccountPage() {
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}</h1>
           <p className="mt-3 text-zinc-400">Your account is ready. Xbox and other connected accounts will live here.</p>
+          <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Xbox account</p>
+                <h2 className="mt-2 text-lg font-semibold">{xbox?.connected ? (xbox.account?.gamertag ?? "Xbox connected") : "Connect Xbox"}</h2>
+                <p className="mt-2 text-sm text-zinc-400">
+                  {xbox?.connected
+                    ? xboxActivity?.title
+                      ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}`
+                      : "No active Xbox game detected."
+                    : "Use Xbox activity for cloud-connected clips and presence."}
+                </p>
+              </div>
+              <span className={`mt-1 h-2.5 w-2.5 rounded-full ${xbox?.connected ? "bg-emerald-300" : "bg-zinc-600"}`} aria-label={xbox?.connected ? "Connected" : "Not connected"} />
+            </div>
+            {xbox?.connected ? (
+              <button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="mt-5 w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-red-300/60 hover:bg-red-300/10 disabled:opacity-60">
+                {xboxBusy ? "Disconnecting…" : "Disconnect Xbox"}
+              </button>
+            ) : (
+              <a href="/api/xbox/connect" className="mt-5 block w-full rounded-full bg-emerald-300 px-4 py-3 text-center text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
+                Link Xbox
+              </a>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => authClient.signOut().then(() => router.push("/account"))}

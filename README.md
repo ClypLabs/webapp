@@ -113,6 +113,21 @@ variables (see `.env.example`): `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, and
 `DATABASE_URL`. Add Google and Discord client credentials when those providers
 are registered. Keep all secret values server-only.
 
+### Xbox linking
+
+Xbox linking starts from a signed-in ClypDat account at `/account`. Add
+`XBOX_CLIENT_ID` in Vercel using the Microsoft Entra application ID. Register
+this exact Web redirect URI in that app registration:
+
+```text
+https://www.clypdat.xyz/api/xbox/callback
+```
+
+The optional `XBOX_REDIRECT_URI` variable can override it for a different
+deployment. The server uses PKCE and stores only an encrypted Xbox refresh
+token; it never sends Xbox tokens to the browser. The first successful link
+creates the small `clypdat_xbox_account` table automatically in Neon.
+
 After pulling the Vercel development variables locally, create Better Auth's
 tables with:
 
