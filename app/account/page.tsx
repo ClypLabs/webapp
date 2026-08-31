@@ -123,6 +123,7 @@ export default function AccountPage() {
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}</h1>
           <p className="mt-3 text-zinc-400">Your account is ready. Xbox and other connected accounts will live here.</p>
+          {error && <p role="status" className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">{error}</p>}
           <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
             <div className="flex items-start justify-between gap-4">
               <div>

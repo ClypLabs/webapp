@@ -113,17 +113,20 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
 }
 
 async function exchangeMicrosoftCode(code: string, verifier: string): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+  const form = new URLSearchParams({
+    client_id: required("XBOX_CLIENT_ID"),
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri(),
+    code_verifier: verifier,
+    scope: XBOX_SCOPE,
+  });
+  const clientSecret = process.env.XBOX_CLIENT_SECRET;
+  if (clientSecret) form.set("client_secret", clientSecret);
   const response = await fetch(MICROSOFT_TOKEN, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: required("XBOX_CLIENT_ID"),
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirectUri(),
-      code_verifier: verifier,
-      scope: XBOX_SCOPE,
-    }),
+    body: form,
     cache: "no-store",
   });
   const json = await readJson(response);
@@ -135,15 +138,18 @@ async function exchangeMicrosoftCode(code: string, verifier: string): Promise<{ 
 }
 
 async function refreshMicrosoftToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+  const form = new URLSearchParams({
+    client_id: required("XBOX_CLIENT_ID"),
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    scope: XBOX_SCOPE,
+  });
+  const clientSecret = process.env.XBOX_CLIENT_SECRET;
+  if (clientSecret) form.set("client_secret", clientSecret);
   const response = await fetch(MICROSOFT_TOKEN, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: required("XBOX_CLIENT_ID"),
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      scope: XBOX_SCOPE,
-    }),
+    body: form,
     cache: "no-store",
   });
   const json = await readJson(response);

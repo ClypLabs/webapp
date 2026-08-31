@@ -116,7 +116,8 @@ are registered. Keep all secret values server-only.
 ### Xbox linking
 
 Xbox linking starts from a signed-in ClypDat account at `/account`. Add
-`XBOX_CLIENT_ID` in Vercel using the Microsoft Entra application ID. Register
+`XBOX_CLIENT_ID` in Vercel using the Microsoft Entra application ID, and add
+the client secret as the sensitive `XBOX_CLIENT_SECRET` variable. Register
 this exact Web redirect URI in that app registration:
 
 ```text
