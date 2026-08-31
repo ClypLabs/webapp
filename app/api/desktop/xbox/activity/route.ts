@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteXboxAccount, getXboxAccount, getXboxActivity } from "@/app/lib/xbox";
 import { verifyDesktopToken } from "@/app/lib/desktop-token";
+import { getLinkedSocialProviders } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export async function GET(request: Request) {
     const account = await getXboxAccount(identity.userId);
     if (!account) return NextResponse.json({ error: "No Xbox account linked. Link Xbox on your ClypDat account first." }, { status: 409 });
     const activity = await getXboxActivity(identity.userId);
-    return NextResponse.json({ connected: Boolean(account), account, activity });
+    const providers = await getLinkedSocialProviders(identity.userId);
+    return NextResponse.json({ connected: Boolean(account), account, activity, providers });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });
   }

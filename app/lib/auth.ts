@@ -58,3 +58,11 @@ export const auth = betterAuth({
   },
   socialProviders,
 });
+
+export async function getLinkedSocialProviders(userId: string) {
+  const result = await pool.query<{ providerId: string }>(
+    'SELECT "providerId" FROM "account" WHERE "userId" = $1 AND "providerId" IN ($2, $3)',
+    [userId, "google", "discord"],
+  );
+  return result.rows.map((row) => row.providerId);
+}
