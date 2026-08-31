@@ -49,5 +49,12 @@ export const auth = betterAuth({
     // then, accounts can be tested without pretending verification was sent.
     requireEmailVerification: false,
   },
+  account: {
+    accountLinking: {
+      // Password sign-in establishes account ownership before linkSocial.
+      // Better Auth then rejects provider accounts with another email address.
+      allowDifferentEmails: false,
+    },
+  },
   socialProviders,
 });

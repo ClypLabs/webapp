@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { authClient } from "@/app/lib/auth-client";
 
 type Mode = "sign-in" | "sign-up";
@@ -21,7 +21,13 @@ type XboxActivity = {
   consoleName: string | null;
 };
 
-function SocialProviderIcon({ provider }: { provider: "google" | "discord" }) {
+type SocialProvider = "google" | "discord";
+
+function getSocialProvider(value: string | null): SocialProvider | null {
+  return value === "google" || value === "discord" ? value : null;
+}
+
+function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
   if (provider === "google") {
     return (
       <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
@@ -50,12 +56,14 @@ export default function AccountPage() {
   const [xbox, setXbox] = useState<XboxStatus | null>(null);
   const [xboxActivity, setXboxActivity] = useState<XboxActivity | null>(null);
   const [xboxBusy, setXboxBusy] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const linkingAttempt = useRef<SocialProvider | null>(null);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
   const xboxConnected = xbox?.connected ?? false;
 
-  function accountCallbackUrl() {
+  const accountCallbackUrl = useCallback((preserveLinkProvider = false) => {
     const url = new URL("/account", window.location.origin);
     const current = new URL(window.location.href);
     if (current.searchParams.get("desktop_connect") === "1") {
@@ -65,16 +73,30 @@ export default function AccountPage() {
       if (redirectUri) url.searchParams.set("redirect_uri", redirectUri);
       if (state) url.searchParams.set("state", state);
     }
+    const linkProvider = getSocialProvider(current.searchParams.get("link_provider"));
+    if (preserveLinkProvider && linkProvider) url.searchParams.set("link_provider", linkProvider);
     return url.toString();
-  }
+  }, []);
+
+  const accountLinkErrorUrl = useCallback((provider: SocialProvider) => {
+    const url = new URL(accountCallbackUrl());
+    url.searchParams.set("link_provider", provider);
+    return url.toString();
+  }, [accountCallbackUrl]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
     const result = url.searchParams.get("xbox");
     const desktop = url.searchParams.get("desktop");
-    if (result || desktop) {
+    const oauthError = url.searchParams.get("error");
+    const linkProvider = getSocialProvider(url.searchParams.get("link_provider"));
+    const invalidLinkProvider = url.searchParams.has("link_provider") && !linkProvider;
+    if (result || desktop || oauthError || invalidLinkProvider) {
       url.searchParams.delete("xbox");
       url.searchParams.delete("desktop");
+      url.searchParams.delete("error");
+      url.searchParams.delete("error_description");
+      if (oauthError !== "account_not_linked") url.searchParams.delete("link_provider");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
     const message = desktop === "signed-out"
@@ -89,15 +111,29 @@ export default function AccountPage() {
           ? "Xbox linking is not configured yet."
           : result === "failed" || result === "invalid-state"
             ? "Xbox linking could not be completed."
-            : null;
-    if (!message) return;
-    const timer = window.setTimeout(() => setError(message), 0);
+            : oauthError === "account_not_linked" && linkProvider
+              ? `This ${linkProvider} email already has a ClypDat account. Enter that account's password once to link ${linkProvider}.`
+              : oauthError === "email_does_not_match"
+                ? `That ${linkProvider ?? "social"} email does not match this ClypDat account.`
+                : oauthError === "access_denied"
+                  ? `${linkProvider ? `${linkProvider[0].toUpperCase()}${linkProvider.slice(1)} ` : ""}linking was cancelled.`
+                  : oauthError
+                    ? `${linkProvider ? `${linkProvider[0].toUpperCase()}${linkProvider.slice(1)} ` : ""}linking could not be completed.`
+                    : invalidLinkProvider
+                      ? "Unsupported social provider."
+                      : null;
+    if (!message && !(oauthError === "account_not_linked" && linkProvider)) return;
+    const timer = window.setTimeout(() => {
+      if (oauthError === "account_not_linked" && linkProvider) setMode("sign-in");
+      if (message) setError(message);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user || linking) return;
     const current = new URL(window.location.href);
+    if (getSocialProvider(current.searchParams.get("link_provider"))) return;
     if (current.searchParams.get("desktop_connect") !== "1") return;
     const redirectUri = current.searchParams.get("redirect_uri");
     const state = current.searchParams.get("state");
@@ -106,7 +142,34 @@ export default function AccountPage() {
     handoff.searchParams.set("redirect_uri", redirectUri);
     handoff.searchParams.set("state", state);
     window.location.assign(handoff);
-  }, [session?.user]);
+  }, [linking, session?.user]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const provider = getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"));
+    if (!provider || linkingAttempt.current === provider) return;
+
+    linkingAttempt.current = provider;
+    setLinking(true);
+    void authClient.linkSocial({
+      provider,
+      callbackURL: accountCallbackUrl(),
+      errorCallbackURL: accountLinkErrorUrl(provider),
+    }).then((result) => {
+      if (!result.error) return;
+      const url = new URL(window.location.href);
+      url.searchParams.delete("link_provider");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setError(result.error.message ?? `${provider} linking could not be completed.`);
+      setLinking(false);
+    }).catch(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("link_provider");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setError(`${provider} linking could not be completed.`);
+      setLinking(false);
+    });
+  }, [accountCallbackUrl, accountLinkErrorUrl, session?.user]);
 
   useEffect(() => {
     if (!userId) return;
@@ -142,20 +205,24 @@ export default function AccountPage() {
 
     const result =
       mode === "sign-up"
-        ? await authClient.signUp.email({ name, email, password, callbackURL: accountCallbackUrl() })
-        : await authClient.signIn.email({ email, password, callbackURL: accountCallbackUrl() });
+        ? await authClient.signUp.email({ name, email, password, callbackURL: accountCallbackUrl(true) })
+        : await authClient.signIn.email({ email, password, callbackURL: accountCallbackUrl(true) });
 
     setBusy(false);
     if (result.error) {
       setError(result.error.message ?? "We could not complete that request.");
       return;
     }
-    router.push(accountCallbackUrl());
+    router.push(accountCallbackUrl(true));
   }
 
-  async function socialSignIn(provider: "google" | "discord") {
+  async function socialSignIn(provider: SocialProvider) {
     setError(null);
-    const result = await authClient.signIn.social({ provider, callbackURL: accountCallbackUrl() });
+    const result = await authClient.signIn.social({
+      provider,
+      callbackURL: accountCallbackUrl(),
+      errorCallbackURL: accountLinkErrorUrl(provider),
+    });
     if (result.error) setError(result.error.message ?? `${provider} sign-in is not configured yet.`);
   }
 
@@ -178,7 +245,7 @@ export default function AccountPage() {
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}</h1>
-          <p className="mt-3 text-zinc-400">Your account is ready. Xbox and other connected accounts will live here.</p>
+          <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Your account is ready. Xbox and other connected accounts will live here."}</p>
           {error && <p role="status" className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">{error}</p>}
           <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
             <div className="flex items-start justify-between gap-4">
