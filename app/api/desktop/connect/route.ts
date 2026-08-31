@@ -26,10 +26,11 @@ export async function GET(request: Request) {
 
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user) {
-    const callback = new URL(redirectUri);
-    callback.searchParams.set("state", state);
-    callback.searchParams.set("error", "login-required");
-    return NextResponse.redirect(callback);
+    const account = new URL("/account", url.origin);
+    account.searchParams.set("desktop_connect", "1");
+    account.searchParams.set("redirect_uri", redirectUri);
+    account.searchParams.set("state", state);
+    return NextResponse.redirect(account);
   }
 
   const callback = new URL(redirectUri);

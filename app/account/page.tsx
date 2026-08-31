@@ -36,7 +36,6 @@ function SocialProviderIcon({ provider }: { provider: "google" | "discord" }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none">
       <path fill="#5865F2" d="M20.3 4.5A19 19 0 0 0 15.7 3l-.6 1.2a17 17 0 0 0-6.2 0L8.3 3a19 19 0 0 0-4.6 1.5C.8 8.8 0 13 .4 17.1A18.7 18.7 0 0 0 6 20l1.4-1.9a11.6 11.6 0 0 1-2.2-1.1l.5-.4c4.2 2 8.4 2 12.6 0l.5.4a11.4 11.4 0 0 1-2.2 1.1L18 20a18.8 18.8 0 0 0 5.6-2.9c.5-4.8-.8-9-3.3-12.6Z" />
-      <path fill="white" d="M8.1 14.7c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Zm7.8 0c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Z" />
     </svg>
   );
 }
@@ -55,6 +54,19 @@ export default function AccountPage() {
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
   const xboxConnected = xbox?.connected ?? false;
+
+  function accountCallbackUrl() {
+    const url = new URL("/account", window.location.origin);
+    const current = new URL(window.location.href);
+    if (current.searchParams.get("desktop_connect") === "1") {
+      url.searchParams.set("desktop_connect", "1");
+      const redirectUri = current.searchParams.get("redirect_uri");
+      const state = current.searchParams.get("state");
+      if (redirectUri) url.searchParams.set("redirect_uri", redirectUri);
+      if (state) url.searchParams.set("state", state);
+    }
+    return url.toString();
+  }
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -82,6 +94,19 @@ export default function AccountPage() {
     const timer = window.setTimeout(() => setError(message), 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const current = new URL(window.location.href);
+    if (current.searchParams.get("desktop_connect") !== "1") return;
+    const redirectUri = current.searchParams.get("redirect_uri");
+    const state = current.searchParams.get("state");
+    if (!redirectUri || !state) return;
+    const handoff = new URL("/api/desktop/connect", window.location.origin);
+    handoff.searchParams.set("redirect_uri", redirectUri);
+    handoff.searchParams.set("state", state);
+    window.location.assign(handoff);
+  }, [session?.user]);
 
   useEffect(() => {
     if (!userId) return;
@@ -117,20 +142,20 @@ export default function AccountPage() {
 
     const result =
       mode === "sign-up"
-        ? await authClient.signUp.email({ name, email, password, callbackURL: "/account" })
-        : await authClient.signIn.email({ email, password, callbackURL: "/account" });
+        ? await authClient.signUp.email({ name, email, password, callbackURL: accountCallbackUrl() })
+        : await authClient.signIn.email({ email, password, callbackURL: accountCallbackUrl() });
 
     setBusy(false);
     if (result.error) {
       setError(result.error.message ?? "We could not complete that request.");
       return;
     }
-    router.push("/account");
+    router.push(accountCallbackUrl());
   }
 
   async function socialSignIn(provider: "google" | "discord") {
     setError(null);
-    const result = await authClient.signIn.social({ provider, callbackURL: "/account" });
+    const result = await authClient.signIn.social({ provider, callbackURL: accountCallbackUrl() });
     if (result.error) setError(result.error.message ?? `${provider} sign-in is not configured yet.`);
   }
 
