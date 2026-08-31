@@ -21,6 +21,26 @@ type XboxActivity = {
   consoleName: string | null;
 };
 
+function SocialProviderIcon({ provider }: { provider: "google" | "discord" }) {
+  if (provider === "google") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3A12 12 0 1 1 24 12c3.1 0 5.9 1.2 8 3.2l5.7-5.7A20 20 0 1 0 44 24c0-1.2-.1-2.3-.4-3.5Z" />
+        <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8A12 12 0 0 1 24 12c3.1 0 5.9 1.2 8 3.2l5.7-5.7A20 20 0 0 0 6.3 14.7Z" />
+        <path fill="#4CAF50" d="M24 44c5.1 0 9.8-2 13.4-5.2l-6.2-5.2A12 12 0 0 1 12.9 28l-6.6 5.1A20 20 0 0 0 24 44Z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-4.1 5.6l.1-.1 6.2 5.2C37 39.1 44 34 44 24c0-1.2-.1-2.3-.4-3.5Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none">
+      <path fill="#5865F2" d="M20.3 4.5A19 19 0 0 0 15.7 3l-.6 1.2a17 17 0 0 0-6.2 0L8.3 3a19 19 0 0 0-4.6 1.5C.8 8.8 0 13 .4 17.1A18.7 18.7 0 0 0 6 20l1.4-1.9a11.6 11.6 0 0 1-2.2-1.1l.5-.4c4.2 2 8.4 2 12.6 0l.5.4a11.4 11.4 0 0 1-2.2 1.1L18 20a18.8 18.8 0 0 0 5.6-2.9c.5-4.8-.8-9-3.3-12.6Z" />
+      <path fill="white" d="M8.1 14.7c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Zm7.8 0c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Z" />
+    </svg>
+  );
+}
+
 export default function AccountPage() {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -45,7 +65,9 @@ export default function AccountPage() {
       url.searchParams.delete("desktop");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
-    const message = desktop === "login-required"
+    const message = desktop === "signed-out"
+      ? "Signed out of ClypDat."
+      : desktop === "login-required"
       ? "Sign in here, then press Link ClypDat account again in the desktop app."
       : result === "connected"
       ? "Xbox connected successfully."
@@ -184,9 +206,10 @@ export default function AccountPage() {
               key={provider}
               type="button"
               onClick={() => socialSignIn(provider)}
-              className="rounded-full border border-white/15 px-4 py-3 text-sm font-semibold capitalize transition hover:border-emerald-300/60 hover:bg-emerald-300/10"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold capitalize transition hover:border-emerald-300/60 hover:bg-emerald-300/10"
             >
-              {provider}
+              <SocialProviderIcon provider={provider} />
+              <span>{provider}</span>
             </button>
           ))}
         </div>
