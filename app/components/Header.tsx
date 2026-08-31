@@ -13,6 +13,7 @@ const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#editor", label: "Editor" },
   { href: "#download", label: "Download" },
+  { href: "/account", label: "Account" },
 ];
 
 export default function Header() {

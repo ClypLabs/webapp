@@ -100,6 +100,31 @@ pnpm build
 
 Produces a static-friendly Next.js build in `.next/`.
 
+## Accounts and authentication
+
+The `/account` page supports optional ClypDat accounts with email/password,
+Google, and Discord sign-in. The account API is handled by Better Auth at
+`/api/auth/*`, using the Neon Postgres database connected through Vercel.
+Normal recording remains accountless; an account is needed for cloud-connected
+features such as Xbox linking.
+
+Before enabling authentication on a deployment, add these Vercel environment
+variables (see `.env.example`): `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, and
+`DATABASE_URL`. Add Google and Discord client credentials when those providers
+are registered. Keep all secret values server-only.
+
+After pulling the Vercel development variables locally, create Better Auth's
+tables with:
+
+```bash
+pnpm auth:migrate
+```
+
+Run that once against the Neon database before testing sign-up. Email
+verification and password-reset delivery still require a transactional email
+provider; they are intentionally not claimed as enabled until one is
+configured.
+
 ## Deploying
 
 Hosted on Vercel. The repo root is the .NET app, so when importing the
