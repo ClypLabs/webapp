@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
   try {
     const account = await getXboxAccount(identity.userId);
-    const activity = account ? await getXboxActivity(identity.userId) : null;
+    if (!account) return NextResponse.json({ error: "No Xbox account linked. Link Xbox on your ClypDat account first." }, { status: 409 });
+    const activity = await getXboxActivity(identity.userId);
     return NextResponse.json({ connected: Boolean(account), account, activity });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });

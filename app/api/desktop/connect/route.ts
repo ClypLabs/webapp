@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { createDesktopToken, desktopTokenLifetimeSeconds } from "@/app/lib/desktop-token";
+import { getXboxAccount } from "@/app/lib/xbox";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,10 @@ export async function GET(request: Request) {
 
   const callback = new URL(redirectUri);
   callback.searchParams.set("state", state);
+  if (!await getXboxAccount(session.user.id)) {
+    callback.searchParams.set("error", "xbox-not-linked");
+    return NextResponse.redirect(callback);
+  }
   callback.searchParams.set("token", createDesktopToken(session.user.id));
   callback.searchParams.set("expires_in", String(desktopTokenLifetimeSeconds));
   return NextResponse.redirect(callback);
