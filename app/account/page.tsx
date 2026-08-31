@@ -27,6 +27,10 @@ function getSocialProvider(value: string | null): SocialProvider | null {
   return value === "google" || value === "discord" ? value : null;
 }
 
+function socialProviderName(provider: SocialProvider) {
+  return `${provider[0].toUpperCase()}${provider.slice(1)}`;
+}
+
 function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
   if (provider === "google") {
     return (
@@ -112,13 +116,13 @@ export default function AccountPage() {
           : result === "failed" || result === "invalid-state"
             ? "Xbox linking could not be completed."
             : oauthError === "account_not_linked" && linkProvider
-              ? `This ${linkProvider} email already has a ClypDat account. Sign in with that account's email and password once to link ${linkProvider}.`
+              ? `This ${socialProviderName(linkProvider)} email already has a ClypDat account. Sign in with that account's email and password once to link ${socialProviderName(linkProvider)}.`
               : oauthError === "email_does_not_match"
-                ? `That ${linkProvider ?? "social"} email does not match this ClypDat account.`
+                ? `That ${linkProvider ? socialProviderName(linkProvider) : "social"} email does not match this ClypDat account.`
                 : oauthError === "access_denied"
-                  ? `${linkProvider ? `${linkProvider[0].toUpperCase()}${linkProvider.slice(1)} ` : ""}linking was cancelled.`
+                  ? `${linkProvider ? `${socialProviderName(linkProvider)} ` : ""}linking was cancelled.`
                   : oauthError
-                    ? `${linkProvider ? `${linkProvider[0].toUpperCase()}${linkProvider.slice(1)} ` : ""}linking could not be completed.`
+                    ? `${linkProvider ? `${socialProviderName(linkProvider)} ` : ""}linking could not be completed.`
                     : invalidLinkProvider
                       ? "Unsupported social provider."
                       : null;
