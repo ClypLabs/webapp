@@ -37,8 +37,14 @@ export default function AccountPage() {
   const xboxConnected = xbox?.connected ?? false;
 
   useEffect(() => {
-    const result = new URLSearchParams(window.location.search).get("xbox");
-    const desktop = new URLSearchParams(window.location.search).get("desktop");
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("xbox");
+    const desktop = url.searchParams.get("desktop");
+    if (result || desktop) {
+      url.searchParams.delete("xbox");
+      url.searchParams.delete("desktop");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
     const message = desktop === "login-required"
       ? "Sign in here, then press Link ClypDat account again in the desktop app."
       : result === "connected"

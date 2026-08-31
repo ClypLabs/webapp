@@ -349,15 +349,21 @@ async function fetchActivity(credentials: XboxCredentials): Promise<XboxActivity
     if (!label) continue;
     for (const entry of device.titles ?? []) {
       if (entry.state?.toLowerCase() !== "active" || !entry.name) continue;
+      const titleName = entry.name.trim();
+      if (!titleName || isSystemTitle(titleName)) continue;
       const timestamp = entry.timestamp ? Date.parse(entry.timestamp) : 0;
       if (timestamp >= newest) {
         newest = timestamp;
-        title = entry.name.trim();
+        title = titleName;
         consoleName = label;
       }
     }
   }
   return { title, consoleName, updatedAt: new Date().toISOString() };
+}
+
+function isSystemTitle(title: string): boolean {
+  return ["Home", "Xbox Home", "Xbox Dashboard", "Xbox Guide"].includes(title);
 }
 
 export async function getXboxActivity(userId: string): Promise<XboxActivity | null> {
