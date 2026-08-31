@@ -129,6 +129,12 @@ deployment. The server uses PKCE and stores only an encrypted Xbox refresh
 token; it never sends Xbox tokens to the browser. The first successful link
 creates the small `clypdat_xbox_account` table automatically in Neon.
 
+The desktop app can reuse this link without receiving Microsoft credentials.
+Its **Link ClypDat account** button opens `/api/desktop/connect` in the user's
+browser, then receives a signed desktop token through a loopback callback. The
+token is stored encrypted by Windows DPAPI and is accepted only by
+`/api/desktop/xbox/activity`.
+
 After pulling the Vercel development variables locally, create Better Auth's
 tables with:
 

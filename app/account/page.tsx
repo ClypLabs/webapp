@@ -38,7 +38,10 @@ export default function AccountPage() {
 
   useEffect(() => {
     const result = new URLSearchParams(window.location.search).get("xbox");
-    const message = result === "connected"
+    const desktop = new URLSearchParams(window.location.search).get("desktop");
+    const message = desktop === "login-required"
+      ? "Sign in here, then press Link ClypDat account again in the desktop app."
+      : result === "connected"
       ? "Xbox connected successfully."
       : result === "cancelled"
         ? "Xbox linking was cancelled."
