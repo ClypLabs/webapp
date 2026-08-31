@@ -248,7 +248,7 @@ export default function AccountPage() {
         <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/30">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}</h1>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}!</h1>
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Your account is ready. Xbox and other connected accounts will live here."}</p>
           {error && <p role="status" className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">{error}</p>}
           <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
