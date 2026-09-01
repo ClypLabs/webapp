@@ -66,3 +66,25 @@ export async function getLinkedSocialProviders(userId: string) {
   );
   return result.rows.map((row) => row.providerId);
 }
+
+export type SocialProviderId = "google" | "discord";
+
+export type UnlinkResult = "unlinked" | "not-linked" | "last-account";
+
+/**
+ * Removes a linked social provider, refusing to remove the only way an account
+ * can still be signed into. The guard is part of the DELETE rather than a
+ * separate SELECT so two unlinks arriving together cannot each see two accounts
+ * and leave the user with none. Mirrors Better Auth's own unlinkAccount, which
+ * the desktop app cannot call: it authenticates with a desktop token rather
+ * than a session cookie.
+ */
+export async function unlinkSocialProvider(userId: string, provider: SocialProviderId): Promise<UnlinkResult> {
+  const linked = await pool.query('SELECT 1 FROM "account" WHERE "userId" = $1 AND "providerId" = $2', [userId, provider]);
+  if (!linked.rowCount) return "not-linked";
+  const result = await pool.query(
+    'DELETE FROM "account" WHERE "userId" = $1 AND "providerId" = $2 AND (SELECT COUNT(*) FROM "account" WHERE "userId" = $1) > 1',
+    [userId, provider],
+  );
+  return result.rowCount ? "unlinked" : "last-account";
+}

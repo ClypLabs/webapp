@@ -26,6 +26,18 @@ type Account = {
   providerId: string;
 };
 
+type OverviewUser = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type Overview = {
+  user: OverviewUser | null;
+  xbox: XboxStatus;
+  accounts: Account[];
+};
+
 type SocialProvider = "google" | "discord";
 
 function getSocialProvider(value: string | null): SocialProvider | null {
@@ -55,8 +67,12 @@ function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
   );
 }
 
+// Xbox's own silhouette. The circle-with-an-X drawn here before was an
+// approximation of it and read as a generic icon rather than the console's mark.
+// Lightened from the #107C10 in Xbox's guidelines, which is near-black against
+// this page; the desktop app draws the same mark at the same green.
 function XboxIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none"><path fill="#107C10" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5.1 4.3c-1.3.1-3.3 1-5.1 2.8-1.8-1.8-3.8-2.7-5.1-2.8A8 8 0 0 1 12 4c1.9 0 3.7.7 5.1 2.3ZM5 8.1c1.3.1 3.9 1.2 5.8 3.6-1.3 1.7-2.3 3.7-2.9 5.9A8 8 0 0 1 5 8.1Zm7 11.9c-1 0-2-.2-2.9-.6.5-2.7 1.5-5 2.9-6.6 1.4 1.6 2.4 3.9 2.9 6.6-.9.4-1.9.6-2.9.6Zm4.9-2.4c-.6-2.2-1.6-4.2-2.9-5.9 1.9-2.4 4.5-3.5 5.8-3.6a8 8 0 0 1-2.9 9.5Z" /></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0"><path fill="#4DC44D" d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417zm11.16-14.406c2.5 2.961 7.484 10.313 6.076 12.912C23.002 17.48 24 14.861 24 12.004c0-3.34-1.365-6.362-3.57-8.536 0 0-.027-.022-.082-.042-.063-.022-.152-.045-.281-.045-.592 0-1.985.434-4.805 3.246zM3.654 3.426c-.057.02-.082.041-.086.042C1.365 5.642 0 8.664 0 12.004c0 2.854.998 5.473 2.661 7.533-1.401-2.605 3.579-9.951 6.08-12.91-2.82-2.813-4.216-3.245-4.806-3.245-.131 0-.223.021-.281.046v-.002zM12 3.551S9.055 1.828 6.755 1.746c-.903-.033-1.454.295-1.521.339C7.379.646 9.659 0 11.984 0H12c2.334 0 4.605.646 6.766 2.085-.068-.046-.615-.372-1.52-.339C14.946 1.828 12 3.545 12 3.545v.006z" /></svg>;
 }
 
 export default function AccountPage() {
@@ -72,6 +88,11 @@ export default function AccountPage() {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountsBusy, setAccountsBusy] = useState(false);
   const [confirming, setConfirming] = useState<"google" | "discord" | "xbox" | null>(null);
+  const [overviewUser, setOverviewUser] = useState<OverviewUser | null>(null);
+  const [overviewPending, setOverviewPending] = useState(true);
+  const overviewLoaded = useRef(false);
+  const overviewInFlight = useRef(false);
+  const overviewFor = useRef<string | null>(null);
   const [linking, setLinking] = useState(false);
   const linkingAttempt = useRef<SocialProvider | null>(null);
   const router = useRouter();
@@ -189,36 +210,42 @@ export default function AccountPage() {
     });
   }, [accountCallbackUrl, accountLinkErrorUrl, session?.user]);
 
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    async function loadXbox() {
-      const response = await fetch("/api/xbox/status", { cache: "no-store" });
-      if (!response.ok || cancelled) return;
-      const status = (await response.json()) as XboxStatus;
-      if (!cancelled) setXbox(status);
-    }
-    void loadXbox();
-    return () => { cancelled = true; };
-  }, [userId]);
-
-  const loadAccounts = useCallback(async () => {
-    setAccountsBusy(true);
+  // One request for the signed-in user, their linked providers and their Xbox
+  // status. It reads the session cookie server-side, so it can start the moment
+  // the page mounts instead of queueing behind the client session request -
+  // which is what used to hold the whole page on "Loading account…".
+  const loadOverview = useCallback(async (expectUser: string | null) => {
+    overviewInFlight.current = true;
     try {
-      const result = await authClient.listAccounts();
-      if (result.error) throw new Error(result.error.message);
-      setAccounts((result.data ?? []) as Account[]);
+      const response = await fetch("/api/account/overview", { cache: "no-store" });
+      if (!response.ok) throw new Error("overview unavailable");
+      const data = (await response.json()) as Overview;
+      overviewFor.current = data.user?.id ?? expectUser;
+      setOverviewUser(data.user);
+      setXbox(data.xbox);
+      setAccounts(data.accounts);
     } catch {
-      setError("Connected accounts could not be loaded. Refresh and try again.");
+      // The session hook still renders the page; only the fast path is lost.
+      // Recording the attempt keeps the effect below from retrying forever.
+      overviewFor.current = expectUser;
+      setAccounts((current) => current ?? []);
     } finally {
-      setAccountsBusy(false);
+      overviewLoaded.current = true;
+      overviewInFlight.current = false;
+      setOverviewPending(false);
     }
   }, []);
 
+  // Runs once on mount, and again only if the session later resolves to a
+  // different user than the overview was fetched for - which is what signing in
+  // with email and password does, since it stays on this page. Social sign-in
+  // and sign-out both navigate, so they arrive with a fresh mount.
   useEffect(() => {
-    if (!userId) return;
-    void loadAccounts();
-  }, [loadAccounts, userId]);
+    const currentUser = userId ?? null;
+    if (overviewInFlight.current) return;
+    if (overviewLoaded.current && currentUser === overviewFor.current) return;
+    void loadOverview(currentUser);
+  }, [loadOverview, userId]);
 
   useEffect(() => {
     if (!xboxConnected) return;
@@ -302,17 +329,19 @@ export default function AccountPage() {
     }
   }
 
-  if (isPending) {
+  const user = session?.user ?? overviewUser;
+
+  if (!user && (isPending || overviewPending)) {
     return <main className="flex min-h-screen items-center justify-center text-zinc-400">Loading account…</main>;
   }
 
-  if (session?.user) {
+  if (user) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 py-20">
         <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}!</h1>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {user.name}!</h1>
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -335,7 +364,13 @@ export default function AccountPage() {
           </div>
           <button
             type="button"
-            onClick={() => authClient.signOut().then(() => router.push("/account"))}
+            onClick={() => authClient.signOut().then(() => {
+              overviewFor.current = null;
+              setOverviewUser(null);
+              setAccounts([]);
+              setXbox({ connected: false });
+              router.push("/account");
+            })}
             className="mt-8 w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06]"
           >
             Sign out

@@ -225,7 +225,22 @@ export async function connectXbox(code: string, verifier: string): Promise<XboxC
   return exchangeXboxTokens(oauth.accessToken, oauth.refreshToken, oauth.expiresIn);
 }
 
-async function ensureSchema(): Promise<void> {
+// Every Xbox read used to re-issue this DDL, adding a full round trip to the
+// database in front of the query the caller actually wanted. The table only
+// needs creating once per process, so the first call is the one that pays for
+// it; a failure clears the memo so the next call retries rather than inheriting
+// a broken schema promise forever.
+let schemaReady: Promise<void> | null = null;
+
+function ensureSchema(): Promise<void> {
+  schemaReady ??= createSchema().catch((error) => {
+    schemaReady = null;
+    throw error;
+  });
+  return schemaReady;
+}
+
+async function createSchema(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS clypdat_xbox_account (
       user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
