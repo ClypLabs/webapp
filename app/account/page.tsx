@@ -21,6 +21,11 @@ type XboxActivity = {
   consoleName: string | null;
 };
 
+type Account = {
+  id: string;
+  providerId: string;
+};
+
 type SocialProvider = "google" | "discord";
 
 function getSocialProvider(value: string | null): SocialProvider | null {
@@ -50,6 +55,10 @@ function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
   );
 }
 
+function XboxIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none"><path fill="#107C10" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5.1 4.3c-1.3.1-3.3 1-5.1 2.8-1.8-1.8-3.8-2.7-5.1-2.8A8 8 0 0 1 12 4c1.9 0 3.7.7 5.1 2.3ZM5 8.1c1.3.1 3.9 1.2 5.8 3.6-1.3 1.7-2.3 3.7-2.9 5.9A8 8 0 0 1 5 8.1Zm7 11.9c-1 0-2-.2-2.9-.6.5-2.7 1.5-5 2.9-6.6 1.4 1.6 2.4 3.9 2.9 6.6-.9.4-1.9.6-2.9.6Zm4.9-2.4c-.6-2.2-1.6-4.2-2.9-5.9 1.9-2.4 4.5-3.5 5.8-3.6a8 8 0 0 1-2.9 9.5Z" /></svg>;
+}
+
 export default function AccountPage() {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -60,12 +69,17 @@ export default function AccountPage() {
   const [xbox, setXbox] = useState<XboxStatus | null>(null);
   const [xboxActivity, setXboxActivity] = useState<XboxActivity | null>(null);
   const [xboxBusy, setXboxBusy] = useState(false);
+  const [accounts, setAccounts] = useState<Account[] | null>(null);
+  const [accountsBusy, setAccountsBusy] = useState(false);
+  const [confirming, setConfirming] = useState<"google" | "discord" | "xbox" | null>(null);
   const [linking, setLinking] = useState(false);
   const linkingAttempt = useRef<SocialProvider | null>(null);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
   const xboxConnected = xbox?.connected ?? false;
+  const linkedSocials = (["google", "discord"] as const).filter((provider) => accounts?.some((account) => account.providerId === provider));
+  const availableSocials = (["google", "discord"] as const).filter((provider) => !linkedSocials.includes(provider));
 
   const accountCallbackUrl = useCallback((preserveLinkProvider = false) => {
     const url = new URL("/account", window.location.origin);
@@ -188,6 +202,24 @@ export default function AccountPage() {
     return () => { cancelled = true; };
   }, [userId]);
 
+  const loadAccounts = useCallback(async () => {
+    setAccountsBusy(true);
+    try {
+      const result = await authClient.listAccounts();
+      if (result.error) throw new Error(result.error.message);
+      setAccounts((result.data ?? []) as Account[]);
+    } catch {
+      setError("Connected accounts could not be loaded. Refresh and try again.");
+    } finally {
+      setAccountsBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    void loadAccounts();
+  }, [loadAccounts, userId]);
+
   useEffect(() => {
     if (!xboxConnected) return;
     let cancelled = false;
@@ -232,10 +264,42 @@ export default function AccountPage() {
 
   async function disconnectXbox() {
     setXboxBusy(true);
-    await fetch("/api/xbox/disconnect", { method: "POST" });
-    setXbox({ connected: false });
-    setXboxActivity(null);
+    try {
+      const response = await fetch("/api/xbox/disconnect", { method: "POST" });
+      if (!response.ok) throw new Error();
+      setXbox({ connected: false });
+      setXboxActivity(null);
+      setConfirming(null);
+    } catch {
+      setError("Xbox could not be disconnected. Try again.");
+    }
     setXboxBusy(false);
+  }
+
+  function connectSocial(provider: SocialProvider) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("link_provider", provider);
+    window.location.assign(url);
+  }
+
+  async function disconnectSocial(provider: SocialProvider) {
+    const account = accounts?.find((item) => item.providerId === provider);
+    if (!account) return;
+    if ((accounts?.length ?? 0) <= 1) {
+      setError("Connect another sign-in method before removing your only login method.");
+      return;
+    }
+    setAccountsBusy(true);
+    try {
+      const result = await authClient.unlinkAccount({ accountId: account.id });
+      if (result.error) throw new Error(result.error.message);
+      setAccounts((current) => current?.filter((item) => item.id !== account.id) ?? null);
+      setConfirming(null);
+    } catch {
+      setError(`${socialProviderName(provider)} could not be disconnected. Your account was not changed.`);
+    } finally {
+      setAccountsBusy(false);
+    }
   }
 
   if (isPending) {
@@ -245,36 +309,29 @@ export default function AccountPage() {
   if (session?.user) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 py-20">
-        <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/30">
+        <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {session.user.name}!</h1>
-          <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Your account is ready. Xbox and other connected accounts will live here."}</p>
-          {error && <p role="status" className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">{error}</p>}
-          <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Xbox account</p>
-                <h2 className="mt-2 text-lg font-semibold">{xbox?.connected ? (xbox.account?.gamertag ?? "Xbox connected") : "Connect Xbox"}</h2>
-                <p className="mt-2 text-sm text-zinc-400">
-                  {xbox?.connected
-                    ? xboxActivity?.title
-                      ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}`
-                      : "No active Xbox game detected."
-                    : "Use Xbox activity for cloud-connected clips and presence."}
-                </p>
+          <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
+          {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+              <div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Add an account</p><h2 className="mt-2 text-lg font-semibold">More ways to sign in</h2></div>{accountsBusy && <span className="text-xs text-zinc-500">Updating…</span>}</div>
+              <div className="mt-5 space-y-3">
+                {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Add as a sign-in method</span></span></span><span className="text-emerald-300">Connect</span></button>)}
+                {!xboxConnected && <a href="/api/xbox/connect" className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">Xbox</span><span className="text-sm text-zinc-400">Optional activity and presence</span></span></span><span className="text-emerald-300">Connect</span></a>}
+                {!availableSocials.length && xboxConnected && <p className="text-sm text-zinc-400">All available accounts are connected.</p>}
               </div>
-              <span className={`mt-1 h-2.5 w-2.5 rounded-full ${xbox?.connected ? "bg-emerald-300" : "bg-zinc-600"}`} aria-label={xbox?.connected ? "Connected" : "Not connected"} />
             </div>
-            {xbox?.connected ? (
-              <button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="mt-5 w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-red-300/60 hover:bg-red-300/10 disabled:opacity-60">
-                {xboxBusy ? "Disconnecting…" : "Disconnect Xbox"}
-              </button>
-            ) : (
-              <a href="/api/xbox/connect" className="mt-5 block w-full rounded-full bg-emerald-300 px-4 py-3 text-center text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
-                Link Xbox
-              </a>
-            )}
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Connected accounts</p><h2 className="mt-2 text-lg font-semibold">Your account connections</h2>
+              <div className="mt-5 space-y-3">
+                {linkedSocials.map((provider) => <div key={provider} className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>)}
+                {xboxConnected && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>}
+                {!linkedSocials.length && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
+              </div>
+            </div>
           </div>
           <button
             type="button"

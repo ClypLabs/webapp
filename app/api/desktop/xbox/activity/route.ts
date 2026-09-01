@@ -13,10 +13,10 @@ export async function GET(request: Request) {
   if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
   try {
     const account = await getXboxAccount(identity.userId);
-    if (!account) return NextResponse.json({ error: "No Xbox account linked. Link Xbox on your ClypDat account first." }, { status: 409 });
-    const activity = await getXboxActivity(identity.userId);
     const providers = await getLinkedSocialProviders(identity.userId);
-    return NextResponse.json({ connected: Boolean(account), account, activity, providers });
+    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers });
+    const activity = await getXboxActivity(identity.userId);
+    return NextResponse.json({ connected: true, account, activity, providers });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });
   }
