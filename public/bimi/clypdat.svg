@@ -18,17 +18,17 @@
 
   <g
     fill="none"
-    stroke="#F1F5F9"
+    stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <path
-      d="M128 25 218 77v102l-90 52-90-52V77l90-52Z"
-      stroke-width="25"
-    />
-
-    <path
-      d="m128 78 40 23v54l-40 23-40-23v-54l40-23Z"
-      stroke-width="15"
-    />
+    <!-- Black under-strokes preserve the desktop mark's crisp inner edge. -->
+    <g stroke="#000000" stroke-width="25">
+      <path d="M115 78C90 64 59 68 41 91c-19 25-15 60 10 80 18 15 43 17 64 8" />
+      <path d="M141 75c27-13 59-4 75 21 17 27 10 62-17 79-18 12-40 12-61 0" />
+    </g>
+    <g stroke="#F1F5F9" stroke-width="15">
+      <path d="M115 78C90 64 59 68 41 91c-19 25-15 60 10 80 18 15 43 17 64 8" />
+      <path d="M141 75c27-13 59-4 75 21 17 27 10 62-17 79-18 12-40 12-61 0" />
+    </g>
   </g>
 </svg>
