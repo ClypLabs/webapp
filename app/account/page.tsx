@@ -88,6 +88,10 @@ export default function AccountPage() {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountsBusy, setAccountsBusy] = useState(false);
   const [confirming, setConfirming] = useState<"google" | "discord" | "xbox" | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [overviewUser, setOverviewUser] = useState<OverviewUser | null>(null);
   const [overviewPending, setOverviewPending] = useState(true);
   const overviewLoaded = useRef(false);
@@ -128,17 +132,25 @@ export default function AccountPage() {
     const result = url.searchParams.get("xbox");
     const desktop = url.searchParams.get("desktop");
     const oauthError = url.searchParams.get("error");
+    const deleted = url.searchParams.get("deleted");
+    const reauth = url.searchParams.get("reauth");
     const linkProvider = getSocialProvider(url.searchParams.get("link_provider"));
     const invalidLinkProvider = url.searchParams.has("link_provider") && !linkProvider;
-    if (result || desktop || oauthError || invalidLinkProvider) {
+    if (result || desktop || oauthError || invalidLinkProvider || deleted || reauth) {
       url.searchParams.delete("xbox");
       url.searchParams.delete("desktop");
       url.searchParams.delete("error");
       url.searchParams.delete("error_description");
+      url.searchParams.delete("deleted");
+      url.searchParams.delete("reauth");
       if (oauthError !== "account_not_linked") url.searchParams.delete("link_provider");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
-    const message = desktop === "signed-out"
+    const message = deleted === "1"
+      ? "Your ClypDat account and stored connections were deleted."
+      : reauth === "1"
+      ? "Sign in again before deleting your account."
+      : desktop === "signed-out"
       ? "Signed out of ClypDat."
       : desktop === "login-required"
       ? "Sign in here, then press Link ClypDat account again in the desktop app."
@@ -329,6 +341,38 @@ export default function AccountPage() {
     }
   }
 
+  async function deleteAccount() {
+    if (deleteConfirmation !== "DELETE") return;
+    setError(null);
+    setDeleteBusy(true);
+    try {
+      const result = await authClient.deleteUser({ password: deletePassword || undefined });
+      if (result.error) {
+        const message = result.error.message ?? "Account deletion could not be completed.";
+        const hasPassword = accounts?.some((account) => account.providerId === "credential");
+        if (!hasPassword && /session/i.test(message)) {
+          await authClient.signOut();
+          router.replace("/account?reauth=1");
+          return;
+        }
+        setError(message);
+        return;
+      }
+      overviewFor.current = null;
+      setOverviewUser(null);
+      setAccounts([]);
+      setXbox({ connected: false });
+      // Better Auth has cleared the server cookie. A full ordinary-account
+      // navigation also drops the client session cache and any desktop-link
+      // parameters, so deletion never resumes a desktop handoff.
+      window.location.replace("/account?deleted=1");
+    } catch {
+      setError("Account deletion could not be completed. Your account was not changed.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   const user = session?.user ?? overviewUser;
 
   if (!user && (isPending || overviewPending)) {
@@ -375,6 +419,17 @@ export default function AccountPage() {
           >
             Sign out
           </button>
+          <section className="mt-6 rounded-2xl border border-red-300/25 bg-red-300/[0.06] p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-red-200">Delete account</p>
+            <h2 className="mt-2 text-lg font-semibold">Permanently delete your ClypDat account</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">This removes your ClypDat account and stored connections. Local recordings and your Google, Discord, and Microsoft accounts remain intact.</p>
+            {!deleteOpen ? <button type="button" onClick={() => { setDeleteOpen(true); setError(null); }} className="mt-4 text-sm text-red-200 underline-offset-4 hover:underline">Delete account</button> : <div className="mt-5 space-y-4">
+              <p className="text-sm text-zinc-300">Type <strong>DELETE</strong> to enable permanent deletion.</p>
+              {accounts?.some((account) => account.providerId === "credential") && <label className="block text-sm text-zinc-300">Current password <span className="text-zinc-500">(needed only if this session is over five minutes old)</span><input value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} type="password" autoComplete="current-password" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>}
+              <label className="block text-sm text-zinc-300">Confirmation<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>
+              <div className="flex flex-wrap gap-3"><button type="button" disabled={deleteConfirmation !== "DELETE" || deleteBusy} onClick={deleteAccount} className="rounded-full bg-red-300 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50">{deleteBusy ? "Deleting…" : "Permanently delete account"}</button><button type="button" disabled={deleteBusy} onClick={() => { setDeleteOpen(false); setDeleteConfirmation(""); setDeletePassword(""); }} className="rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold hover:bg-white/[0.06]">Cancel</button></div>
+            </div>}
+          </section>
         </section>
       </main>
     );
@@ -430,6 +485,7 @@ export default function AccountPage() {
         <button type="button" onClick={() => { setMode(mode === "sign-in" ? "sign-up" : "sign-in"); setError(null); }} className="mt-6 w-full text-sm text-zinc-400 hover:text-zinc-200">
           {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
         </button>
+        <p className="mt-6 text-center text-sm text-zinc-500"><Link href="/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-zinc-300">Terms of Service <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></Link><span aria-hidden="true"> · </span><Link href="/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-zinc-300">Privacy Policy <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></Link></p>
       </section>
     </main>
   );

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteXboxAccount, getXboxAccount, getXboxActivity } from "@/app/lib/xbox";
-import { verifyDesktopToken } from "@/app/lib/desktop-token";
+import { verifyActiveDesktopToken } from "@/app/lib/desktop-token";
 import { getLinkedSocialProviders } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const value = request.headers.get("authorization");
   const token = value?.startsWith("Bearer ") ? value.slice("Bearer ".length).trim() : "";
-  const identity = verifyDesktopToken(token);
-  if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
   try {
+    const identity = await verifyActiveDesktopToken(token);
+    if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
     const account = await getXboxAccount(identity.userId);
     const providers = await getLinkedSocialProviders(identity.userId);
     if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers });
@@ -25,9 +25,9 @@ export async function GET(request: Request) {
 export async function DELETE(request: Request) {
   const value = request.headers.get("authorization");
   const token = value?.startsWith("Bearer ") ? value.slice("Bearer ".length).trim() : "";
-  const identity = verifyDesktopToken(token);
-  if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
   try {
+    const identity = await verifyActiveDesktopToken(token);
+    if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
     await deleteXboxAccount(identity.userId);
     return NextResponse.json({ connected: false });
   } catch {

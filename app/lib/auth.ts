@@ -49,6 +49,16 @@ export const auth = betterAuth({
     // then, accounts can be tested without pretending verification was sent.
     requireEmailVerification: false,
   },
+  session: {
+    // Destructive account changes need a recent sign-in unless the current
+    // password is supplied to Better Auth's delete-user endpoint.
+    freshAge: 60 * 5,
+  },
+  user: {
+    deleteUser: {
+      enabled: true,
+    },
+  },
   account: {
     accountLinking: {
       // Password sign-in establishes account ownership before linkSocial.

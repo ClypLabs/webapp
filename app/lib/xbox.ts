@@ -253,6 +253,33 @@ async function createSchema(): Promise<void> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Early deployments created this table at runtime. Repair an old foreign
+  // key in place so Better Auth user deletion removes Xbox credentials too.
+  await pool.query(`
+    DO $$
+    DECLARE constraint_name TEXT;
+    BEGIN
+      SELECT con.conname INTO constraint_name
+      FROM pg_constraint con
+      JOIN pg_class table_name ON table_name.oid = con.conrelid
+      JOIN pg_namespace schema_name ON schema_name.oid = table_name.relnamespace
+      WHERE con.contype = 'f'
+        AND schema_name.nspname = current_schema()
+        AND table_name.relname = 'clypdat_xbox_account'
+        AND pg_get_constraintdef(con.oid) LIKE '%REFERENCES "user"(id)%';
+
+      IF constraint_name IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM pg_constraint con
+          WHERE con.conname = constraint_name AND con.confdeltype = 'c'
+        ) THEN
+        EXECUTE format('ALTER TABLE clypdat_xbox_account DROP CONSTRAINT %I', constraint_name);
+        ALTER TABLE clypdat_xbox_account
+          ADD CONSTRAINT clypdat_xbox_account_user_id_fkey
+          FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `);
 }
 
 function encrypt(value: string): string {

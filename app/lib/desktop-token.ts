@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { pool } from "@/app/lib/auth";
 
 const tokenLifetimeSeconds = 60 * 60 * 24 * 30;
 
@@ -33,6 +34,18 @@ export function verifyDesktopToken(token: string) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Verifies the compatible signed token, then checks its subject still exists.
+ * A signature failure and a deleted user are both unauthenticated; a database
+ * failure is allowed to reach callers as a service error instead.
+ */
+export async function verifyActiveDesktopToken(token: string) {
+  const identity = verifyDesktopToken(token);
+  if (!identity) return null;
+  const result = await pool.query('SELECT 1 FROM "user" WHERE id = $1', [identity.userId]);
+  return result.rowCount ? identity : null;
 }
 
 export const desktopTokenLifetimeSeconds = tokenLifetimeSeconds;
