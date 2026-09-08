@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { GITHUB_URL } from "./Header";
 
 export default function Footer() {
@@ -15,9 +16,14 @@ export default function Footer() {
           />
           <span>ClypDat</span>
         </div>
-        <p className="text-center">
-          Licensed under GPLv3. Bundles LibVLC and ffmpeg.
-        </p>
+        <div className="text-center">
+          <p>Licensed under GPLv3. Bundles LibVLC and ffmpeg.</p>
+          <p className="mt-2">
+            <Link href="/terms" className="transition-colors hover:text-zinc-300">Terms of Service</Link>
+            <span aria-hidden="true"> · </span>
+            <Link href="/privacy" className="transition-colors hover:text-zinc-300">Privacy Policy</Link>
+          </p>
+        </div>
         <a
           href={GITHUB_URL}
           target="_blank"
