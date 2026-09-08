@@ -22,6 +22,8 @@ export default function Footer() {
             <Link href="/terms" className="transition-colors hover:text-zinc-300">Terms of Service</Link>
             <span aria-hidden="true"> · </span>
             <Link href="/privacy" className="transition-colors hover:text-zinc-300">Privacy Policy</Link>
+            <span aria-hidden="true"> · </span>
+            <Link href="/cookies" className="transition-colors hover:text-zinc-300">Cookie Notice</Link>
           </p>
         </div>
         <a

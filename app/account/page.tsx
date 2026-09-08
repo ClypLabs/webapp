@@ -98,6 +98,10 @@ export default function AccountPage() {
   const overviewInFlight = useRef(false);
   const overviewFor = useRef<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renamed, setRenamed] = useState(false);
   const linkingAttempt = useRef<SocialProvider | null>(null);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
@@ -341,6 +345,31 @@ export default function AccountPage() {
     }
   }
 
+  /**
+   * GDPR Article 16, rectification. Only the display name is editable here:
+   * changing the email address moves the account's identity and Better Auth
+   * gates that behind a verification message, which needs a transactional
+   * email provider this deployment does not have yet. Until it does, the
+   * policy routes email corrections through hi@clypdat.xyz.
+   */
+  async function saveDisplayName() {
+    const next = displayName.trim();
+    if (!next || next === user?.name) return;
+    setError(null);
+    setRenameBusy(true);
+    try {
+      const result = await authClient.updateUser({ name: next });
+      if (result.error) throw new Error(result.error.message);
+      setOverviewUser((current) => (current ? { ...current, name: next } : current));
+      setRenamed(true);
+      setRenameOpen(false);
+    } catch {
+      setError("Your display name could not be updated. Your account was not changed.");
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
   async function deleteAccount() {
     if (deleteConfirmation !== "DELETE") return;
     setError(null);
@@ -419,6 +448,29 @@ export default function AccountPage() {
           >
             Sign out
           </button>
+          <section className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Your data</p>
+            <h2 className="mt-2 text-lg font-semibold">Access, correct, and take your data</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">Download everything this account service holds about you, or correct your display name. Recordings made with ClypDat stay on your own device and are never part of this export.</p>
+            <div className="mt-5 space-y-4">
+              <a href="/api/account/export" className="inline-flex items-center rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold transition hover:border-emerald-300/60 hover:bg-emerald-300/10">Download my data (JSON)</a>
+              {!renameOpen ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={() => { setDisplayName(user.name ?? ""); setRenameOpen(true); setRenamed(false); setError(null); }} className="text-sm text-emerald-300 underline-offset-4 hover:underline">Change display name</button>
+                  {renamed && <span className="text-sm text-zinc-400">Display name updated.</span>}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <label className="block text-sm text-zinc-300">Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" /></label>
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" disabled={renameBusy || !displayName.trim()} onClick={saveDisplayName} className="rounded-full bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50">{renameBusy ? "Saving…" : "Save"}</button>
+                    <button type="button" disabled={renameBusy} onClick={() => { setRenameOpen(false); setDisplayName(""); }} className="rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold hover:bg-white/[0.06]">Cancel</button>
+                  </div>
+                </div>
+              )}
+              <p className="text-sm text-zinc-400">To correct your email address, or to ask about any other data-protection right, email <a className="text-emerald-300 underline" href="mailto:hi@clypdat.xyz">hi@clypdat.xyz</a>. See the <Link className="text-emerald-300 underline" href="/privacy">Privacy Policy</Link>.</p>
+            </div>
+          </section>
           <section className="mt-6 rounded-2xl border border-red-300/25 bg-red-300/[0.06] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-red-200">Delete account</p>
             <h2 className="mt-2 text-lg font-semibold">Permanently delete your ClypDat account</h2>
