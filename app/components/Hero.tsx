@@ -1,20 +1,10 @@
 import LibraryGraphic from "./LibraryGraphic";
 import ScaleToFit from "./ScaleToFit";
 import Reveal, { RevealWords } from "./Reveal";
-import { DOWNLOAD_URL, GITHUB_URL } from "./Header";
+import { DOWNLOAD_URL, GITHUB_URL, socials } from "./links";
 
-const socials = [
-  {
-    href: "https://x.com/ClypDat",
-    label: "ClypDat on X",
-    path: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.963 6.817H1.684l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z",
-  },
-  {
-    href: "https://discord.gg/jt3eJf238t",
-    label: "Join ClypDat on Discord",
-    path: "M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.027c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.042-.106 13.2 13.2 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.794 8.18 1.794 12.061 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.127c-.598.35-1.22.648-1.873.891a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.077.077 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.033-.03ZM8.02 15.33c-1.18 0-2.156-1.085-2.156-2.419 0-1.333.956-2.418 2.156-2.418 1.21 0 2.175 1.095 2.156 2.418 0 1.334-.956 2.419-2.156 2.419Zm7.974 0c-1.18 0-2.156-1.085-2.156-2.419 0-1.333.956-2.418 2.156-2.418 1.21 0 2.175 1.095 2.156 2.418 0 1.334-.956 2.419-2.156 2.419Z",
-  },
-];
+// GitHub already has its own button right above these.
+const heroSocials = socials.filter((social) => social.href !== GITHUB_URL);
 
 export default function Hero() {
   return (
@@ -66,9 +56,9 @@ export default function Hero() {
           as="p"
           className="mt-8 max-w-xl text-lg leading-relaxed text-zinc-400 text-balance"
         >
-          ClypDat is always recording in the background. The moment something
-          worth keeping happens, press one key &mdash; the last few minutes are
-          already saved. No process hook, so anti-cheat has nothing to object to.
+          ClypDat records in the background and keeps the last few minutes.
+          When something good happens, press one key and it&apos;s saved.
+          Nothing runs inside the game, so anti-cheat has nothing to flag.
         </Reveal>
 
         <Reveal
@@ -98,11 +88,11 @@ export default function Hero() {
         </Reveal>
 
         <Reveal delay={600} as="p" className="mt-5 text-xs text-zinc-500">
-          Windows 10/11, x64. Installer needs no admin approval.
+          Windows 10 and 11, x64. The installer doesn&apos;t need admin rights.
         </Reveal>
 
         <Reveal delay={660} className="mt-6 flex items-center gap-3">
-          {socials.map((social) => (
+          {heroSocials.map((social) => (
             <a
               key={social.href}
               href={social.href}

@@ -4,6 +4,7 @@ import HowItWorks from "./components/HowItWorks";
 import Features from "./components/Features";
 import Editor from "./components/Editor";
 import Download from "./components/Download";
+import FAQ from "./components/FAQ";
 import Footer from "./components/Footer";
 import { RevealProvider } from "./components/Reveal";
 import Ambience from "./components/Ambience";
@@ -21,6 +22,7 @@ export default function Home() {
         <HowItWorks />
         <Features />
         <Editor />
+        <FAQ />
         <Download />
       </main>
       <Footer />

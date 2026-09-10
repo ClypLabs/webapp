@@ -1,13 +1,13 @@
 import Reveal, { RevealWords } from "./Reveal";
-
-const GITHUB_URL = "https://github.com/ClypLabs/ClypDat";
-const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
+import CopyCommand from "./CopyCommand";
+import { RELEASES_URL, WINGET_ID } from "./links";
 
 const downloads = [
   {
     label: "Installer",
     file: "ClypDat-Setup.exe",
-    description: "Recommended. Installs to your user folder, no admin needed.",
+    description: "Installs to your user folder, no admin needed. Updates itself.",
+    recommended: true,
   },
   {
     label: "Portable",
@@ -49,8 +49,8 @@ export default function Download() {
           as="p"
           className="mx-auto mt-6 max-w-xl text-lg text-zinc-400 text-balance"
         >
-          Windows 10 or 11, x64. The native capture backend works on NVIDIA,
-          AMD, and as a software fallback, any GPU-less machine.
+          Windows 10 or 11, x64. Encodes on NVIDIA, AMD or Intel GPUs, with a
+          software encoder for machines that have none of the three.
         </Reveal>
 
         <div className="mt-14 grid gap-3 text-left sm:grid-cols-2">
@@ -58,13 +58,24 @@ export default function Download() {
             <Reveal key={item.file} delay={index * 90}>
               <a
                 href={`/download/${item.file}`}
-                className="group flex h-full flex-col items-start rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-400/40 hover:bg-white/[0.05] motion-reduce:hover:translate-y-0"
+                className={`group relative flex h-full flex-col items-start rounded-xl border px-5 py-4 transition-all duration-300 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 ${
+                  item.recommended
+                    ? "border-emerald-400/30 bg-emerald-400/[0.06] hover:border-emerald-400/60 hover:bg-emerald-400/[0.09]"
+                    : "border-white/10 bg-white/[0.03] hover:border-emerald-400/40 hover:bg-white/[0.05]"
+                }`}
               >
-                <span className="flex w-full items-center justify-between text-sm font-semibold text-zinc-100 transition-colors group-hover:text-emerald-300">
-                  {item.label}
+                <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-zinc-100 transition-colors group-hover:text-emerald-300">
+                  <span className="flex items-center gap-2">
+                    {item.label}
+                    {item.recommended ? (
+                      <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                        Recommended
+                      </span>
+                    ) : null}
+                  </span>
                   <span
                     aria-hidden
-                    className="text-zinc-600 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-emerald-300"
+                    className="text-zinc-600 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:text-emerald-300"
                   >
                     &darr;
                   </span>
@@ -72,19 +83,31 @@ export default function Download() {
                 <span className="mt-1.5 text-xs leading-5 text-zinc-500">
                   {item.description}
                 </span>
+                <span className="mt-3 font-mono text-[11px] text-zinc-600">
+                  {item.file}
+                </span>
               </a>
             </Reveal>
           ))}
         </div>
 
-        <Reveal delay={420}>
+        <Reveal delay={420} className="mt-10">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+            Or install with WinGet
+          </p>
+          <div className="mx-auto mt-3 max-w-md">
+            <CopyCommand command={`winget install --id ${WINGET_ID}`} />
+          </div>
+        </Reveal>
+
+        <Reveal delay={480}>
           <a
             href={RELEASES_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-10 inline-block text-sm text-zinc-500 underline decoration-white/20 underline-offset-4 transition-colors hover:text-zinc-300"
           >
-            All releases on GitHub
+            Release notes and older versions on GitHub
           </a>
         </Reveal>
       </div>

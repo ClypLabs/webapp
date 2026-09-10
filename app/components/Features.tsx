@@ -14,25 +14,25 @@ const features: Feature[] = [
     id: "no-hook",
     title: "No process hook",
     description:
-      "Built directly on DXGI Desktop Duplication instead of injecting into the game, so anti-cheat has nothing to flag. True per-window capture keeps recording through alt-tabs and overlays.",
+      "ClypDat reads frames through DXGI Desktop Duplication instead of injecting into the game, so there's nothing in the game process for anti-cheat to flag. Alt-tab out and it holds the last game frame rather than recording your desktop.",
   },
   {
     id: "gpu",
-    title: "GPU-accelerated everything",
+    title: "Encodes on your GPU",
     description:
-      "GPU-side downscaling and NVENC encoding, falling back to AMD AMF, Intel Quick Sync and then software libx264 - it isn't NVIDIA-only, and it isn't going to tank your frame rate.",
+      "Frames are downscaled on the GPU, then encoded with NVENC, AMD AMF or Intel Quick Sync, whichever your card has. A PC with none of them falls back to libx264 on the CPU.",
   },
   {
     id: "session",
     title: "Full session recording",
     description:
-      "Optionally record the entire session to one file alongside the rolling clip buffer. Audio resyncs every 60s so multi-hour sessions don't drift out of sync.",
+      "Record the whole session to its own file while the clip buffer keeps running. Audio is resynced every 60 seconds, so a four-hour session ends as in sync as it started.",
   },
   {
     id: "detection",
-    title: "Smart game detection",
+    title: "Game detection",
     description:
-      "Foreground-window scanning against a catalog of known games and your installed Steam library, updated from GitHub. Clips are named after the game automatically.",
+      "ClypDat checks the foreground window against its game catalog and your Steam libraries. The catalog updates from GitHub, and every clip is named after the game it came from.",
   },
 ];
 
@@ -43,12 +43,12 @@ const alsoDoes = [
   {
     title: "CS2 auto-clipping",
     description:
-      "Listens to CS2's own Game State Integration feed - no screen or voice analysis - and saves a clip on kills, headshots or multi-kills. (Experimental)",
+      "Reads CS2's Game State Integration feed, not the screen or your voice, and saves a clip on kills, headshots, assists or deaths. A 3K that turns into a 4K saves once, as the 4K. Experimental.",
   },
   {
-    title: "Import from Medal",
+    title: "Import from Medal and SteelSeries",
     description:
-      "Scans Medal's local database, or its clips folder as a fallback, and copies your existing clips over with their titles intact.",
+      "Pulls in clips from Medal and SteelSeries Moments using their local catalogs, or their clip folders if a catalog can't be read. Copy or move them; titles and games come across.",
   },
 ];
 
@@ -343,13 +343,13 @@ export default function Features() {
                 Capture
               </Reveal>
               <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-                <RevealWords text="Built for how you" />{" "}
-                <RevealWords text="actually play." wordClassName="text-accent" />
+                <RevealWords text="Capture that stays" />{" "}
+                <RevealWords text="out of the game." wordClassName="text-accent" />
               </h2>
               <Reveal delay={280} as="p" className="mt-6 max-w-xl text-lg text-zinc-400">
-                Two capture backends, switchable in Settings - ClypDat&apos;s own
-                native engine by default, with Windows Capture as a fallback.
-                Neither one hooks into your game.
+                ClypDat&apos;s own capture engine is the default, and Windows
+                Graphics Capture is available as a fallback in Settings. Neither
+                one loads anything into your game.
               </Reveal>
             </div>
 

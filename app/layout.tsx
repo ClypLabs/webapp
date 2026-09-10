@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "ClypDat - Instant replay buffer for Windows",
   description:
-    "ClypDat is always recording in the background. Press one key and the last few minutes of your gameplay are already saved. No process hook, built-in editor, CS2 auto-clipping.",
+    "Free, open-source replay buffer for Windows. Press one key to save the last few minutes of gameplay. Nothing injected into the game, a built-in editor, and CS2 auto-clipping.",
   // No explicit icon entry - app/favicon.ico is picked up automatically by
   // Next's file convention, and duplicating it here just risks the two
   // drifting if one gets swapped and not the other.

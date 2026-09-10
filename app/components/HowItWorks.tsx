@@ -1,20 +1,22 @@
 import Reveal, { RevealWords } from "./Reveal";
 
-const steps = [
+const steps: { step: string; title: string; body: string; keys?: string[] }[] = [
   {
     step: "01",
     title: "Arm it once",
-    body: "Turn the buffer on and forget it. ClypDat holds the last few minutes of gameplay in memory, continuously overwriting the oldest frames.",
+    body: "Turn on the replay buffer once. ClypDat keeps the last few minutes of gameplay and drops the oldest frames as new ones come in.",
   },
   {
     step: "02",
     title: "Play",
-    body: "A clutch, a one-in-a-thousand ragdoll, a bug worth reporting. You weren't recording it - and you never have to remember to.",
+    body: "A clutch round, a ragdoll you'll never see again, a bug you want to report. You don't have to remember to hit record.",
   },
   {
     step: "03",
     title: "Press the key",
-    body: "The clip is already in memory, so saving is instant. It lands on disk named after the game, ready to trim.",
+    body: "The footage is already recorded, so the clip saves straight away. It's named after the game and ready to trim.",
+    // AppSettings.SaveReplayHotkey in the desktop app.
+    keys: ["Ctrl", "Shift", "F9"],
   },
 ];
 
@@ -38,8 +40,8 @@ export default function HowItWorks() {
             as="p"
             className="mx-auto mt-6 max-w-xl text-lg text-zinc-400 text-balance"
           >
-            Every other capture tool asks you to decide before the good thing
-            happens. A replay buffer doesn&apos;t.
+            Normal recording makes you press record before anything happens.
+            A replay buffer is always rolling, so you decide afterwards.
           </Reveal>
         </div>
 
@@ -74,6 +76,17 @@ export default function HowItWorks() {
               <p className="mx-auto mt-3 max-w-xs text-sm leading-7 text-zinc-400">
                 {item.body}
               </p>
+              {item.keys ? (
+                <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                  <span className="mr-1">Default</span>
+                  {item.keys.map((key, keyIndex) => (
+                    <span key={key} className="inline-flex items-center gap-1.5">
+                      {keyIndex > 0 ? <span aria-hidden className="text-zinc-600">+</span> : null}
+                      <kbd className="kbd text-sm">{key}</kbd>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
             </Reveal>
           ))}
         </div>

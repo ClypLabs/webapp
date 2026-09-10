@@ -3,11 +3,11 @@ import ScaleToFit from "./ScaleToFit";
 import Reveal, { RevealWords } from "./Reveal";
 
 const editorPoints = [
-  "Trim start/end with a scrubbable thumbnail preview and waveform view",
-  "Per-track audio volume, including separate game/chat/mic tracks",
-  "Export mixes every track down to one file that plays anywhere",
-  "Save Trim re-encodes in place and keeps tracks separately editable",
-  "GPU export via NVENC (H.264/H.265/AV1) with automatic CPU fallback",
+  "Trim the start and end with thumbnail scrubbing and a waveform view",
+  "Game, chat and mic are separate tracks, each with its own volume",
+  "Export mixes every track into one file that plays anywhere",
+  "Save Trim cuts the file in place and keeps the tracks separate",
+  "GPU export with NVENC (H.264, H.265 or AV1), CPU when there's no GPU encoder",
 ];
 
 
@@ -30,13 +30,13 @@ export default function Editor() {
               Editor
             </Reveal>
             <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-              <RevealWords text="A real editor," />{" "}
-              <RevealWords text="not an afterthought." wordClassName="text-accent" />
+              <RevealWords text="Trim, mix," />{" "}
+              <RevealWords text="export." wordClassName="text-accent" />
             </h2>
             <Reveal delay={300} as="p" className="mt-6 text-lg text-zinc-400">
-              Every clip opens straight into ClypDat&apos;s built-in editor. Trim
-              it, balance the audio tracks, and export &mdash; no round trip
-              through another app.
+              Every clip opens in ClypDat&apos;s editor. Cut it down, set the
+              level of each audio track and export it without opening another
+              program.
             </Reveal>
           </div>
 

@@ -473,7 +473,8 @@ body {
 }
 
 [data-fx="low"] .backdrop-blur,
-[data-fx="low"] .backdrop-blur-sm {
+[data-fx="low"] .backdrop-blur-sm,
+[data-fx="low"] .backdrop-blur-md {
   backdrop-filter: none;
 }
 
@@ -534,7 +535,8 @@ body {
   /* backdrop-filter forces the layers underneath to be re-read and blurred on
      every composite. Not worth it at this size. */
   .backdrop-blur,
-  .backdrop-blur-sm {
+  .backdrop-blur-sm,
+  .backdrop-blur-md {
     backdrop-filter: none;
   }
 }
@@ -614,4 +616,66 @@ body {
     min-height: 0;
     padding-block: 0;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Keycaps
+
+   Hotkeys are shown as keys, not as a string with plus signs in it - "Ctrl +
+   Shift + F9" is something you read, a row of caps is something you press.
+   --------------------------------------------------------------------------- */
+.kbd {
+  display: inline-flex;
+  min-width: 1.9em;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-bottom-width: 2px;
+  background: rgb(255 255 255 / 0.05);
+  padding: 0.05em 0.45em;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8em;
+  line-height: 1.5;
+  color: #e4e4e7;
+}
+
+/* ---------------------------------------------------------------------------
+   FAQ accordion
+
+   Native <details>, animated where the browser can size to `auto`. Elsewhere
+   it opens instantly, which is the same thing without the motion.
+   --------------------------------------------------------------------------- */
+@supports (interpolate-size: allow-keywords) {
+  .faq-item {
+    interpolate-size: allow-keywords;
+  }
+
+  .faq-item::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    opacity: 0;
+    transition:
+      block-size 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.35s ease,
+      content-visibility 0.35s allow-discrete;
+  }
+
+  .faq-item[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item::details-content {
+    transition: none;
+  }
+}
+
+/* Keyboard focus. The page had no visible focus style of its own, and the
+   browser default ring is close to invisible against this background. */
+:where(a, button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 3px;
 }
