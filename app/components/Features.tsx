@@ -331,7 +331,7 @@ export default function Features() {
     // creating a scroll container.
     <section
       id="features"
-      className="section-anchor-pinned relative overflow-x-clip px-6 py-32 sm:py-40"
+      className="section-anchor-pinned pin-section relative overflow-x-clip px-6 py-24 sm:py-32"
     >
       <div className="mx-auto max-w-7xl">
         {/* The runway. Its only job is to be tall: one viewport for the stage,
@@ -509,7 +509,10 @@ export default function Features() {
                     <div className="relative h-[260px] w-full">
                       <div
                         key={features[active].id}
-                        className="animate-visual-in absolute inset-0"
+                        // Centred in the fixed-height card: the tallest diagram
+                        // sets that height, so the short ones sat at the top
+                        // with a third of the card empty underneath.
+                        className="animate-visual-in absolute inset-0 flex flex-col justify-center"
                       >
                         <FeatureVisual id={features[active].id} />
                       </div>

@@ -40,20 +40,20 @@ html {
   overscroll-behavior-y: none;
 }
 
-/* Sections carry py-32 (sm:py-40) so they breathe when scrolled past. Landing
+/* Sections carry py-24 (sm:py-32) so they breathe when scrolled past. Landing
    on one from the nav then parked that entire pad under the header - most of a
    screen of nothing before the heading. The negative margin eats the pad back,
    leaving the heading just clear of the bar; the padding still does its job
    for anyone arriving by scroll. */
 .section-anchor,
 .section-anchor-pinned {
-  scroll-margin-top: -5rem;
+  scroll-margin-top: -3rem;
 }
 
 @media (min-width: 640px) {
   .section-anchor,
   .section-anchor-pinned {
-    scroll-margin-top: -6.5rem;
+    scroll-margin-top: -4.5rem;
   }
 }
 
@@ -64,7 +64,22 @@ html {
    pin-track rules. */
 @media (min-width: 1024px) and (min-height: 820px) {
   .section-anchor-pinned {
-    scroll-margin-top: -15rem;
+    scroll-margin-top: -13rem;
+  }
+}
+
+/* While pinned, the stage's own pad already holds the heading off the header,
+   so the section's top pad on top of it was pure gap - over 400px between the
+   step cards and the Capture heading on a tall screen. Drop it, and the landing
+   offset with it: the section top now lands at the header line and the stage
+   pad does the rest, which is also exactly where the pin holds it. */
+@media (min-width: 1024px) and (min-height: 820px) and (prefers-reduced-motion: no-preference) {
+  .pin-section {
+    padding-top: 0;
+  }
+
+  .section-anchor-pinned {
+    scroll-margin-top: -5rem;
   }
 }
 
@@ -598,7 +613,7 @@ body {
      get to it. */
   @media (min-height: 1000px) {
     .pin-stage {
-      padding-block-start: 11.5rem;
+      padding-block-start: 8rem;
     }
   }
 }

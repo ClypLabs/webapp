@@ -8,7 +8,10 @@ const heroSocials = socials.filter((social) => social.href !== GITHUB_URL);
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden px-6 pt-24 pb-28 sm:pt-32 sm:pb-36">
+    // Pulled up under the header by the header's own height (69px), so the
+    // glow runs to the top of the page. Starting below the bar left the bar
+    // sitting on a flat dark strip with the glow cut off in a line beneath it.
+    <section className="relative -mt-[69px] overflow-hidden px-6 pt-[calc(69px+5rem)] pb-24 sm:pt-[calc(69px+7rem)] sm:pb-32">
       {/* Ambient glow. Sits behind everything, never intercepts a click, and
           animates only where the OS allows motion - see globals.css. */}
       <div

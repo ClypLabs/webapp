@@ -15,7 +15,7 @@ export default function Editor() {
   return (
     <section
       id="editor"
-      className="section-anchor section-lazy relative px-6 py-32 sm:py-40"
+      className="section-anchor section-lazy relative px-6 py-24 sm:py-32"
     >
       <div className="mx-auto max-w-6xl">
         {/* Copy on the left, the points beside it on the right, so the window

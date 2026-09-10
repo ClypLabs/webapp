@@ -150,7 +150,7 @@ export default function FAQ() {
   return (
     <section
       id="faq"
-      className="section-anchor section-lazy relative px-6 py-32 sm:py-40"
+      className="section-anchor section-lazy relative px-6 py-24 sm:py-32"
     >
       <script
         type="application/ld+json"

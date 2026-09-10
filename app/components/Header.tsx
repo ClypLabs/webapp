@@ -99,10 +99,15 @@ export default function Header() {
       {/* transition on colours and shadow only, not `all`: this is sticky, and
           `all` makes the browser watch every animatable property on it. */}
       <div
-        className={`mx-auto max-w-6xl rounded-2xl border transition-[background-color,border-color,box-shadow] duration-500 ${
+        // Always a pill, never bare links on the page: fully transparent read
+        // as unfinished at the top, and a full-width bar cut the hero's glow
+        // off in a hard line. Scrolling only firms it up and adds depth.
+        className={`mx-auto max-w-6xl rounded-2xl border border-white/[0.09] backdrop-blur-md transition-[background-color,box-shadow] duration-500 ${
           lifted
-            ? "border-white/[0.09] bg-[#0c1015]/85 shadow-[0_12px_40px_-12px_rgb(0_0_0/0.7)] backdrop-blur-md"
-            : "border-transparent"
+            ? // Phones drop backdrop-blur for performance (globals.css), so
+              // the bar needs more opacity there or text reads through it.
+              "bg-[#0c1015]/[0.97] shadow-[0_12px_40px_-12px_rgb(0_0_0/0.7)] md:bg-[#0c1015]/90"
+            : "bg-[#0c1015]/55"
         }`}
       >
         <div className="flex h-14 items-center justify-between gap-4 pl-4 pr-2 sm:pl-5">
