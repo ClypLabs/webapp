@@ -67,7 +67,8 @@ export const faqs: Faq[] = [
   {
     q: "Which games does it detect?",
     a: [
-      "ClypDat checks the window in front against, in order: games you added yourself, its own game catalog (refreshed from GitHub once a day), and games installed through Steam, Epic Games, Battle.net or Riot, read from each launcher's install records. Steam entries marked as tools or software are skipped, so something like Wallpaper Engine never starts a recording.",
+      "ClypDat checks the window in front against, in order: games you added yourself, its own game catalog (refreshed from GitHub once a day), and games installed through Steam, Epic Games, Battle.net or Riot.",
+      "Nothing is guessed from the window. For Steam, ClypDat reads the app manifest in every Steam library folder on your PC, which names each installed game and where it lives. Epic's install manifests, Battle.net's product database and the Riot Client's install list do the same job for those launchers. Steam apps that Steam itself labels as tools or software are skipped, so Wallpaper Engine never starts a recording.",
       "If a game is missed, add it in Settings > Game Detection: pick it while it's running, browse to its .exe, or give ClypDat a folder to scan. A scan adds games it recognises and asks you about uncertain ones, such as Unity apps. Anything picked up by mistake can be excluded from the same page.",
       "If you set the capture source to Desktop Capture, ClypDat records a monitor instead, and switches to the game's window while one is detected.",
     ],

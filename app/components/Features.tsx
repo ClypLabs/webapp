@@ -32,7 +32,7 @@ const features: Feature[] = [
     id: "detection",
     title: "Game detection",
     description:
-      "ClypDat matches the window in front against its game catalog and the games installed through Steam, Epic, Battle.net and Riot. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
+      "ClypDat matches the window in front against its game catalog and the install manifests Steam, Epic, Battle.net and Riot keep for every game you have installed. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
   },
 ];
 
