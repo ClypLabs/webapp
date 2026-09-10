@@ -32,7 +32,7 @@ const features: Feature[] = [
     id: "detection",
     title: "Game detection",
     description:
-      "ClypDat checks the foreground window against its game catalog and your Steam libraries. The catalog updates from GitHub, and every clip is named after the game it came from.",
+      "ClypDat matches the window in front against its game catalog and the games installed through Steam, Epic, Battle.net and Riot. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
   },
 ];
 
@@ -211,9 +211,16 @@ function FeatureVisual({ id }: { id: string }) {
             <span className="relative text-emerald-200">Fortnite</span>
             <span className="relative text-xs text-emerald-300/70">Matched</span>
           </div>
+          {/* The detector's own ladder, in the order it tries them - see
+              ForegroundGameDetector.ResolveWindowMatch in the app. */}
           <div className="flex flex-wrap gap-2 pt-1">
-            <span className={chip}>Known-game catalog</span>
-            <span className={chip}>Your Steam library</span>
+            {["Your games", "Catalog", "Steam", "Epic", "Battle.net", "Riot"].map(
+              (source) => (
+                <span key={source} className={chip}>
+                  {source}
+                </span>
+              ),
+            )}
           </div>
         </div>
       );

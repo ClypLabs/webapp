@@ -67,8 +67,9 @@ export const faqs: Faq[] = [
   {
     q: "Which games does it detect?",
     a: [
-      "Games in ClypDat's catalog, which updates from GitHub, and anything installed in your Steam libraries. For anything else, add the game in Settings > Game Detection by picking its running process or browsing to the .exe.",
-      "Desktop Capture records a whole monitor when you are not in a game.",
+      "ClypDat checks the window in front against, in order: games you added yourself, its own game catalog (refreshed from GitHub once a day), and games installed through Steam, Epic Games, Battle.net or Riot, read from each launcher's install records. Steam entries marked as tools or software are skipped, so something like Wallpaper Engine never starts a recording.",
+      "If a game is missed, add it in Settings > Game Detection: pick it while it's running, browse to its .exe, or give ClypDat a folder to scan. A scan adds games it recognises and asks you about uncertain ones, such as Unity apps. Anything picked up by mistake can be excluded from the same page.",
+      "If you set the capture source to Desktop Capture, ClypDat records a monitor instead, and switches to the game's window while one is detected.",
     ],
   },
   {
