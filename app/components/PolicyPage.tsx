@@ -10,7 +10,9 @@ export function policyMetadata(title: string, description: string): Metadata {
   return { title: `${title} | ClypDat`, description };
 }
 
-export default function PolicyPage({ title, sections }: { title: string; sections: Section[] }) {
+// `updated` is per policy, so changing one page does not claim the others
+// changed with it.
+export default function PolicyPage({ title, sections, updated = "September 9, 2026" }: { title: string; sections: Section[]; updated?: string }) {
   return (
     <>
     <Header />
@@ -21,7 +23,7 @@ export default function PolicyPage({ title, sections }: { title: string; section
         </nav>
         <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypLabs</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-        <p className="mt-4 text-sm text-zinc-400">Effective date and last updated: September 9, 2026</p>
+        <p className="mt-4 text-sm text-zinc-400">Effective date and last updated: {updated}</p>
         <div className="mt-10 space-y-9 text-[15px] leading-7 text-zinc-300">
           {sections.map((section) => <section key={section.title}><h2 className="text-xl font-semibold text-white">{section.title}</h2><div className="mt-3 space-y-4">{section.content}</div></section>)}
         </div>

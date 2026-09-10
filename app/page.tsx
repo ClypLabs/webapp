@@ -8,6 +8,11 @@ import FAQ from "./components/FAQ";
 import Footer from "./components/Footer";
 import { RevealProvider } from "./components/Reveal";
 import Ambience from "./components/Ambience";
+import ClipCounter from "./components/ClipCounter";
+
+// Re-rendered at most every five minutes, so the clip counter stays current
+// without a database read per visit.
+export const revalidate = 300;
 
 export default function Home() {
   return (
@@ -19,6 +24,7 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
+        <ClipCounter />
         <HowItWorks />
         <Features />
         <Editor />
