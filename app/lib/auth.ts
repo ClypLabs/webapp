@@ -27,6 +27,10 @@ const socialProviders = {
           // leave a dead CDN link behind. It also replaces a display name set
           // on /account, which says so.
           overrideUserInfoOnSignIn: true,
+          // Better Auth defaults Discord to prompt=none, which approves an app
+          // the account authorised before without waiting, so the consent
+          // screen flashes past with its button already loading.
+          prompt: "consent" as const,
         },
       }
     : {}),
@@ -61,9 +65,13 @@ export const auth = betterAuth({
   },
   account: {
     accountLinking: {
-      // Password sign-in establishes account ownership before linkSocial.
-      // Better Auth then rejects provider accounts with another email address.
-      allowDifferentEmails: false,
+      // Linking happens only from a signed-in session through linkSocial, and
+      // the person still completes Discord's own login, so a Discord account
+      // on another email is theirs to add. This is what lets the accounts made
+      // with Google (sign-in since removed) move to Discord and keep their Xbox
+      // link. Matching by email at sign-in is unaffected and still needs the
+      // same address, so nobody can claim an account by its email.
+      allowDifferentEmails: true,
       // An email account that links Discord takes its name and picture, the
       // same as signing up with Discord would have. Email is never changed.
       updateUserInfoOnLink: true,
@@ -116,8 +124,12 @@ export type UnlinkResult = "unlinked" | "not-linked" | "last-account";
 export async function unlinkSocialProvider(userId: string, provider: SocialProviderId): Promise<UnlinkResult> {
   const linked = await pool.query('SELECT 1 FROM "account" WHERE "userId" = $1 AND "providerId" = $2', [userId, provider]);
   if (!linked.rowCount) return "not-linked";
+  // Only methods that can still sign in count: a password or Discord. Google
+  // rows left from before its removal would otherwise let someone unlink
+  // Discord and be left with no way back in.
   const result = await pool.query(
-    'DELETE FROM "account" WHERE "userId" = $1 AND "providerId" = $2 AND (SELECT COUNT(*) FROM "account" WHERE "userId" = $1) > 1',
+    `DELETE FROM "account" WHERE "userId" = $1 AND "providerId" = $2
+       AND (SELECT COUNT(*) FROM "account" WHERE "userId" = $1 AND "providerId" IN ('credential', 'discord') AND "providerId" <> $2) > 0`,
     [userId, provider],
   );
   if (!result.rowCount) return "last-account";

@@ -321,6 +321,7 @@ export default function AccountPage() {
   }
 
   function connectSocial(provider: SocialProvider) {
+    setError(null);
     const url = new URL(window.location.href);
     url.searchParams.set("link_provider", provider);
     window.location.assign(url);
@@ -329,14 +330,22 @@ export default function AccountPage() {
   async function disconnectSocial(provider: SocialProvider) {
     const account = accounts?.find((item) => item.providerId === provider);
     if (!account) return;
-    if ((accounts?.length ?? 0) <= 1) {
-      setError("Connect another sign-in method before removing your only login method.");
-      return;
-    }
+    setError(null);
     setAccountsBusy(true);
     try {
-      const result = await authClient.unlinkAccount({ accountId: account.id });
-      if (result.error) throw new Error(result.error.message);
+      // Not authClient.unlinkAccount: Better Auth refuses it for any session
+      // older than five minutes. See app/api/account/unlink/route.ts, which
+      // also refuses to remove the last method that can still sign in.
+      const response = await fetch("/api/account/unlink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(result?.error ?? `${socialProviderName(provider)} could not be disconnected. Your account was not changed.`);
+        return;
+      }
       setAccounts((current) => current?.filter((item) => item.id !== account.id) ?? null);
       setConfirming(null);
     } catch {
