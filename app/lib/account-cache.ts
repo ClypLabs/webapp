@@ -40,11 +40,14 @@ export async function writeCached(
   key: string,
   value: unknown,
   ttlSeconds = ACCOUNT_CACHE_TTL_SECONDS,
+  // Untagged entries outlive expireUserCache. Only for state that must not be
+  // reset by an unrelated account change, like a cooldown.
+  { survivesExpiry = false }: { survivesExpiry?: boolean } = {},
 ): Promise<void> {
   try {
     await cache().set(`${userId}:${key}`, value, {
       ttl: Math.max(1, Math.floor(ttlSeconds)),
-      tags: [userTag(userId)],
+      tags: survivesExpiry ? [] : [userTag(userId)],
       // Named by kind only. The default name is the key, which would put user
       // IDs into Vercel's observability dashboard.
       name: `account-${key}`,

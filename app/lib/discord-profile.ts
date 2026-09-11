@@ -14,8 +14,11 @@ import { openToken, sealToken } from "@/app/lib/xbox";
 // against is the cached one the desktop poll already reads.
 
 const CHECK_INTERVAL_SECONDS = 30 * 60;
-// A Refresh button pressed repeatedly still asks Discord at most this often.
-const FORCE_MIN_SECONDS = 20;
+// The Refresh button (on /account and in the app, one shared allowance) asks
+// Discord at most this often. Kept in the database, not only the runtime
+// cache: reloading, signing in again, or any other account change must not
+// reset it, and a cache entry can be evicted or expired with the user's tag.
+export const REFRESH_COOLDOWN_SECONDS = 20 * 60;
 const DISCORD_TIMEOUT_MS = 4_000;
 
 type CachedToken = { token: string; expiresAt: number };
@@ -54,17 +57,92 @@ async function discordAccessToken(userId: string): Promise<string | null> {
   return tokens.accessToken;
 }
 
-export type DiscordProfileCheck = "changed" | "unchanged" | "skipped" | "unavailable";
+let schemaReady: Promise<void> | null = null;
+
+function ensureSchema(): Promise<void> {
+  schemaReady ??= pool
+    .query(`
+      CREATE TABLE IF NOT EXISTS clypdat_discord_refresh (
+        user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+        refreshed_at TIMESTAMPTZ NOT NULL
+      )
+    `)
+    .then(() => undefined)
+    .catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  return schemaReady;
+}
+
+type RefreshWindow = { until: number };
+
+/**
+ * Seconds until the Refresh button may ask Discord again; 0 when it may now.
+ * Answered from the runtime cache when it can, so a page showing the countdown
+ * does not wake the database on every load. The entry is untagged, so account
+ * changes that expire the user's cache leave it alone.
+ */
+export async function discordRefreshCooldown(userId: string): Promise<number> {
+  const remaining = (until: number) => Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  const cached = await readCached<RefreshWindow>(userId, "discord-refresh-window");
+  if (cached) return remaining(cached.until);
+  console.info("[db] discord refresh cooldown read");
+  await ensureSchema();
+  const result = await pool.query<{ refreshed_at: Date }>("SELECT refreshed_at FROM clypdat_discord_refresh WHERE user_id = $1", [userId]);
+  const last = result.rows[0]?.refreshed_at;
+  const until = last ? last.getTime() + REFRESH_COOLDOWN_SECONDS * 1000 : 0;
+  // A known "ready" is cached too, for as long as a window would last: the only
+  // thing that can end it is a refresh, and that rewrites this entry.
+  await writeCached(userId, "discord-refresh-window", { until }, remaining(until) || REFRESH_COOLDOWN_SECONDS, { survivesExpiry: true });
+  return remaining(until);
+}
+
+/**
+ * Claims the Refresh allowance. The UPDATE only lands when the last refresh is
+ * older than the cooldown, so two presses at once (the site and the app, or
+ * two tabs) cannot both get through.
+ */
+async function claimRefresh(userId: string): Promise<boolean> {
+  await ensureSchema();
+  console.info("[db] discord refresh claim");
+  const result = await pool.query(
+    `INSERT INTO clypdat_discord_refresh (user_id, refreshed_at) VALUES ($1, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET refreshed_at = NOW()
+     WHERE clypdat_discord_refresh.refreshed_at <= NOW() - make_interval(secs => $2)`,
+    [userId, REFRESH_COOLDOWN_SECONDS],
+  );
+  const claimed = (result.rowCount ?? 0) > 0;
+  // Either way the window is now known; a lost race re-reads the real one.
+  if (claimed) {
+    await writeCached(userId, "discord-refresh-window", { until: Date.now() + REFRESH_COOLDOWN_SECONDS * 1000 }, REFRESH_COOLDOWN_SECONDS, { survivesExpiry: true });
+  } else {
+    await deleteCached(userId, "discord-refresh-window");
+  }
+  return claimed;
+}
+
+export type DiscordProfileCheck = "changed" | "unchanged" | "skipped" | "cooldown" | "unavailable";
 
 /**
  * Compares the account's Discord name and picture with Discord's, and saves
- * them when they differ. Skipped when checked within the last 30 minutes (or,
- * with <paramref name="force"/>, the last 20 seconds). Never throws: a failed
- * check keeps what the account already shows.
+ * them when they differ. Skipped when checked within the last 30 minutes.
+ * With <paramref name="force"/> (a Refresh button) it goes now instead, but
+ * only once per REFRESH_COOLDOWN_SECONDS - "cooldown" otherwise. A press counts
+ * even when Discord then fails to answer. Never throws: a failed check keeps
+ * what the account already shows.
  */
 export async function refreshDiscordProfile(userId: string, force = false): Promise<DiscordProfileCheck> {
-  const key = force ? "discord-forced" : "discord-checked";
-  if (await readCached<boolean>(userId, key)) return "skipped";
+  if (force) {
+    try {
+      if ((await discordRefreshCooldown(userId)) > 0 || !(await claimRefresh(userId))) return "cooldown";
+    } catch (error) {
+      console.error("Discord refresh cooldown unavailable", error);
+      return "unavailable";
+    }
+  } else if (await readCached<boolean>(userId, "discord-checked")) {
+    return "skipped";
+  }
   try {
     const token = await discordAccessToken(userId);
     if (!token) return "unavailable";
@@ -97,6 +175,5 @@ export async function refreshDiscordProfile(userId: string, force = false): Prom
   } finally {
     // Written after any expireUserCache above, which would otherwise wipe it.
     await writeCached(userId, "discord-checked", true, CHECK_INTERVAL_SECONDS);
-    if (force) await writeCached(userId, "discord-forced", true, FORCE_MIN_SECONDS);
   }
 }

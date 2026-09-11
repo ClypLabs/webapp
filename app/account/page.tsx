@@ -58,6 +58,12 @@ function discordImage(image: string | null | undefined) {
   }
 }
 
+// m:ss, for the Refresh from Discord cooldown.
+function formatCountdown(milliseconds: number) {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function socialProviderName(provider: SocialProvider) {
   return `${provider[0].toUpperCase()}${provider.slice(1)}`;
 }
@@ -110,6 +116,10 @@ export default function AccountPage() {
   const [discordProfile, setDiscordProfile] = useState<{ name: string | null; image: string | null } | null>(null);
   const [discordRefreshBusy, setDiscordRefreshBusy] = useState(false);
   const [discordRefreshNote, setDiscordRefreshNote] = useState<string | null>(null);
+  // When Refresh from Discord works again. The server keeps the real cooldown
+  // (20 minutes, shared with the app's button); this only draws it.
+  const [discordRefreshReadyAt, setDiscordRefreshReadyAt] = useState(0);
+  const [clock, setClock] = useState(() => Date.now());
   const linkingAttempt = useRef<SocialProvider | null>(null);
   // Set when Discord refused to link because it already has its own account.
   const [mergeOffer, setMergeOffer] = useState(false);
@@ -298,6 +308,27 @@ export default function AccountPage() {
     })();
   }, [accountCallbackUrl, session?.user]);
 
+  // The Refresh cooldown survives reloads, so ask where it stands.
+  const discordLinked = linkedSocials.includes("discord");
+  useEffect(() => {
+    if (!discordLinked) return;
+    let cancelled = false;
+    void fetch("/api/account/discord-refresh", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result: { retryAfter?: number } | null) => {
+        if (!cancelled && result?.retryAfter) setDiscordRefreshReadyAt(Date.now() + result.retryAfter * 1000);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [discordLinked]);
+
+  const discordRefreshCooling = discordRefreshReadyAt > clock;
+  useEffect(() => {
+    if (discordRefreshReadyAt <= Date.now()) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [discordRefreshReadyAt]);
+
   // One request for the signed-in user, their linked providers and their Xbox
   // status. It reads the session cookie server-side, so it can start the moment
   // the page mounts instead of queueing behind the client session request -
@@ -423,7 +454,12 @@ export default function AccountPage() {
     setDiscordRefreshBusy(true);
     try {
       const response = await fetch("/api/account/discord-refresh", { method: "POST" });
-      const result = (await response.json().catch(() => null)) as { error?: string; result?: string; name?: string | null; image?: string | null } | null;
+      const result = (await response.json().catch(() => null)) as { error?: string; result?: string; name?: string | null; image?: string | null; retryAfter?: number } | null;
+      if (result?.retryAfter) {
+        setDiscordRefreshReadyAt(Date.now() + result.retryAfter * 1000);
+        setClock(Date.now());
+      }
+      if (response.status === 429) return;
       if (!response.ok) {
         setError(result?.error ?? "Discord did not answer. Try again in a moment.");
         return;
@@ -564,12 +600,12 @@ export default function AccountPage() {
             {linkedSocials.includes("discord") && (
               <button
                 type="button"
-                disabled={discordRefreshBusy}
+                disabled={discordRefreshBusy || discordRefreshCooling}
                 onClick={refreshFromDiscord}
-                title="Pull your current Discord name and picture now. ClypDat also checks every 30 minutes."
+                title={discordRefreshCooling ? "Refresh from Discord works once every 20 minutes. ClypDat also checks every 30 minutes on its own." : "Pull your current Discord name and picture now. ClypDat also checks every 30 minutes."}
                 className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-[#5865F2]/70 hover:bg-[#5865F2]/10 disabled:cursor-wait disabled:opacity-60"
               >
-                {discordRefreshBusy ? "Refreshing…" : "Refresh from Discord"}
+                {discordRefreshBusy ? "Refreshing…" : discordRefreshCooling ? `Refresh in ${formatCountdown(discordRefreshReadyAt - clock)}` : "Refresh from Discord"}
               </button>
             )}
           </div>
