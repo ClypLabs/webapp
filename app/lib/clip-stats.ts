@@ -6,6 +6,10 @@ import { pool } from "@/app/lib/auth";
 //
 // The site shows one number, the total of all three. They are stored apart
 // so a split can be shown later without having lost it in the meantime.
+//
+// Only ever goes up. It counts saves, not clips that still exist: deleting,
+// trimming or a storage limit clearing old files must never subtract, which
+// is why nothing here accepts a negative amount or offers a decrement.
 
 export const CLIP_STAT_KINDS = ["clip", "auto_clip", "full_session"] as const;
 export type ClipStatKind = (typeof CLIP_STAT_KINDS)[number];
