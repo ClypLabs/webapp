@@ -70,6 +70,13 @@ export const auth = betterAuth({
     // Destructive account changes need a recent sign-in unless the current
     // password is supplied to Better Auth's delete-user endpoint.
     freshAge: 60 * 5,
+    // Every signed-in request checks the session, and without this each check
+    // was a database query - the /account page's Xbox poll alone kept Neon
+    // from ever reaching its five idle minutes. A signed cookie answers for up
+    // to five minutes instead. Signing out clears it at once; a session
+    // revoked elsewhere can keep working in that browser for up to five
+    // minutes.
+    cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
   user: {
     deleteUser: {

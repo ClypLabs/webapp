@@ -7,6 +7,12 @@ import { authClient } from "@/app/lib/auth-client";
 
 type Mode = "sign-in" | "sign-up";
 
+// The page stops asking the server for anything after this long without a
+// mouse, keyboard or touch event, and shows a "Paused" card until someone
+// clicks Continue. The session is left alone: pausing never signs anyone out.
+const IDLE_AFTER_MS = 10 * 60 * 1000;
+const XBOX_POLL_MS = 60 * 1000;
+
 type XboxStatus = {
   connected: boolean;
   account?: {
@@ -111,6 +117,9 @@ export default function AccountPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameBusy, setRenameBusy] = useState(false);
   const [renamed, setRenamed] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+  const lastActivity = useRef(0);
   // Set by "Refresh from Discord" so the page shows the new name and picture
   // straight away, without waiting for the session to be read again.
   const [discordProfile, setDiscordProfile] = useState<{ name: string | null; image: string | null } | null>(null);
@@ -366,8 +375,31 @@ export default function AccountPage() {
     void loadOverview(currentUser);
   }, [loadOverview, userId]);
 
+  // Idle and hidden tracking. A tab left open in the background used to poll
+  // Xbox activity every 30 seconds all day, and each poll kept the database
+  // awake; now nothing is fetched while the tab is hidden or the page idle.
   useEffect(() => {
-    if (!xboxConnected) return;
+    lastActivity.current = Date.now();
+    const touch = () => { lastActivity.current = Date.now(); };
+    const events = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
+    for (const name of events) window.addEventListener(name, touch, { passive: true });
+    const onVisibility = () => {
+      setPageVisible(document.visibilityState === "visible");
+      if (document.visibilityState === "visible") touch();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const check = window.setInterval(() => {
+      if (Date.now() - lastActivity.current >= IDLE_AFTER_MS) setIdle(true);
+    }, 30_000);
+    return () => {
+      for (const name of events) window.removeEventListener(name, touch);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(check);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!xboxConnected || idle || !pageVisible) return;
     let cancelled = false;
     async function loadActivity() {
       const response = await fetch("/api/xbox/activity", { cache: "no-store" });
@@ -376,9 +408,16 @@ export default function AccountPage() {
       if (!cancelled) setXboxActivity(result.activity ?? null);
     }
     void loadActivity();
-    const timer = window.setInterval(loadActivity, 30_000);
+    const timer = window.setInterval(loadActivity, XBOX_POLL_MS);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [xboxConnected]);
+  }, [xboxConnected, idle, pageVisible]);
+
+  function resumeFromIdle() {
+    lastActivity.current = Date.now();
+    setIdle(false);
+    // Whatever changed while paused - a link made in the app, say - shows now.
+    void loadOverview(userId ?? null);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -588,6 +627,18 @@ export default function AccountPage() {
   if (user) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 py-20">
+        {idle && (
+          <div role="dialog" aria-modal="true" aria-labelledby="idle-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0f1318] p-7 text-center shadow-2xl shadow-black/40">
+              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Paused</p>
+              <h2 id="idle-title" className="mt-3 text-xl font-semibold">Still there?</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">This page stopped checking for updates after 10 minutes without activity. You are still signed in.</p>
+              <button type="button" autoFocus onClick={resumeFromIdle} className="mt-6 w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
         <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
