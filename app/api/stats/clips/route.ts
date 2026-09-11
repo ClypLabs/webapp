@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     return NextResponse.json(await getClipStats(), {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+      headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
     });
   } catch {
     return NextResponse.json({ error: "Counter unavailable" }, { status: 503 });

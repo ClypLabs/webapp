@@ -10,8 +10,8 @@ import { RevealProvider } from "./components/Reveal";
 import Ambience from "./components/Ambience";
 import ClipCounter from "./components/ClipCounter";
 
-// Re-rendered at most every five minutes, so the clip counter stays current
-// without a database read per visit.
+// Re-rendered at most every five minutes, so the clip counter's first paint is
+// recent; the counter then keeps itself current in the browser.
 export const revalidate = 300;
 
 export default function Home() {
