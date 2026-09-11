@@ -25,6 +25,9 @@ type Status = {
 const CHECK_TTL_SECONDS = 10 * 60;
 const TIMEOUT_MS = 4_000;
 const statusCache = () => getCache({ namespace: "clypdat-status" });
+// Bump when the checks change, so a deploy does not keep serving a verdict
+// the old checks cached.
+const STATUS_KEY = "status-v2";
 
 async function checkDatabase(): Promise<State> {
   try {
@@ -47,8 +50,10 @@ async function checkMirror(): Promise<State> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
     });
+    if (!response.ok) console.warn(`Status: mirror answered ${response.status} (server: ${response.headers.get("server") ?? "?"})`);
     return response.ok ? "operational" : "down";
-  } catch {
+  } catch (error) {
+    console.warn("Status: mirror unreachable", error);
     return "down";
   }
 }
@@ -67,14 +72,14 @@ async function check(): Promise<Status> {
 export async function GET() {
   let status: Status | undefined;
   try {
-    status = (await statusCache().get("status")) as Status | undefined;
+    status = (await statusCache().get(STATUS_KEY)) as Status | undefined;
   } catch {
     // Check live instead.
   }
   if (!status) {
     status = await check();
     try {
-      await statusCache().set("status", status, { ttl: CHECK_TTL_SECONDS, name: "status" });
+      await statusCache().set(STATUS_KEY, status, { ttl: CHECK_TTL_SECONDS, name: "status" });
     } catch {
       // Uncached: the next request checks again.
     }
