@@ -7,20 +7,27 @@ const endpoints = [
   {
     method: "GET",
     path: "/v1/stats/clips",
-    description: "Clips saved with ClypDat: the total, and the split by kind.",
+    description:
+      "Clips saved with ClypDat, and the seconds of gameplay they hold - totals, and the split by clip, auto-clip and full session.",
     example: `{
   "clip": 5,
-  "auto_clip": 0,
-  "full_session": 0,
-  "total": 5
+  "auto_clip": 2,
+  "full_session": 1,
+  "total": 8,
+  "seconds": {
+    "clip": 300,
+    "auto_clip": 40,
+    "full_session": 5400,
+    "total": 5740
+  }
 }`,
   },
   {
     method: "POST",
     path: "/v1/stats/clips",
     description:
-      "Used by the desktop app when it saves a clip. Body is a count per kind, 0 to 100 each. Nothing else is sent or stored.",
-    example: `{ "clip": 1 }`,
+      "Used by the desktop app when it saves a clip, auto-clip or full session: a count per kind and the seconds they hold. Nothing else is sent or stored.",
+    example: `{ "clip": 1, "clip_seconds": 60 }`,
   },
   {
     method: "GET",
@@ -64,8 +71,10 @@ const html = `<!doctype html>
   h1 { font-size:40px; line-height:1.1; letter-spacing:-.02em; margin:28px 0 10px; }
   h1 span { background:linear-gradient(100deg,#6ee7b7,#34d399 55%,#2dd4bf); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .lead { color:var(--muted); margin:0; max-width:560px; }
-  .stat { margin:36px 0 44px; padding:22px 24px; border:1px solid var(--line); border-radius:18px; background:var(--card);
-    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .stats { margin:36px 0 44px; position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:560px) { .stats { grid-template-columns:1fr; } }
+  .stat { padding:22px 24px; border:1px solid var(--line); border-radius:18px; background:var(--card); }
+  .stats .live { position:absolute; top:-34px; right:0; }
   .stat .n { font-size:34px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
   .stat .l { color:var(--muted); font-size:14px; }
   .live { display:inline-flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
@@ -94,12 +103,16 @@ const html = `<!doctype html>
   <h1>ClypDat <span>API</span></h1>
   <p class="lead">Public endpoints behind the ClypDat desktop app and website. Responses are JSON; no key is needed to read them.</p>
 
-  <section class="stat" aria-label="Clips saved with ClypDat">
-    <div>
-      <div class="n" id="total">&ndash;</div>
-      <div class="l">clips saved with ClypDat</div>
-    </div>
+  <section class="stats" aria-label="ClypDat totals">
     <span class="live"><span class="dot"></span>Live</span>
+    <div class="stat">
+      <div class="n" id="total">&ndash;</div>
+      <div class="l" id="total-label">clips saved</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="gameplay">&ndash;</div>
+      <div class="l" id="gameplay-label">of gameplay saved</div>
+    </div>
   </section>
 
   <h2>Endpoints</h2>
@@ -126,13 +139,35 @@ const html = `<!doctype html>
 </main>
 <script>
   (function () {
-    var el = document.getElementById("total");
-    var shown = 0;
+    var total = document.getElementById("total");
+    var totalLabel = document.getElementById("total-label");
+    var gameplay = document.getElementById("gameplay");
+    var gameplayLabel = document.getElementById("gameplay-label");
+    var shownTotal = 0, shownSeconds = 0;
+    // Seconds as the largest unit that still reads naturally: 45 sec, 12 min,
+    // 3.4 hours, then whole hours with separators once it is in the hundreds.
+    function duration(s) {
+      if (s < 60) return [String(Math.round(s)), "sec"];
+      if (s < 3600) return [String(Math.round(s / 60)), "min"];
+      var h = s / 3600;
+      if (h < 100) return [(Math.round(h * 10) / 10).toLocaleString("en-US"), h < 1.05 ? "hour" : "hours"];
+      return [Math.round(h).toLocaleString("en-US"), "hours"];
+    }
     function load() {
       fetch("/v1/stats/clips").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-        if (d && typeof d.total === "number" && d.total >= shown) {
-          shown = d.total;
-          el.textContent = d.total.toLocaleString("en-US");
+        if (!d) return;
+        // Never step backwards: a stale cache edge can answer with less.
+        if (typeof d.total === "number" && d.total >= shownTotal) {
+          shownTotal = d.total;
+          total.textContent = d.total.toLocaleString("en-US");
+          totalLabel.textContent = (d.total === 1 ? "clip" : "clips") + " saved";
+        }
+        var secs = d.seconds && d.seconds.total;
+        if (typeof secs === "number" && secs >= shownSeconds) {
+          shownSeconds = secs;
+          var parts = duration(secs);
+          gameplay.textContent = parts[0];
+          gameplayLabel.textContent = parts[1] + " of gameplay saved";
         }
       }).catch(function () {});
     }
