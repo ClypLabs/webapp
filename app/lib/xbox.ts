@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { pool } from "@/app/lib/auth";
-import { deleteCached, expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
+import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
 
 export const XBOX_OAUTH_COOKIE = "clypdat_xbox_oauth";
 const XBOX_SCOPE = "XboxLive.signin XboxLive.offline_access";
@@ -436,7 +436,8 @@ function isSystemTitle(title: string): boolean {
 // What the presence call needs, cached so a poll can skip the database and the
 // three Microsoft token calls. Encrypted with the same key as the stored refresh
 // token: the XSTS token grants presence access for hours, and the cache is
-// Vercel infrastructure, not ours.
+// Vercel infrastructure, not ours. consoleName is the last console recorded in
+// the database, so a poll can tell whether there is anything new to write.
 type CachedXboxSession = { token: string; consoleName: string | null };
 type XboxSession = { userHash: string; xstsToken: string; expiresAt: number };
 
@@ -455,13 +456,21 @@ function readSession(cached: CachedXboxSession): XboxSession | null {
   }
 }
 
-// Console name changes when a game starts or stops, not per poll, so it is
-// only written when it actually differs from what was last recorded.
-async function recordConsole(userId: string, previous: string | null | undefined, consoleName: string | null): Promise<void> {
-  if (previous === consoleName) return;
+// The account keeps the last console a game was seen on. "Nothing playing" is
+// not recorded: presence drops to no title every time a game closes, or the
+// player sits on the dashboard, and writing that each time woke Neon for five
+// minutes per flip - a friend switching games all evening kept it awake. Now
+// only a different console is written, and the cached account row is updated
+// in place rather than dropped, so the next poll does not re-read it either.
+async function recordConsole(userId: string, previous: string | null | undefined, consoleName: string | null): Promise<boolean> {
+  if (!consoleName || previous === consoleName) return false;
   console.info("[db] xbox console name write");
   await pool.query("UPDATE clypdat_xbox_account SET console_name = $2, updated_at = NOW() WHERE user_id = $1", [userId, consoleName]);
-  await deleteCached(userId, "xbox");
+  const cached = await readCached<{ account: XboxAccount | null }>(userId, "xbox");
+  if (cached?.account) {
+    await writeCached(userId, "xbox", { account: { ...cached.account, consoleName, updatedAt: new Date().toISOString() } });
+  }
+  return true;
 }
 
 export async function getXboxActivity(userId: string): Promise<XboxActivity | null> {
@@ -472,8 +481,7 @@ export async function getXboxActivity(userId: string): Promise<XboxActivity | nu
   if (cached && session) {
     try {
       const activity = await fetchActivity(session);
-      if (activity.consoleName !== cached.consoleName) {
-        await recordConsole(userId, cached.consoleName, activity.consoleName);
+      if (await recordConsole(userId, cached.consoleName, activity.consoleName)) {
         await writeCached(userId, "xbox-session", { ...cached, consoleName: activity.consoleName }, (session.expiresAt - Date.now() - SESSION_MARGIN_MS) / 1000);
       }
       return activity;
@@ -494,13 +502,15 @@ export async function getXboxActivity(userId: string): Promise<XboxActivity | nu
   const credentials = await exchangeXboxTokens(oauth.accessToken, oauth.refreshToken, oauth.expiresIn);
   await saveXboxAccount(userId, credentials);
   const activity = await fetchActivity(credentials);
-  await recordConsole(userId, undefined, activity.consoleName);
+  const stored = (await readCached<{ account: XboxAccount | null }>(userId, "xbox"))?.account?.consoleName ?? null;
+  await recordConsole(userId, stored, activity.consoleName);
+  const recordedConsole = activity.consoleName ?? stored;
 
   const expiresAt = Math.min(credentials.xstsExpiresAt, Date.now() + SESSION_MAX_MS);
   const ttlSeconds = (expiresAt - Date.now() - SESSION_MARGIN_MS) / 1000;
   if (ttlSeconds > 60) {
     const fresh: XboxSession = { userHash: credentials.userHash, xstsToken: credentials.xstsToken, expiresAt };
-    await writeCached(userId, "xbox-session", { token: encrypt(JSON.stringify(fresh)), consoleName: activity.consoleName }, ttlSeconds);
+    await writeCached(userId, "xbox-session", { token: encrypt(JSON.stringify(fresh)), consoleName: recordedConsole }, ttlSeconds);
   }
   return activity;
 }
