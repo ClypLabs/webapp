@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
         { source: "/v1/status", has: apiHost, destination: "/api/status" },
         { source: "/v1/releases/latest", has: apiHost, destination: "/api/releases/latest" },
         { source: "/v1/releases", has: apiHost, destination: "/api/releases" },
+        { source: "/og.png", has: apiHost, destination: "/api/og" },
         {
           source: "/:path((?!api/|favicon\\.ico$).*)",
           has: apiHost,

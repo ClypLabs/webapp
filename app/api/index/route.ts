@@ -17,6 +17,19 @@ const html = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>ClypDat API</title>
+<meta name="description" content="Live totals from every copy of ClypDat: clips saved and gameplay saved.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://api.clypdat.xyz/">
+<meta property="og:site_name" content="ClypDat">
+<meta property="og:title" content="ClypDat API">
+<meta property="og:description" content="Live totals from every copy of ClypDat: clips saved and gameplay saved.">
+<meta property="og:image" content="https://api.clypdat.xyz/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ClypDat clips saved and gameplay saved totals">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://api.clypdat.xyz/og.png">
+<meta name="theme-color" content="#34d399">
 <link rel="icon" href="https://www.clypdat.xyz/favicon.ico">
 <style>
   :root { color-scheme: dark; --bg:#0a0d11; --card:rgba(255,255,255,.03); --line:rgba(255,255,255,.09);
