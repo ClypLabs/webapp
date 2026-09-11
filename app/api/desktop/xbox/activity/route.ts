@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deleteXboxAccount, getXboxAccount, getXboxActivity } from "@/app/lib/xbox";
 import { getDesktopProfile, verifyActiveDesktopToken, type DesktopProfile } from "@/app/lib/desktop-token";
 import { getLinkedSocialProviders } from "@/app/lib/auth";
+import { refreshDiscordProfile } from "@/app/lib/discord-profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,15 @@ export async function GET(request: Request) {
   try {
     const identity = await verifyActiveDesktopToken(token);
     if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
+    let providers = await getLinkedSocialProviders(identity.userId);
+    // Discord name and picture: rechecked at most every 30 minutes, or now
+    // when the app's Refresh button asks with ?profile=refresh. A change
+    // expires the account cache, so the reads below pick it up.
+    if (providers.includes("discord")) {
+      const force = new URL(request.url).searchParams.get("profile") === "refresh";
+      if ((await refreshDiscordProfile(identity.userId, force)) === "changed") providers = await getLinkedSocialProviders(identity.userId);
+    }
     const account = await getXboxAccount(identity.userId);
-    const providers = await getLinkedSocialProviders(identity.userId);
     const profile = providers.includes("discord") ? discordProfile(await getDesktopProfile(identity.userId)) : null;
     if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile });
     const activity = await getXboxActivity(identity.userId);

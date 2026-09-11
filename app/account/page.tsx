@@ -103,6 +103,11 @@ export default function AccountPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameBusy, setRenameBusy] = useState(false);
   const [renamed, setRenamed] = useState(false);
+  // Set by "Refresh from Discord" so the page shows the new name and picture
+  // straight away, without waiting for the session to be read again.
+  const [discordProfile, setDiscordProfile] = useState<{ name: string | null; image: string | null } | null>(null);
+  const [discordRefreshBusy, setDiscordRefreshBusy] = useState(false);
+  const [discordRefreshNote, setDiscordRefreshNote] = useState<string | null>(null);
   const linkingAttempt = useRef<SocialProvider | null>(null);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
@@ -306,6 +311,26 @@ export default function AccountPage() {
     if (result.error) setError(result.error.message ?? `${provider} sign-in is not configured yet.`);
   }
 
+  async function refreshFromDiscord() {
+    setError(null);
+    setDiscordRefreshNote(null);
+    setDiscordRefreshBusy(true);
+    try {
+      const response = await fetch("/api/account/discord-refresh", { method: "POST" });
+      const result = (await response.json().catch(() => null)) as { error?: string; result?: string; name?: string | null; image?: string | null } | null;
+      if (!response.ok) {
+        setError(result?.error ?? "Discord did not answer. Try again in a moment.");
+        return;
+      }
+      setDiscordProfile({ name: result?.name ?? null, image: result?.image ?? null });
+      setDiscordRefreshNote(result?.result === "changed" ? "Updated from Discord. ClypDat picks it up on its next refresh." : "Already matches Discord.");
+    } catch {
+      setError("Discord did not answer. Try again in a moment.");
+    } finally {
+      setDiscordRefreshBusy(false);
+    }
+  }
+
   async function disconnectXbox() {
     setXboxBusy(true);
     try {
@@ -424,13 +449,25 @@ export default function AccountPage() {
         <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
-          <div className="mt-3 flex items-center gap-4">
-            {linkedSocials.includes("discord") && discordImage(session?.user?.image) && (
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            {linkedSocials.includes("discord") && discordImage(discordProfile?.image ?? session?.user?.image) && (
               // eslint-disable-next-line @next/next/no-img-element -- a Discord CDN avatar; next/image would need the host allow-listed for no gain
-              <img src={discordImage(session?.user?.image)!} alt="" width={56} height={56} className="h-14 w-14 rounded-full border border-white/10" />
+              <img src={discordImage(discordProfile?.image ?? session?.user?.image)!} alt="" width={56} height={56} className="h-14 w-14 rounded-full border border-white/10" />
             )}
-            <h1 className="text-3xl font-semibold tracking-tight">Welcome, {user.name}!</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Welcome, {discordProfile?.name ?? user.name}!</h1>
+            {linkedSocials.includes("discord") && (
+              <button
+                type="button"
+                disabled={discordRefreshBusy}
+                onClick={refreshFromDiscord}
+                title="Pull your current Discord name and picture now. ClypDat also checks every 30 minutes."
+                className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-[#5865F2]/70 hover:bg-[#5865F2]/10 disabled:cursor-wait disabled:opacity-60"
+              >
+                {discordRefreshBusy ? "Refreshing…" : "Refresh from Discord"}
+              </button>
+            )}
           </div>
+          {discordRefreshNote && <p className="mt-2 text-sm text-zinc-400">{discordRefreshNote}</p>}
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
           <div className="mt-8 grid gap-6 lg:grid-cols-2">

@@ -307,6 +307,10 @@ function decrypt(value: string): string {
   return Buffer.concat([decipher.update(Buffer.from(ciphertextEncoded, "base64url")), decipher.final()]).toString("utf8");
 }
 
+// The same sealing for other tokens held in the runtime cache (Discord's, in
+// discord-profile.ts), so none of them sit there in plain text.
+export { encrypt as sealToken, decrypt as openToken };
+
 export async function saveXboxAccount(userId: string, credentials: XboxCredentials): Promise<void> {
   await ensureSchema();
   await pool.query(
