@@ -8,9 +8,13 @@ import { authClient } from "@/app/lib/auth-client";
 type Mode = "sign-in" | "sign-up";
 
 // The page stops asking the server for anything after this long without a
-// mouse, keyboard or touch event, and shows a "Paused" card until someone
+// click, key press, scroll or touch, and shows a "Paused" card until someone
 // clicks Continue. The session is left alone: pausing never signs anyone out.
 const IDLE_AFTER_MS = 10 * 60 * 1000;
+// And after this long regardless of activity. Nothing on this page needs
+// watching for half an hour, and it bounds what a mouse jiggler or an
+// auto-clicker left running can cost: one Continue per half hour, by hand.
+const MAX_ACTIVE_MS = 30 * 60 * 1000;
 const XBOX_POLL_MS = 60 * 1000;
 
 type XboxStatus = {
@@ -120,6 +124,7 @@ export default function AccountPage() {
   const [idle, setIdle] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const lastActivity = useRef(0);
+  const activeSince = useRef(0);
   // Set by "Refresh from Discord" so the page shows the new name and picture
   // straight away, without waiting for the session to be read again.
   const [discordProfile, setDiscordProfile] = useState<{ name: string | null; image: string | null } | null>(null);
@@ -380,16 +385,18 @@ export default function AccountPage() {
   // awake; now nothing is fetched while the tab is hidden or the page idle.
   useEffect(() => {
     lastActivity.current = Date.now();
-    const touch = () => { lastActivity.current = Date.now(); };
-    const events = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
+    activeSince.current = Date.now();
+    // Deliberate input only. Pointer movement is left out on purpose: a
+    // jittery mouse, or a jiggler app, would otherwise keep the page awake for
+    // ever. Events a script dispatches (isTrusted false) do not count either.
+    const touch = (event: Event) => { if (event.isTrusted) lastActivity.current = Date.now(); };
+    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
     for (const name of events) window.addEventListener(name, touch, { passive: true });
-    const onVisibility = () => {
-      setPageVisible(document.visibilityState === "visible");
-      if (document.visibilityState === "visible") touch();
-    };
+    const onVisibility = () => setPageVisible(document.visibilityState === "visible");
     document.addEventListener("visibilitychange", onVisibility);
     const check = window.setInterval(() => {
-      if (Date.now() - lastActivity.current >= IDLE_AFTER_MS) setIdle(true);
+      const now = Date.now();
+      if (now - lastActivity.current >= IDLE_AFTER_MS || now - activeSince.current >= MAX_ACTIVE_MS) setIdle(true);
     }, 30_000);
     return () => {
       for (const name of events) window.removeEventListener(name, touch);
@@ -414,6 +421,7 @@ export default function AccountPage() {
 
   function resumeFromIdle() {
     lastActivity.current = Date.now();
+    activeSince.current = Date.now();
     setIdle(false);
     // Whatever changed while paused - a link made in the app, say - shows now.
     void loadOverview(userId ?? null);
@@ -632,7 +640,7 @@ export default function AccountPage() {
             <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0f1318] p-7 text-center shadow-2xl shadow-black/40">
               <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Paused</p>
               <h2 id="idle-title" className="mt-3 text-xl font-semibold">Still there?</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">This page stopped checking for updates after 10 minutes without activity. You are still signed in.</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">This page stops checking for updates after 10 minutes without activity, or after 30 minutes open. You are still signed in.</p>
               <button type="button" autoFocus onClick={resumeFromIdle} className="mt-6 w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
                 Continue
               </button>
