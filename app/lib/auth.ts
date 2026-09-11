@@ -14,20 +14,19 @@ export const pool = new Pool({
   ssl: databaseUrl ? { rejectUnauthorized: false } : undefined,
 });
 
+// Discord is the only social sign-in. Google was removed in September 2026;
+// its old account rows stay in the database but can no longer sign in.
 const socialProviders = {
-  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-    ? {
-        google: {
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        },
-      }
-    : {}),
   ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
     ? {
         discord: {
           clientId: process.env.DISCORD_CLIENT_ID,
           clientSecret: process.env.DISCORD_CLIENT_SECRET,
+          // The desktop app shows the Discord name and picture, so each
+          // Discord sign-in refreshes them: a changed avatar would otherwise
+          // leave a dead CDN link behind. It also replaces a display name set
+          // on /account, which says so.
+          overrideUserInfoOnSignIn: true,
         },
       }
     : {}),
@@ -65,6 +64,9 @@ export const auth = betterAuth({
       // Password sign-in establishes account ownership before linkSocial.
       // Better Auth then rejects provider accounts with another email address.
       allowDifferentEmails: false,
+      // An email account that links Discord takes its name and picture, the
+      // same as signing up with Discord would have. Email is never changed.
+      updateUserInfoOnLink: true,
     },
   },
   socialProviders,
@@ -74,6 +76,8 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       delete: { after: async (user) => expireUserCache(user.id) },
+      // Name and picture changes, so the app's account card follows them.
+      update: { after: async (user) => expireUserCache(user.id) },
     },
     account: {
       create: { after: async (account) => expireUserCache(account.userId) },

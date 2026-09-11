@@ -38,31 +38,32 @@ type Overview = {
   accounts: Account[];
 };
 
-type SocialProvider = "google" | "discord";
+// Discord is the only social sign-in; Google was removed in September 2026.
+type SocialProvider = "discord";
 
 function getSocialProvider(value: string | null): SocialProvider | null {
-  return value === "google" || value === "discord" ? value : null;
+  return value === "discord" ? value : null;
+}
+
+// Only Discord's CDN: an account first made with Google can still hold a
+// Google photo until its next Discord sign-in replaces it.
+function discordImage(image: string | null | undefined) {
+  if (!image) return null;
+  try {
+    return new URL(image).hostname === "cdn.discordapp.com" ? image : null;
+  } catch {
+    return null;
+  }
 }
 
 function socialProviderName(provider: SocialProvider) {
   return `${provider[0].toUpperCase()}${provider.slice(1)}`;
 }
 
-function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
-  if (provider === "google") {
-    return (
-      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5 shrink-0">
-        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3A12 12 0 1 1 24 12c3.1 0 5.9 1.2 8 3.2l5.7-5.7A20 20 0 1 0 44 24c0-1.2-.1-2.3-.4-3.5Z" />
-        <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8A12 12 0 0 1 24 12c3.1 0 5.9 1.2 8 3.2l5.7-5.7A20 20 0 0 0 6.3 14.7Z" />
-        <path fill="#4CAF50" d="M24 44c5.1 0 9.8-2 13.4-5.2l-6.2-5.2A12 12 0 0 1 12.9 28l-6.6 5.1A20 20 0 0 0 24 44Z" />
-        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-4.1 5.6l.1-.1 6.2 5.2C37 39.1 44 34 44 24c0-1.2-.1-2.3-.4-3.5Z" />
-      </svg>
-    );
-  }
-
+function SocialProviderIcon({ color = "#5865F2" }: { provider?: SocialProvider; color?: string }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none">
-      <path fill="#5865F2" fillRule="evenodd" clipRule="evenodd" d="M20.3 4.5A19 19 0 0 0 15.7 3l-.6 1.2a17 17 0 0 0-6.2 0L8.3 3a19 19 0 0 0-4.6 1.5C.8 8.8 0 13 .4 17.1A18.7 18.7 0 0 0 6 20l1.4-1.9a11.6 11.6 0 0 1-2.2-1.1l.5-.4c4.2 2 8.4 2 12.6 0l.5.4a11.4 11.4 0 0 1-2.2 1.1L18 20a18.8 18.8 0 0 0 5.6-2.9c.5-4.8-.8-9-3.3-12.6ZM8.1 14.7c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Zm7.8 0c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Z" />
+      <path fill={color} fillRule="evenodd" clipRule="evenodd" d="M20.3 4.5A19 19 0 0 0 15.7 3l-.6 1.2a17 17 0 0 0-6.2 0L8.3 3a19 19 0 0 0-4.6 1.5C.8 8.8 0 13 .4 17.1A18.7 18.7 0 0 0 6 20l1.4-1.9a11.6 11.6 0 0 1-2.2-1.1l.5-.4c4.2 2 8.4 2 12.6 0l.5.4a11.4 11.4 0 0 1-2.2 1.1L18 20a18.8 18.8 0 0 0 5.6-2.9c.5-4.8-.8-9-3.3-12.6ZM8.1 14.7c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Zm7.8 0c-1.1 0-2-1-2-2.2s.9-2.2 2-2.2 2 1 2 2.2-.9 2.2-2 2.2Z" />
     </svg>
   );
 }
@@ -87,7 +88,7 @@ export default function AccountPage() {
   const [xboxBusy, setXboxBusy] = useState(false);
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountsBusy, setAccountsBusy] = useState(false);
-  const [confirming, setConfirming] = useState<"google" | "discord" | "xbox" | null>(null);
+  const [confirming, setConfirming] = useState<"discord" | "xbox" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
@@ -107,8 +108,8 @@ export default function AccountPage() {
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
   const xboxConnected = xbox?.connected ?? false;
-  const linkedSocials = (["google", "discord"] as const).filter((provider) => accounts?.some((account) => account.providerId === provider));
-  const availableSocials = (["google", "discord"] as const).filter((provider) => !linkedSocials.includes(provider));
+  const linkedSocials = (["discord"] as const).filter((provider) => accounts?.some((account) => account.providerId === provider));
+  const availableSocials = (["discord"] as const).filter((provider) => !linkedSocials.includes(provider));
 
   const accountCallbackUrl = useCallback((preserveLinkProvider = false) => {
     const url = new URL("/account", window.location.origin);
@@ -414,14 +415,20 @@ export default function AccountPage() {
         <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
           <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
           <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Welcome, {user.name}!</h1>
+          <div className="mt-3 flex items-center gap-4">
+            {linkedSocials.includes("discord") && discordImage(session?.user?.image) && (
+              // eslint-disable-next-line @next/next/no-img-element -- a Discord CDN avatar; next/image would need the host allow-listed for no gain
+              <img src={discordImage(session?.user?.image)!} alt="" width={56} height={56} className="h-14 w-14 rounded-full border border-white/10" />
+            )}
+            <h1 className="text-3xl font-semibold tracking-tight">Welcome, {user.name}!</h1>
+          </div>
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
               <div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Add an account</p><h2 className="mt-2 text-lg font-semibold">More ways to sign in</h2></div>{accountsBusy && <span className="text-xs text-zinc-500">Updating…</span>}</div>
               <div className="mt-5 space-y-3">
-                {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Add as a sign-in method</span></span></span><span className="text-emerald-300">Connect</span></button>)}
+                {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Sign in with Discord and show your Discord name and picture in ClypDat</span></span></span><span className="text-emerald-300">Connect</span></button>)}
                 {!xboxConnected && <a href="/api/xbox/connect" className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">Xbox</span><span className="text-sm text-zinc-400">Optional activity and presence</span></span></span><span className="text-emerald-300">Connect</span></a>}
                 {!availableSocials.length && xboxConnected && <p className="text-sm text-zinc-400">All available accounts are connected.</p>}
               </div>
@@ -458,6 +465,7 @@ export default function AccountPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <button type="button" onClick={() => { setDisplayName(user.name ?? ""); setRenameOpen(true); setRenamed(false); setError(null); }} className="text-sm text-emerald-300 underline-offset-4 hover:underline">Change display name</button>
                   {renamed && <span className="text-sm text-zinc-400">Display name updated.</span>}
+                  {linkedSocials.includes("discord") && <span className="text-sm text-zinc-500">Your next Discord sign-in replaces it with your Discord name.</span>}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -474,7 +482,7 @@ export default function AccountPage() {
           <section className="mt-6 rounded-2xl border border-red-300/25 bg-red-300/[0.06] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-red-200">Delete account</p>
             <h2 className="mt-2 text-lg font-semibold">Permanently delete your ClypDat account</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">This removes your ClypDat account and stored connections. Local recordings and your Google, Discord, and Microsoft accounts remain intact.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">This removes your ClypDat account and stored connections. Local recordings and your Discord and Microsoft accounts remain intact.</p>
             {!deleteOpen ? <button type="button" onClick={() => { setDeleteOpen(true); setError(null); }} className="mt-4 text-sm text-red-200 underline-offset-4 hover:underline">Delete account</button> : <div className="mt-5 space-y-4">
               <p className="text-sm text-zinc-300">Type <strong>DELETE</strong> to enable permanent deletion.</p>
               {accounts?.some((account) => account.providerId === "credential") && <label className="block text-sm text-zinc-300">Current password <span className="text-zinc-500">(needed only if this session is over five minutes old)</span><input value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} type="password" autoComplete="current-password" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>}
@@ -495,22 +503,20 @@ export default function AccountPage() {
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{mode === "sign-in" ? "Sign in" : "Create your account"}</h1>
         <p className="mt-3 text-zinc-400">Optional for recording. Required only for cloud-connected features such as Xbox linking.</p>
 
-        <div className="mt-8 grid grid-cols-2 gap-3">
-          {(["google", "discord"] as const).map((provider) => (
-            <button
-              key={provider}
-              type="button"
-              onClick={() => socialSignIn(provider)}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold capitalize transition hover:border-emerald-300/60 hover:bg-emerald-300/10"
-            >
-              <SocialProviderIcon provider={provider} />
-              <span>{provider}</span>
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => socialSignIn("discord")}
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-[#5865F2] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#4752c4]"
+        >
+          <SocialProviderIcon color="#ffffff" />
+          <span>Continue with Discord</span>
+        </button>
+        <p className="mt-3 text-center text-xs leading-5 text-zinc-500">
+          Your Discord name and profile picture show in the ClypDat app. Only Discord accounts have them; email accounts show a plain account card.
+        </p>
 
         <div className="my-7 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-zinc-600">
-          <span className="h-px flex-1 bg-white/10" /> or <span className="h-px flex-1 bg-white/10" />
+          <span className="h-px flex-1 bg-white/10" /> or use email <span className="h-px flex-1 bg-white/10" />
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -529,7 +535,7 @@ export default function AccountPage() {
             <input required minLength={8} type="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" />
           </label>
           {error && <p role="alert" className="rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-200">{error}</p>}
-          <button disabled={busy} type="submit" className="w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
+          <button disabled={busy} type="submit" className="w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-60">
             {busy ? "Working…" : mode === "sign-in" ? "Sign in with email" : "Create account"}
           </button>
         </form>

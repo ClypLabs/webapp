@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
 import { deleteXboxAccount, getXboxAccount, getXboxActivity } from "@/app/lib/xbox";
-import { verifyActiveDesktopToken } from "@/app/lib/desktop-token";
+import { getDesktopProfile, verifyActiveDesktopToken, type DesktopProfile } from "@/app/lib/desktop-token";
 import { getLinkedSocialProviders } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// The app's account card shows a name and picture only for accounts with
+// Discord linked - the site says so at sign-in. The picture must be Discord's:
+// accounts first made with Google (sign-in since removed) can still hold a
+// Google photo until their next Discord sign-in replaces it.
+function discordProfile(profile: DesktopProfile | null) {
+  if (!profile) return null;
+  let image: string | null = null;
+  try {
+    if (profile.image && new URL(profile.image).hostname === "cdn.discordapp.com") image = profile.image;
+  } catch {
+    // Not a URL; show the name alone.
+  }
+  return { name: profile.name, image };
+}
 
 export async function GET(request: Request) {
   const value = request.headers.get("authorization");
@@ -14,9 +29,10 @@ export async function GET(request: Request) {
     if (!identity) return NextResponse.json({ error: "Desktop sign-in expired" }, { status: 401 });
     const account = await getXboxAccount(identity.userId);
     const providers = await getLinkedSocialProviders(identity.userId);
-    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers });
+    const profile = providers.includes("discord") ? discordProfile(await getDesktopProfile(identity.userId)) : null;
+    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile });
     const activity = await getXboxActivity(identity.userId);
-    return NextResponse.json({ connected: true, account, activity, providers });
+    return NextResponse.json({ connected: true, account, activity, providers, profile });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });
   }

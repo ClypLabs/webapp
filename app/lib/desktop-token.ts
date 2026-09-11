@@ -53,10 +53,32 @@ export async function verifyActiveDesktopToken(token: string) {
   if (!identity) return null;
   if (await readCached<boolean>(identity.userId, "exists")) return identity;
   console.info("[db] desktop token user check");
-  const result = await pool.query('SELECT 1 FROM "user" WHERE id = $1', [identity.userId]);
-  if (!result.rowCount) return null;
-  await writeCached(identity.userId, "exists", true);
+  // The same read fills the profile entry, so showing the name and picture in
+  // the app costs no query of its own.
+  const profile = await readProfile(identity.userId);
+  if (!profile) return null;
+  await Promise.all([writeCached(identity.userId, "exists", true), writeCached(identity.userId, "profile", profile)]);
   return identity;
+}
+
+/** Name and picture the desktop app shows on its account card. */
+export type DesktopProfile = { name: string; image: string | null };
+
+async function readProfile(userId: string): Promise<DesktopProfile | null> {
+  const result = await pool.query<{ name: string; image: string | null }>('SELECT name, image FROM "user" WHERE id = $1', [userId]);
+  const row = result.rows[0];
+  return row ? { name: row.name, image: row.image } : null;
+}
+
+// Changes to the name or picture - a Discord sign-in refreshing them, or a new
+// display name from /account - expire this through the user.update hook.
+export async function getDesktopProfile(userId: string): Promise<DesktopProfile | null> {
+  const cached = await readCached<DesktopProfile>(userId, "profile");
+  if (cached) return cached;
+  console.info("[db] desktop profile read");
+  const profile = await readProfile(userId);
+  if (profile) await writeCached(userId, "profile", profile);
+  return profile;
 }
 
 export const desktopTokenLifetimeSeconds = tokenLifetimeSeconds;
