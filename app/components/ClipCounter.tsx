@@ -5,9 +5,9 @@ import { getClipStats } from "@/app/lib/clip-stats";
 // Every clip, auto-clip and full session saved with ClypDat, as one number -
 // the per-kind counts behind it stay in the database for later.
 //
-// Rendered on the server with the page, which revalidates every few minutes
+// Rendered on the server with the page, which revalidates every 30 seconds
 // (see page.tsx), so a visit never waits on the database and the database is
-// read a handful of times an hour however many people load the page.
+// read at most twice a minute however many people load the page.
 export default async function ClipCounter() {
   let saves = 0;
   try {

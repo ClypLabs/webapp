@@ -42,6 +42,10 @@ export default function LiveClipCount({ initial }: { initial: number }) {
       schedule();
     };
 
+    // Straight away as well, not only after the first interval: the page HTML
+    // is cached (see page.tsx), so the number it arrived with can be behind,
+    // and a refresh showed that stale figure for a full poll interval.
+    void refresh();
     schedule();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
