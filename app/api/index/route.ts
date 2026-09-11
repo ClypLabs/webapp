@@ -1,50 +1,10 @@
-// The page at https://api.clypdat.xyz/ (rewritten here in next.config.ts).
+// The page at https://api.clypdat.xyz/ (rewritten here in next.config.ts):
+// the live totals and a link to their JSON. The other endpoints - the app's
+// POST, the release mirror - still work but are deliberately not listed; the
+// first is a how-to for inflating the counter, the second is internal.
 // Self-contained HTML - inline styles and script, no /_next assets - because
 // the api host sends every path it does not know to a JSON 404, and a page
 // that needed the site's bundles would have to carve out exceptions for them.
-
-const endpoints = [
-  {
-    method: "GET",
-    path: "/v1/stats/clips",
-    description:
-      "Clips saved with ClypDat, and the seconds of gameplay they hold - totals, and the split by clip, auto-clip and full session.",
-    example: `{
-  "clip": 5,
-  "auto_clip": 2,
-  "full_session": 1,
-  "total": 8,
-  "seconds": {
-    "clip": 300,
-    "auto_clip": 40,
-    "full_session": 5400,
-    "total": 5740
-  }
-}`,
-  },
-  {
-    method: "POST",
-    path: "/v1/stats/clips",
-    description:
-      "Used by the desktop app when it saves a clip, auto-clip or full session: a count per kind and the seconds they hold. Nothing else is sent or stored.",
-    example: `{ "clip": 1, "clip_seconds": 60 }`,
-  },
-  {
-    method: "GET",
-    path: "/v1/releases/latest",
-    description: "The current release, in the shape of GitHub's releases API. Mirrors GitHub for the in-app updater.",
-    example: null,
-  },
-  {
-    method: "GET",
-    path: "/v1/releases",
-    description: "Recent releases, same shape as GitHub's list endpoint.",
-    example: null,
-  },
-];
-
-const escape = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const html = `<!doctype html>
 <html lang="en">
@@ -71,7 +31,7 @@ const html = `<!doctype html>
   h1 { font-size:40px; line-height:1.1; letter-spacing:-.02em; margin:28px 0 10px; }
   h1 span { background:linear-gradient(100deg,#6ee7b7,#34d399 55%,#2dd4bf); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .lead { color:var(--muted); margin:0; max-width:560px; }
-  .stats { margin:36px 0 44px; position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .stats { margin:36px 0 20px; position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   @media (max-width:560px) { .stats { grid-template-columns:1fr; } }
   .stat { padding:22px 24px; border:1px solid var(--line); border-radius:18px; background:var(--card); }
   .stats .live { position:absolute; top:-34px; right:0; }
@@ -82,18 +42,8 @@ const html = `<!doctype html>
   .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:p 2.6s ease-in-out infinite; }
   @keyframes p { 50% { opacity:.35; } }
   @media (prefers-reduced-motion: reduce) { .dot { animation:none; } }
-  h2 { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin:0 0 14px; font-weight:600; }
-  .ep { border:1px solid var(--line); border-radius:16px; background:var(--card); padding:18px 20px; margin-bottom:12px; }
-  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .m { font:600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; padding:5px 8px; border-radius:6px; letter-spacing:.04em; }
-  .GET { color:#6ee7b7; background:rgba(52,211,153,.12); }
-  .POST { color:#93c5fd; background:rgba(96,165,250,.12); }
-  code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
-  .path { font-size:14px; color:var(--text); }
-  .path a { color:inherit; }
-  .desc { color:var(--muted); margin:8px 0 0; font-size:14px; }
-  pre { margin:12px 0 0; padding:12px 14px; border-radius:10px; background:rgba(0,0,0,.35); border:1px solid var(--line);
-    color:#cbd5e1; font-size:13px; overflow-x:auto; }
+  code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size:13px; }
+  .json { color:var(--muted); font-size:14px; margin:0; }
   footer { margin-top:40px; color:var(--faint); font-size:13px; display:flex; gap:16px; flex-wrap:wrap; }
 </style>
 </head>
@@ -101,7 +51,7 @@ const html = `<!doctype html>
 <main>
   <a class="brand" href="https://www.clypdat.xyz/"><img src="https://www.clypdat.xyz/logo.svg" alt="">ClypDat</a>
   <h1>ClypDat <span>API</span></h1>
-  <p class="lead">Public endpoints behind the ClypDat desktop app and website. Responses are JSON; no key is needed to read them.</p>
+  <p class="lead">Live totals from every copy of ClypDat: each clip, auto-clip and full session saved, and how much gameplay they hold. Only the numbers are sent, never the clips.</p>
 
   <section class="stats" aria-label="ClypDat totals">
     <span class="live"><span class="dot"></span>Live</span>
@@ -115,21 +65,7 @@ const html = `<!doctype html>
     </div>
   </section>
 
-  <h2>Endpoints</h2>
-  ${endpoints
-    .map(
-      (endpoint) => `<div class="ep">
-    <div class="row"><span class="m ${endpoint.method}">${endpoint.method}</span>
-      <code class="path">${
-        endpoint.method === "GET"
-          ? `<a href="${endpoint.path}">${endpoint.path}</a>`
-          : endpoint.path
-      }</code></div>
-    <p class="desc">${escape(endpoint.description)}</p>
-    ${endpoint.example ? `<pre>${escape(endpoint.example)}</pre>` : ""}
-  </div>`,
-    )
-    .join("\n  ")}
+  <p class="json">Raw numbers: <a href="/v1/stats/clips"><code>/v1/stats/clips</code></a> &middot; JSON, updated as clips are saved.</p>
 
   <footer>
     <a href="https://www.clypdat.xyz/">clypdat.xyz</a>
