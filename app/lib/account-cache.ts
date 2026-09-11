@@ -16,9 +16,12 @@ import { getCache } from "@vercel/functions";
 
 const cache = () => getCache({ namespace: "clypdat-account" });
 
-// Short enough that a missed expiry heals itself quickly; long enough that a
-// poll every minute reaches the database a few times an hour at most.
-export const ACCOUNT_CACHE_TTL_SECONDS = 15 * 60;
+// Long on purpose. Freshness comes from expireUserCache on every change, not
+// from this; the TTL only bounds how long a change that skipped that call could
+// go unnoticed. At 15 minutes, each active user's entries lapsed four times an
+// hour, and every lapse woke Neon for its five-minute idle window - with a few
+// users online the database never slept. Matches the Xbox session's own cap.
+export const ACCOUNT_CACHE_TTL_SECONDS = 12 * 60 * 60;
 
 const userTag = (userId: string) => `user:${userId}`;
 

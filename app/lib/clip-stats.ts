@@ -76,9 +76,11 @@ export async function addClipStats(adds: Partial<Record<ClipStatKind, ClipStatAd
     rows.flat(),
   );
   // The database is awake for this write anyway, so the fresh totals are read
-  // now and cached; page views then never have to wake it. The tag expiry
-  // reaches every region, so none keeps serving the old number.
-  await expireStatsCache();
+  // now and written over the cached ones; page views then never have to wake
+  // it. An overwrite, not expireTag-then-set: the tag expiry lands up to 300ms
+  // later and was wiping the entry just written, so the next view missed.
+  // Hobby runs functions in a single region, so there is no other region's
+  // copy to go stale; the TTL below covers it if that ever changes.
   await cacheStats(await readClipStats());
 }
 
@@ -92,17 +94,9 @@ const STATS_TAG = "clip-stats";
 
 async function cacheStats(stats: ClipStats): Promise<void> {
   try {
-    await statsCache().set(STATS_KEY, stats, { ttl: 24 * 60 * 60, tags: [STATS_TAG], name: "clip-stats" });
+    await statsCache().set(STATS_KEY, stats, { ttl: 60 * 60, tags: [STATS_TAG], name: "clip-stats" });
   } catch {
     // Uncached: the next read goes to the database.
-  }
-}
-
-async function expireStatsCache(): Promise<void> {
-  try {
-    await statsCache().expireTag(STATS_TAG);
-  } catch (error) {
-    console.error("Clip stats: expiring the cached totals failed", error);
   }
 }
 
