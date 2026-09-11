@@ -27,7 +27,7 @@ const TIMEOUT_MS = 4_000;
 const statusCache = () => getCache({ namespace: "clypdat-status" });
 // Bump when the checks change, so a deploy does not keep serving a verdict
 // the old checks cached.
-const STATUS_KEY = "status-v2";
+const STATUS_KEY = "status-v3";
 
 async function checkDatabase(): Promise<State> {
   try {
@@ -50,10 +50,15 @@ async function checkMirror(): Promise<State> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
     });
-    if (!response.ok) console.warn(`Status: mirror answered ${response.status} (server: ${response.headers.get("server") ?? "?"})`);
-    return response.ok ? "operational" : "down";
-  } catch (error) {
-    console.warn("Status: mirror unreachable", error);
+    if (response.ok) return "operational";
+    // Cloudflare's bot protection answers requests from Vercel's datacenter
+    // IPs with a 403, while the same file serves people's own connections
+    // (which is who downloads it - the site only ever redirects there) with a
+    // 200. A 403 from Cloudflare itself means its edge is up in front of the
+    // bucket; only this server-side check is being filtered.
+    if (response.status === 403 && response.headers.get("server")?.toLowerCase() === "cloudflare") return "operational";
+    return "down";
+  } catch {
     return "down";
   }
 }
