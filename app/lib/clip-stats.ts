@@ -1,3 +1,4 @@
+import { getCache } from "@vercel/functions";
 import { pool } from "@/app/lib/auth";
 
 // The public "clips saved" counter. The desktop app reports a count whenever
@@ -74,6 +75,35 @@ export async function addClipStats(adds: Partial<Record<ClipStatKind, ClipStatAd
            updated_at = NOW()`,
     rows.flat(),
   );
+  // The database is awake for this write anyway, so the fresh totals are read
+  // now and cached; page views then never have to wake it. The tag expiry
+  // reaches every region, so none keeps serving the old number.
+  await expireStatsCache();
+  await cacheStats(await readClipStats());
+}
+
+// The totals are read on every page view and every 10s by an open API tab, and
+// each read used to query Postgres - which kept Neon from ever idling while
+// someone had the page open. They only change when a save arrives, so they
+// are cached until one does (addClipStats above). The TTL is a backstop.
+const statsCache = () => getCache({ namespace: "clypdat-stats" });
+const STATS_KEY = "totals";
+const STATS_TAG = "clip-stats";
+
+async function cacheStats(stats: ClipStats): Promise<void> {
+  try {
+    await statsCache().set(STATS_KEY, stats, { ttl: 24 * 60 * 60, tags: [STATS_TAG], name: "clip-stats" });
+  } catch {
+    // Uncached: the next read goes to the database.
+  }
+}
+
+async function expireStatsCache(): Promise<void> {
+  try {
+    await statsCache().expireTag(STATS_TAG);
+  } catch (error) {
+    console.error("Clip stats: expiring the cached totals failed", error);
+  }
 }
 
 export type ClipStats = ClipStatCounts & {
@@ -82,6 +112,19 @@ export type ClipStats = ClipStatCounts & {
 };
 
 export async function getClipStats(): Promise<ClipStats> {
+  try {
+    const cached = await statsCache().get(STATS_KEY);
+    if (cached) return cached as ClipStats;
+  } catch {
+    // Fall through to the database.
+  }
+  const stats = await readClipStats();
+  await cacheStats(stats);
+  return stats;
+}
+
+async function readClipStats(): Promise<ClipStats> {
+  console.info("[db] clip stats read");
   await ensureSchema();
   const result = await pool.query<{ kind: string; count: string; seconds: string }>(
     "SELECT kind, count, seconds FROM clypdat_clip_stats",

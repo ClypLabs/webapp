@@ -52,6 +52,7 @@ export async function verifyActiveDesktopToken(token: string) {
   const identity = verifyDesktopToken(token);
   if (!identity) return null;
   if (await readCached<boolean>(identity.userId, "exists")) return identity;
+  console.info("[db] desktop token user check");
   const result = await pool.query('SELECT 1 FROM "user" WHERE id = $1', [identity.userId]);
   if (!result.rowCount) return null;
   await writeCached(identity.userId, "exists", true);

@@ -87,6 +87,7 @@ export const auth = betterAuth({
 export async function getLinkedSocialProviders(userId: string) {
   const cached = await readCached<string[]>(userId, "providers");
   if (cached) return cached;
+  console.info("[db] linked providers read");
   const result = await pool.query<{ providerId: string }>(
     'SELECT "providerId" FROM "account" WHERE "userId" = $1 AND "providerId" IN ($2, $3)',
     [userId, "google", "discord"],

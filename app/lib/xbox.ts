@@ -329,6 +329,7 @@ export async function getXboxAccount(userId: string): Promise<XboxAccount | null
 }
 
 async function readXboxAccount(userId: string): Promise<XboxAccount | null> {
+  console.info("[db] xbox account read");
   await ensureSchema();
   const result = await pool.query<{ gamertag: string | null; xuid: string | null; console_name: string | null; updated_at: Date }>(
     "SELECT gamertag, xuid, console_name, updated_at FROM clypdat_xbox_account WHERE user_id = $1",
@@ -458,6 +459,7 @@ function readSession(cached: CachedXboxSession): XboxSession | null {
 // only written when it actually differs from what was last recorded.
 async function recordConsole(userId: string, previous: string | null | undefined, consoleName: string | null): Promise<void> {
   if (previous === consoleName) return;
+  console.info("[db] xbox console name write");
   await pool.query("UPDATE clypdat_xbox_account SET console_name = $2, updated_at = NOW() WHERE user_id = $1", [userId, consoleName]);
   await deleteCached(userId, "xbox");
 }
@@ -485,6 +487,7 @@ export async function getXboxActivity(userId: string): Promise<XboxActivity | nu
   // No usable session. Xbox presence requires a short-lived XSTS token, issued
   // here from the encrypted Microsoft refresh token - the only credential
   // stored - and then cached until shortly before it expires.
+  console.info("[db] xbox session issue");
   const loaded = await loadCredentials(userId);
   if (!loaded) return null;
   const oauth = await refreshMicrosoftToken(loaded.credentials.refreshToken);
