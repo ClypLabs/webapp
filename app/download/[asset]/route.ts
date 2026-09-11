@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { isCountedDownload, looksLikeAPerson, recordDownload } from "@/app/lib/download-stats";
 import {
   GITHUB_RELEASE_BASE,
   MIRROR_BASE,
@@ -16,13 +18,20 @@ export const dynamic = "force-dynamic";
 // function invocation, while streaming a 277 MB installer through the function
 // would bill every download as Vercel bandwidth.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ asset: string }> },
 ) {
   const { asset } = await params;
 
   if (!isMirroredAsset(asset)) {
     return new Response("Unknown asset.", { status: 404 });
+  }
+
+  // Counted after the redirect is on its way (see download-stats.ts), and only
+  // for a GET from something that looks like a browser: HEAD probes and link
+  // unfurlers are not downloads. A failure to count never affects the download.
+  if (request.method === "GET" && isCountedDownload(asset) && looksLikeAPerson(request.headers.get("user-agent"))) {
+    after(() => recordDownload(asset).catch((error) => console.error("Download count failed", error)));
   }
 
   const githubUrl = `${GITHUB_RELEASE_BASE}/${asset}`;

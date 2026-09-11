@@ -4,7 +4,11 @@
 // keep working when GitHub is unreachable - an outage, or the account being
 // flagged. Nothing here ever prefers the mirror while GitHub answers.
 
-export const GITHUB_OWNER = "ClypDat";
+// The organisation is ClypLabs. This said "ClypDat", the name from before
+// the rename, which GitHub answers with a 404 - so every download was sent to
+// the mirror as if GitHub were down. scripts/mirror-sync.mjs already used
+// ClypLabs/ClypDat.
+export const GITHUB_OWNER = "ClypLabs";
 export const GITHUB_REPO = "ClypDat";
 
 export const GITHUB_RELEASE_BASE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest/download`;

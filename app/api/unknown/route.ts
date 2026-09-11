@@ -8,7 +8,7 @@ function notFound() {
       {
         error: "Not found",
         docs: "https://api.clypdat.xyz/",
-        endpoints: ["/v1/stats/clips"],
+        endpoints: ["/v1/stats/clips", "/v1/stats/clips/history", "/v1/stats/downloads", "/v1/badges/{clips,gameplay,downloads}", "/v1/status"],
       },
       null,
       2,

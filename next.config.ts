@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/", has: apiHost, destination: "/api/index" },
         { source: "/v1/stats/clips", has: apiHost, destination: "/api/stats/clips" },
+        { source: "/v1/stats/clips/history", has: apiHost, destination: "/api/stats/clips/history" },
+        { source: "/v1/stats/downloads", has: apiHost, destination: "/api/stats/downloads" },
+        { source: "/v1/badges/:name", has: apiHost, destination: "/api/badges/:name" },
+        { source: "/v1/status", has: apiHost, destination: "/api/status" },
         { source: "/v1/releases/latest", has: apiHost, destination: "/api/releases/latest" },
         { source: "/v1/releases", has: apiHost, destination: "/api/releases" },
         {

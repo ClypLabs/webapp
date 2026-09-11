@@ -47,6 +47,18 @@ function ensureSchema(): Promise<void> {
     await pool.query(
       "ALTER TABLE clypdat_clip_stats ADD COLUMN IF NOT EXISTS seconds BIGINT NOT NULL DEFAULT 0",
     );
+    // The same numbers filed by UTC day, for /stats/clips/history. Totals stay
+    // in clypdat_clip_stats: summing every day on each read would grow without
+    // bound, and the totals predate this table.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clypdat_clip_stats_daily (
+        day DATE NOT NULL,
+        kind TEXT NOT NULL,
+        count BIGINT NOT NULL DEFAULT 0,
+        seconds BIGINT NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, kind)
+      )
+    `);
   })().catch((error) => {
     schemaReady = null;
     throw error;
@@ -75,6 +87,18 @@ export async function addClipStats(adds: Partial<Record<ClipStatKind, ClipStatAd
            updated_at = NOW()`,
     rows.flat(),
   );
+  await pool.query(
+    `INSERT INTO clypdat_clip_stats_daily (day, kind, count, seconds)
+     VALUES ${rows.map((_, index) => `((NOW() AT TIME ZONE 'UTC')::date, $${index * 3 + 1}, $${index * 3 + 2}::bigint, $${index * 3 + 3}::bigint)`).join(", ")}
+     ON CONFLICT (day, kind) DO UPDATE
+       SET count = clypdat_clip_stats_daily.count + EXCLUDED.count,
+           seconds = clypdat_clip_stats_daily.seconds + EXCLUDED.seconds`,
+    rows.flat(),
+  );
+  // Today's bar changed, so every cached history window is stale. Deleted
+  // rather than rebuilt: nobody may look at a given window before it changes
+  // again, and the next read rebuilds it from a database that is awake anyway.
+  await Promise.all(HISTORY_WINDOWS.map((days) => statsCache().delete(historyKey(days)).catch(() => undefined)));
   // The database is awake for this write anyway, so the fresh totals are read
   // now and written over the cached ones; page views then never have to wake
   // it. An overwrite, not expireTag-then-set: the tag expiry lands up to 300ms
@@ -133,4 +157,63 @@ async function readClipStats(): Promise<ClipStats> {
   }
   const sum = (values: ClipStatCounts) => values.clip + values.auto_clip + values.full_session;
   return { ...counts, total: sum(counts), seconds: { ...seconds, total: sum(seconds) } };
+}
+
+// Per-day history. Windows are a fixed set so the cache holds a handful of
+// entries, not one per arbitrary ?days= value someone types.
+export const HISTORY_WINDOWS = [7, 30, 90, 365] as const;
+export type HistoryWindow = (typeof HISTORY_WINDOWS)[number];
+const historyKey = (days: number) => `history:${days}`;
+
+export type ClipHistoryDay = ClipStatCounts & {
+  date: string;
+  total: number;
+  seconds: number;
+};
+
+export async function getClipHistory(days: HistoryWindow): Promise<ClipHistoryDay[]> {
+  try {
+    const cached = await statsCache().get(historyKey(days));
+    if (cached) return cached as ClipHistoryDay[];
+  } catch {
+    // Fall through to the database.
+  }
+  const history = await readClipHistory(days);
+  try {
+    // Until the next save deletes it (addClipStats), or midnight UTC adds a
+    // day - the TTL is what rolls the window over.
+    await statsCache().set(historyKey(days), history, { ttl: 60 * 60, tags: [STATS_TAG], name: "clip-history" });
+  } catch {
+    // Uncached: the next read goes to the database.
+  }
+  return history;
+}
+
+async function readClipHistory(days: number): Promise<ClipHistoryDay[]> {
+  console.info("[db] clip history read");
+  await ensureSchema();
+  const result = await pool.query<{ day: string; kind: string; count: string; seconds: string }>(
+    `SELECT to_char(day, 'YYYY-MM-DD') AS day, kind, count, seconds
+     FROM clypdat_clip_stats_daily
+     WHERE day > (NOW() AT TIME ZONE 'UTC')::date - $1::int`,
+    [days],
+  );
+  // Every day in the window appears, including days with nothing saved, so a
+  // chart can draw the gaps instead of joining the bars either side of them.
+  const byDay = new Map<string, ClipHistoryDay>();
+  const today = new Date();
+  for (let offset = days - 1; offset >= 0; offset--) {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset))
+      .toISOString()
+      .slice(0, 10);
+    byDay.set(date, { date, clip: 0, auto_clip: 0, full_session: 0, total: 0, seconds: 0 });
+  }
+  for (const row of result.rows) {
+    const day = byDay.get(row.day);
+    if (!day || !(CLIP_STAT_KINDS as readonly string[]).includes(row.kind)) continue;
+    day[row.kind as ClipStatKind] += Number(row.count);
+    day.total += Number(row.count);
+    day.seconds += Number(row.seconds);
+  }
+  return [...byDay.values()];
 }
