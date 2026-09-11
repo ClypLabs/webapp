@@ -153,3 +153,8 @@ Hosted on Vercel. The repo root is the .NET app, so when importing the
 project in Vercel's dashboard, set **Root Directory** to `web` - framework
 preset and build/install commands then auto-detect. Every push to `master`
 deploys; PRs get preview URLs.
+
+`vercel.json` pins functions to `syd1` (Sydney), the region the Neon
+database is in. They ran in `iad1` (US East) by default, which put every
+database query on a round trip across the Pacific. Keep the two in the same
+region if either moves.
