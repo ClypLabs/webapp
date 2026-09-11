@@ -51,7 +51,7 @@ function SaveVisual() {
     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
       <div className="flex items-center gap-1.5">
         {/* AppSettings.SaveReplayHotkey in the desktop app. */}
-        {["Ctrl", "Shift", "F9"].map((key, index) => (
+        {["Insert"].map((key, index) => (
           <span key={key} className="inline-flex items-center gap-1.5">
             {index > 0 ? <span aria-hidden className="text-xs text-zinc-600">+</span> : null}
             <kbd className="kbd text-sm">{key}</kbd>

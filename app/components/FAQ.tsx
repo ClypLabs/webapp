@@ -9,7 +9,7 @@ type Faq = { q: string; a: string[] };
 // on the page and are stripped for the JSON-LD.
 //
 // Every claim here is checked against the desktop app, not the marketing copy:
-// the defaults (Ctrl+Shift+F9, F8, 60 seconds) are AppSettings.cs, the length
+// the defaults (Insert, F8, 60 seconds) are AppSettings.cs, the length
 // presets are MainWindowViewModel.DurationPresets, the import sources are
 // Settings > Import Clips. Change them together.
 export const faqs: Faq[] = [
@@ -28,7 +28,7 @@ export const faqs: Faq[] = [
   {
     q: "How do I save a clip?",
     a: [
-      "Press `Ctrl+Shift+F9`. ClypDat writes the last minute of gameplay to your library, named after the game and the time it was saved.",
+      "Press `Insert`. ClypDat writes the last minute of gameplay to your library, named after the game and the time it was saved.",
       "The key and the length are both in Settings > Replay Buffer. Length presets run from 30 seconds to 5 minutes.",
     ],
   },
