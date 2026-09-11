@@ -154,7 +154,9 @@ const html = `<!doctype html>
       return [Math.round(h).toLocaleString("en-US"), "hours"];
     }
     function load() {
-      fetch("/v1/stats/clips").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      // A unique query string misses the CDN's 10s copy, so a refresh right
+      // after a save shows it; other callers of the endpoint keep the cache.
+      fetch("/v1/stats/clips?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (!d) return;
         // Never step backwards: a stale cache edge can answer with less.
         if (typeof d.total === "number" && d.total >= shownTotal) {
@@ -172,7 +174,7 @@ const html = `<!doctype html>
       }).catch(function () {});
     }
     load();
-    setInterval(function () { if (document.visibilityState === "visible") load(); }, 20000);
+    setInterval(function () { if (document.visibilityState === "visible") load(); }, 10000);
   })();
 </script>
 </body>

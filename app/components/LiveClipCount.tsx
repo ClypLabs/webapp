@@ -20,7 +20,9 @@ export default function LiveClipCount({ initial }: { initial: number }) {
 
     const refresh = async () => {
       try {
-        const response = await fetch("/api/stats/clips");
+        // Unique query string: skips the CDN's 10s copy, so the number is the
+        // database's current one, not whatever was cached before a save.
+        const response = await fetch(`/api/stats/clips?t=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { total?: unknown };
         // Never step backwards: a stale cache edge can briefly answer with an
