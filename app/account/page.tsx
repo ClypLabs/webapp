@@ -38,7 +38,9 @@ type Overview = {
   accounts: Account[];
 };
 
-// Discord is the only social sign-in; Google was removed in September 2026.
+// Discord is the social sign-in. Google was dropped in September 2026 and now
+// only signs into accounts made with it, so their owners can connect Discord
+// or merge the duplicate a Discord sign-in made (app/lib/account-merge.ts).
 type SocialProvider = "discord";
 
 function getSocialProvider(value: string | null): SocialProvider | null {
@@ -109,12 +111,20 @@ export default function AccountPage() {
   const [discordRefreshBusy, setDiscordRefreshBusy] = useState(false);
   const [discordRefreshNote, setDiscordRefreshNote] = useState<string | null>(null);
   const linkingAttempt = useRef<SocialProvider | null>(null);
+  // Set when Discord refused to link because it already has its own account.
+  const [mergeOffer, setMergeOffer] = useState(false);
+  const [mergeBusy, setMergeBusy] = useState(false);
+  const mergeFinishing = useRef(false);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
   const xboxConnected = xbox?.connected ?? false;
   const linkedSocials = (["discord"] as const).filter((provider) => accounts?.some((account) => account.providerId === provider));
   const availableSocials = (["discord"] as const).filter((provider) => !linkedSocials.includes(provider));
+  const googleLinked = accounts?.some((account) => account.providerId === "google") ?? false;
+  // Nothing but Discord: the kind of account a Discord sign-in makes when the
+  // person's Google-made account has a different email.
+  const onlyDiscord = accounts?.length === 1 && accounts[0].providerId === "discord";
 
   const accountCallbackUrl = useCallback((preserveLinkProvider = false) => {
     const url = new URL("/account", window.location.origin);
@@ -144,9 +154,14 @@ export default function AccountPage() {
     const oauthError = url.searchParams.get("error");
     const deleted = url.searchParams.get("deleted");
     const reauth = url.searchParams.get("reauth");
+    const merged = url.searchParams.get("merged");
+    const googleSignIn = url.searchParams.get("google_signin");
     const linkProvider = getSocialProvider(url.searchParams.get("link_provider"));
     const invalidLinkProvider = url.searchParams.has("link_provider") && !linkProvider;
-    if (result || desktop || oauthError || invalidLinkProvider || deleted || reauth) {
+    const discordTaken = oauthError === "account_already_linked_to_different_user" && linkProvider === "discord";
+    if (result || desktop || oauthError || invalidLinkProvider || deleted || reauth || merged || googleSignIn) {
+      url.searchParams.delete("merged");
+      url.searchParams.delete("google_signin");
       url.searchParams.delete("xbox");
       url.searchParams.delete("desktop");
       url.searchParams.delete("error");
@@ -156,7 +171,17 @@ export default function AccountPage() {
       if (oauthError !== "account_not_linked") url.searchParams.delete("link_provider");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
-    const message = deleted === "1"
+    const message = merged === "1"
+      ? "Accounts merged. Your Discord sign-in, and any Xbox link it had, now belong to this account."
+      : googleSignIn && oauthError === "signup_disabled"
+      ? "No ClypDat account was made with that Google account. Google only signs into accounts made with it before - use Continue with Discord instead."
+      : googleSignIn && oauthError === "access_denied"
+      ? "Google sign-in was cancelled."
+      : googleSignIn && oauthError
+      ? "Google sign-in could not be completed."
+      : discordTaken
+      ? null
+      : deleted === "1"
       ? "Your ClypDat account and stored connections were deleted."
       : reauth === "1"
       ? "Sign in again before deleting your account."
@@ -183,8 +208,9 @@ export default function AccountPage() {
                     : invalidLinkProvider
                       ? "Unsupported social provider."
                       : null;
-    if (!message && !(oauthError === "account_not_linked" && linkProvider)) return;
+    if (!message && !discordTaken && !(oauthError === "account_not_linked" && linkProvider)) return;
     const timer = window.setTimeout(() => {
+      if (discordTaken) setMergeOffer(true);
       if (oauthError === "account_not_linked" && linkProvider) setMode("sign-in");
       if (message) setError(message);
     }, 0);
@@ -195,6 +221,8 @@ export default function AccountPage() {
     if (!session?.user || linking) return;
     const current = new URL(window.location.href);
     if (getSocialProvider(current.searchParams.get("link_provider"))) return;
+    // A merge finishes first; it reloads the page, which then hands off.
+    if (current.searchParams.has("merge")) return;
     if (current.searchParams.get("desktop_connect") !== "1") return;
     const redirectUri = current.searchParams.get("redirect_uri");
     const state = current.searchParams.get("state");
@@ -231,6 +259,44 @@ export default function AccountPage() {
       setLinking(false);
     });
   }, [accountCallbackUrl, accountLinkErrorUrl, session?.user]);
+
+  // The second half of a merge: back from signing into the other account.
+  useEffect(() => {
+    if (!session?.user || mergeFinishing.current) return;
+    if (new URL(window.location.href).searchParams.get("merge") !== "finish") return;
+    mergeFinishing.current = true;
+    void (async () => {
+      setMergeBusy(true);
+      try {
+        const response = await fetch("/api/account/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ step: "finish" }),
+        });
+        const result = (await response.json().catch(() => null)) as { error?: string; signInAgain?: boolean } | null;
+        if (!response.ok) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("merge");
+          window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+          setError(result?.error ?? "The accounts could not be merged. Nothing was changed; try again.");
+          setMergeBusy(false);
+          return;
+        }
+        const done = new URL(accountCallbackUrl());
+        done.searchParams.set("merged", "1");
+        // Signed into the account that was folded away, so that session is
+        // gone. Discord now signs into the kept account.
+        if (result?.signInAgain) {
+          await authClient.signIn.social({ provider: "discord", callbackURL: done.toString(), errorCallbackURL: accountCallbackUrl() });
+          return;
+        }
+        window.location.replace(done);
+      } catch {
+        setError("The accounts could not be merged. Nothing was changed; try again.");
+        setMergeBusy(false);
+      }
+    })();
+  }, [accountCallbackUrl, session?.user]);
 
   // One request for the signed-in user, their linked providers and their Xbox
   // status. It reads the session cookie server-side, so it can start the moment
@@ -309,6 +375,46 @@ export default function AccountPage() {
       errorCallbackURL: accountLinkErrorUrl(provider),
     });
     if (result.error) setError(result.error.message ?? `${provider} sign-in is not configured yet.`);
+  }
+
+  // Signs into an account made with Google before it was dropped. Never makes
+  // a new account (disableSignUp in auth.ts).
+  async function googleSignIn() {
+    setError(null);
+    const failed = new URL(accountCallbackUrl());
+    failed.searchParams.set("google_signin", "1");
+    const result = await authClient.signIn.social({ provider: "google", callbackURL: accountCallbackUrl(), errorCallbackURL: failed.toString() });
+    if (result.error) setError(result.error.message ?? "Google sign-in is not available right now.");
+  }
+
+  /**
+   * Starts a merge from the account signed in now, then signs into the other
+   * one; the merge finishes when the page comes back (the effect above).
+   * `provider` is how the other account signs in.
+   */
+  async function startMerge(provider: "discord" | "google") {
+    setError(null);
+    setMergeBusy(true);
+    try {
+      const response = await fetch("/api/account/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "start" }),
+      });
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(result?.error);
+      }
+      const back = new URL(accountCallbackUrl());
+      back.searchParams.set("merge", "finish");
+      const failed = new URL(accountCallbackUrl());
+      if (provider === "google") failed.searchParams.set("google_signin", "1");
+      const result = await authClient.signIn.social({ provider, callbackURL: back.toString(), errorCallbackURL: failed.toString() });
+      if (result.error) throw new Error(result.error.message);
+    } catch (error) {
+      setError((error instanceof Error && error.message) || "The merge could not be started. Try again.");
+      setMergeBusy(false);
+    }
   }
 
   async function refreshFromDiscord() {
@@ -470,6 +576,20 @@ export default function AccountPage() {
           {discordRefreshNote && <p className="mt-2 text-sm text-zinc-400">{discordRefreshNote}</p>}
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
+          {mergeOffer && (
+            <div className="mt-5 rounded-xl border border-[#5865F2]/40 bg-[#5865F2]/10 px-4 py-4 text-sm text-zinc-200">
+              <p className="font-semibold">That Discord already has its own ClypDat account.</p>
+              <p className="mt-1 text-zinc-300">Usually one made by signing in with Discord while Google sign-in was unavailable. Merge it into this account: its Discord sign-in moves here, its Xbox link too if this account has none, and the empty duplicate is deleted. You&apos;ll confirm with Discord once more.</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <button type="button" disabled={mergeBusy} onClick={() => startMerge("discord")} className="rounded-full bg-[#5865F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-60">{mergeBusy ? "Merging…" : "Merge accounts"}</button>
+                <button type="button" disabled={mergeBusy} onClick={() => setMergeOffer(false)} className="px-2 py-2 text-sm text-zinc-300">Not now</button>
+              </div>
+            </div>
+          )}
+          {!mergeOffer && mergeBusy && <p className="mt-5 text-sm text-zinc-400">Merging your accounts…</p>}
+          {googleLinked && !linkedSocials.includes("discord") && !mergeOffer && (
+            <p className="mt-5 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">Google sign-in is being retired. Connect Discord below so you can keep signing in to this account.</p>
+          )}
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
               <div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Add an account</p><h2 className="mt-2 text-lg font-semibold">More ways to sign in</h2></div>{accountsBusy && <span className="text-xs text-zinc-500">Updating…</span>}</div>
@@ -477,6 +597,7 @@ export default function AccountPage() {
                 {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Sign in with Discord and show your Discord name and picture in ClypDat</span></span></span><span className="text-emerald-300">Connect</span></button>)}
                 {!xboxConnected && <a href="/api/xbox/connect" className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">Xbox</span><span className="text-sm text-zinc-400">Optional activity and presence</span></span></span><span className="text-emerald-300">Connect</span></a>}
                 {!availableSocials.length && xboxConnected && <p className="text-sm text-zinc-400">All available accounts are connected.</p>}
+                {onlyDiscord && <button type="button" disabled={mergeBusy} onClick={() => startMerge("google")} className="w-full text-left text-sm text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline disabled:cursor-wait">Made a ClypDat account with Google before? Sign in with Google to merge it into this one.</button>}
               </div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -484,7 +605,8 @@ export default function AccountPage() {
               <div className="mt-5 space-y-3">
                 {linkedSocials.map((provider) => <div key={provider} className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>)}
                 {xboxConnected && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>}
-                {!linkedSocials.length && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
+                {googleLinked && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span><span className="block font-semibold">Google</span><span className="text-sm text-zinc-400">Sign-in only, while Google is retired</span></span><span className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-zinc-300">Connected</span></div></div>}
+                {!linkedSocials.length && !googleLinked && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
               </div>
             </div>
           </div>
@@ -560,6 +682,9 @@ export default function AccountPage() {
         <p className="mt-3 text-center text-xs leading-5 text-zinc-500">
           Your Discord name and profile picture show in the ClypDat app. Only Discord accounts have them; email accounts show a plain account card.
         </p>
+        <button type="button" onClick={googleSignIn} className="mt-4 w-full text-center text-sm text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline">
+          Made your account with Google? Sign in with Google
+        </button>
 
         <div className="my-7 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-zinc-600">
           <span className="h-px flex-1 bg-white/10" /> or use email <span className="h-px flex-1 bg-white/10" />

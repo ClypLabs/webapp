@@ -14,9 +14,22 @@ export const pool = new Pool({
   ssl: databaseUrl ? { rejectUnauthorized: false } : undefined,
 });
 
-// Discord is the only social sign-in. Google was removed in September 2026;
-// its old account rows stay in the database but can no longer sign in.
+// Discord is the social sign-in. Google was dropped in September 2026, but an
+// account made with Google has no password and email reset is not set up, so
+// without Google its owner is locked out - and signing in with Discord instead
+// makes a second, empty account unless the two emails match. Google therefore
+// stays for signing in only: it never creates an account, and /account asks a
+// Google account to connect Discord (or merge the duplicate, account-merge.ts).
 const socialProviders = {
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          disableSignUp: true,
+        },
+      }
+    : {}),
   ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
     ? {
         discord: {

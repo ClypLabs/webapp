@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import type { PoolClient } from "pg";
 import { pool } from "@/app/lib/auth";
 import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
 
@@ -342,6 +343,24 @@ async function readXboxAccount(userId: string): Promise<XboxAccount | null> {
   const row = result.rows[0];
   return row ? { gamertag: row.gamertag, xuid: row.xuid, consoleName: row.console_name, updatedAt: row.updated_at.toISOString() } : null;
 }
+
+/**
+ * Moves an Xbox link from one user to another inside the caller's transaction,
+ * for merging a duplicate account (account-merge.ts). A user who already has
+ * Xbox keeps theirs; the other link is left behind to go with its user.
+ * Call ensureXboxSchema first, outside the transaction: the pool holds one
+ * connection, which the transaction already has.
+ */
+export async function moveXboxAccount(client: PoolClient, fromUserId: string, toUserId: string): Promise<boolean> {
+  const result = await client.query(
+    `UPDATE clypdat_xbox_account SET user_id = $2, updated_at = NOW()
+     WHERE user_id = $1 AND NOT EXISTS (SELECT 1 FROM clypdat_xbox_account WHERE user_id = $2)`,
+    [fromUserId, toUserId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export const ensureXboxSchema = () => ensureSchema();
 
 export async function deleteXboxAccount(userId: string): Promise<void> {
   await ensureSchema();
