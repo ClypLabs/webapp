@@ -93,10 +93,12 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     // Indented, because this is also the URL people open in a browser tab.
+    // No stale-while-revalidate: it let the CDN hand out the previous total for
+    // up to 40s after a save. Ten seconds of caching, then a fresh read.
     return new NextResponse(JSON.stringify(await getClipStats(), null, 2), {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+        "Cache-Control": "public, s-maxage=10",
       },
     });
   } catch {
