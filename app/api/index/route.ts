@@ -79,7 +79,7 @@ const html = `<!doctype html>
   <a class="brand" href="https://www.clypdat.xyz/"><img src="https://www.clypdat.xyz/logo.svg" alt="">ClypDat</a>
   <h1>ClypDat <span>API</span></h1>
   <p class="lead">Live totals from every copy of ClypDat: each clip, auto-clip and full session saved, and how much gameplay they hold. Only the numbers are sent, never the clips.</p>
-  <a class="status" id="status" href="/v1/status"><span class="sd"></span><span id="status-text">Checking services&hellip;</span></a>
+  <a class="status" id="status" href="https://status.clypdat.xyz"><span class="sd"></span><span id="status-text">Checking services&hellip;</span></a>
 
   <section class="stats" aria-label="ClypDat totals">
     <span class="live"><span class="dot"></span>Live</span>

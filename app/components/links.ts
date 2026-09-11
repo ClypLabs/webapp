@@ -8,6 +8,9 @@ export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 export const ISSUES_URL = `${GITHUB_URL}/issues`;
 export const DISCORD_URL = "https://discord.gg/jt3eJf238t";
 export const X_URL = "https://x.com/ClypDat";
+// Better Stack status page. api.clypdat.xyz/v1/status stays as the JSON check
+// the API page reads; this is the page people are sent to.
+export const STATUS_URL = "https://status.clypdat.xyz";
 
 // Own-domain download URL, so it survives GitHub being unreachable - see
 // app/download/[asset]/route.ts.

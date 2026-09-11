@@ -5,6 +5,7 @@ import {
   GITHUB_URL,
   ISSUES_URL,
   RELEASES_URL,
+  STATUS_URL,
   sectionLinks,
   socials,
 } from "./links";
@@ -20,6 +21,7 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { href: GITHUB_URL, label: "Source code" },
       { href: RELEASES_URL, label: "Release notes" },
       { href: ISSUES_URL, label: "Report a bug" },
+      { href: STATUS_URL, label: "Service status" },
     ],
   },
   {
