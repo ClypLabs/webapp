@@ -215,7 +215,7 @@ export default function LibraryGraphic({ className = "" }: { className?: string 
           <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
             Clip
           </span>
-          <span className="text-[12px] text-zinc-500">Alt+V</span>
+          <span className="text-[12px] text-zinc-500">Insert</span>
           <span className="text-[12px] text-zinc-600">No game detected</span>
           <span className="ml-auto flex gap-1.5">
             {[0, 1, 2].map((i) => (

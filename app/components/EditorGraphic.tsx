@@ -240,7 +240,7 @@ export default function EditorGraphic({ className = "" }: { className?: string }
           <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
             Clip
           </span>
-          <span className="text-[12px] text-zinc-500">Alt+V</span>
+          <span className="text-[12px] text-zinc-500">Insert</span>
           {/* The metadata strip the app shows for the open clip. */}
           <span className={`truncate text-[11px] text-zinc-600 ${fade}`}>
             Created: {clip.created} &middot; {clip.format} &middot; {clip.size} &middot; Captured
