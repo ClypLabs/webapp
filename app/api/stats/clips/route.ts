@@ -76,8 +76,12 @@ export async function POST(request: Request) {
 // { clip, auto_clip, full_session, total }
 export async function GET() {
   try {
-    return NextResponse.json(await getClipStats(), {
-      headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
+    // Indented, because this is also the URL people open in a browser tab.
+    return new NextResponse(JSON.stringify(await getClipStats(), null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+      },
     });
   } catch {
     return NextResponse.json({ error: "Counter unavailable" }, { status: 503 });
