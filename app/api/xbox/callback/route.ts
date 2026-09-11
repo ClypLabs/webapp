@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { connectXbox, readXboxAuthorization, saveXboxAccount, XBOX_OAUTH_COOKIE } from "@/app/lib/xbox";
+import { expireUserCache } from "@/app/lib/account-cache";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,9 @@ export async function GET(request: NextRequest) {
   try {
     const credentials = await connectXbox(code, state.verifier);
     await saveXboxAccount(session.user.id, credentials);
+    // A newly linked (or re-linked) Xbox replaces whatever the desktop poll
+    // had cached for this user, including a session for a previous account.
+    await expireUserCache(session.user.id);
     return redirect(request, "connected");
   } catch {
     return redirect(request, "failed");

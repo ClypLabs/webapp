@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { pool } from "@/app/lib/auth";
+import { deleteCached, expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
 
 export const XBOX_OAUTH_COOKIE = "clypdat_xbox_oauth";
 const XBOX_SCOPE = "XboxLive.signin XboxLive.offline_access";
@@ -27,9 +28,16 @@ type XboxCredentials = {
   userHash: string;
   xstsToken: string;
   expiresAt: Date;
+  // When the XSTS token itself stops working - hours, normally, where the
+  // Microsoft access token behind it lasts one. Zero when not issued yet.
+  xstsExpiresAt: number;
   xuid: string | null;
   gamertag: string | null;
 };
+
+// Xbox rejected the session itself, as opposed to being unreachable: the only
+// failure that justifies throwing a cached session away and issuing a new one.
+class XboxAuthError extends Error {}
 
 function required(name: string): string {
   const value = process.env[name];
@@ -189,11 +197,13 @@ async function exchangeXboxTokens(accessToken: string, refreshToken: string, exp
   const xui = claims?.xui?.[0];
   if (!xstsToken || !xui?.uhs) throw new Error("Xbox authorization returned incomplete claims");
 
+  const notAfter = typeof xsts.NotAfter === "string" ? Date.parse(xsts.NotAfter) : Number.NaN;
   const credentials: XboxCredentials = {
     refreshToken,
     userHash: xui.uhs,
     xstsToken,
     expiresAt: new Date(Date.now() + expiresIn * 1000),
+    xstsExpiresAt: Number.isFinite(notAfter) ? notAfter : Date.now() + expiresIn * 1000,
     xuid: xui.xuid ?? null,
     gamertag: null,
   };
@@ -308,7 +318,17 @@ export async function saveXboxAccount(userId: string, credentials: XboxCredentia
   );
 }
 
+// Cached with the rest of the account (account-cache.ts). Linking and unlinking
+// Xbox expire it; a changed console name drops it in the region that saw it.
 export async function getXboxAccount(userId: string): Promise<XboxAccount | null> {
+  const cached = await readCached<{ account: XboxAccount | null }>(userId, "xbox");
+  if (cached) return cached.account;
+  const account = await readXboxAccount(userId);
+  await writeCached(userId, "xbox", { account });
+  return account;
+}
+
+async function readXboxAccount(userId: string): Promise<XboxAccount | null> {
   await ensureSchema();
   const result = await pool.query<{ gamertag: string | null; xuid: string | null; console_name: string | null; updated_at: Date }>(
     "SELECT gamertag, xuid, console_name, updated_at FROM clypdat_xbox_account WHERE user_id = $1",
@@ -321,6 +341,8 @@ export async function getXboxAccount(userId: string): Promise<XboxAccount | null
 export async function deleteXboxAccount(userId: string): Promise<void> {
   await ensureSchema();
   await pool.query("DELETE FROM clypdat_xbox_account WHERE user_id = $1", [userId]);
+  // The cached Xbox session would otherwise keep answering presence polls.
+  await expireUserCache(userId);
 }
 
 async function loadCredentials(userId: string): Promise<{ credentials: XboxCredentials; row: { refresh_token: string } } | null> {
@@ -338,6 +360,7 @@ async function loadCredentials(userId: string): Promise<{ credentials: XboxCrede
       userHash: "",
       xstsToken: "",
       expiresAt: row.token_expires_at,
+      xstsExpiresAt: 0,
       xuid: row.xuid,
       gamertag: row.gamertag,
     },
@@ -371,7 +394,7 @@ function consoleLabel(type: string | undefined): string | null {
   }
 }
 
-async function fetchActivity(credentials: XboxCredentials): Promise<XboxActivity> {
+async function fetchActivity(credentials: Pick<XboxCredentials, "userHash" | "xstsToken">): Promise<XboxActivity> {
   const response = await fetch("https://userpresence.xboxlive.com/users/me?level=title", {
     headers: {
       Authorization: xboxAuthorization(credentials),
@@ -381,6 +404,7 @@ async function fetchActivity(credentials: XboxCredentials): Promise<XboxActivity
     },
     cache: "no-store",
   });
+  if (response.status === 401 || response.status === 403) throw new XboxAuthError(`Xbox presence rejected the session (${response.status})`);
   if (!response.ok) throw new Error(`Xbox presence rejected the request (${response.status})`);
   const json = (await response.json()) as { devices?: Array<{ type?: string; titles?: Array<{ name?: string; state?: string; timestamp?: string }> }> };
   let title: string | null = null;
@@ -408,16 +432,72 @@ function isSystemTitle(title: string): boolean {
   return ["Home", "Xbox Home", "Xbox Dashboard", "Xbox Guide"].includes(title);
 }
 
+// What the presence call needs, cached so a poll can skip the database and the
+// three Microsoft token calls. Encrypted with the same key as the stored refresh
+// token: the XSTS token grants presence access for hours, and the cache is
+// Vercel infrastructure, not ours.
+type CachedXboxSession = { token: string; consoleName: string | null };
+type XboxSession = { userHash: string; xstsToken: string; expiresAt: number };
+
+// A session is retired this long before Xbox would, so no poll races the expiry.
+const SESSION_MARGIN_MS = 5 * 60 * 1000;
+// Upper bound regardless of what Xbox grants, so a session is re-derived from
+// the refresh token - and a revoked Microsoft grant noticed - at least this often.
+const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
+
+function readSession(cached: CachedXboxSession): XboxSession | null {
+  try {
+    const session = JSON.parse(decrypt(cached.token)) as XboxSession;
+    return session.expiresAt - Date.now() > SESSION_MARGIN_MS ? session : null;
+  } catch {
+    return null;
+  }
+}
+
+// Console name changes when a game starts or stops, not per poll, so it is
+// only written when it actually differs from what was last recorded.
+async function recordConsole(userId: string, previous: string | null | undefined, consoleName: string | null): Promise<void> {
+  if (previous === consoleName) return;
+  await pool.query("UPDATE clypdat_xbox_account SET console_name = $2, updated_at = NOW() WHERE user_id = $1", [userId, consoleName]);
+  await deleteCached(userId, "xbox");
+}
+
 export async function getXboxActivity(userId: string): Promise<XboxActivity | null> {
+  // The common case: a live session in the cache. One call to Xbox, none to
+  // the database.
+  const cached = await readCached<CachedXboxSession>(userId, "xbox-session");
+  const session = cached ? readSession(cached) : null;
+  if (cached && session) {
+    try {
+      const activity = await fetchActivity(session);
+      if (activity.consoleName !== cached.consoleName) {
+        await recordConsole(userId, cached.consoleName, activity.consoleName);
+        await writeCached(userId, "xbox-session", { ...cached, consoleName: activity.consoleName }, (session.expiresAt - Date.now() - SESSION_MARGIN_MS) / 1000);
+      }
+      return activity;
+    } catch (error) {
+      // Xbox down or slow: report it, and keep the session for the next poll.
+      if (!(error instanceof XboxAuthError)) throw error;
+      // Session revoked early: fall through and issue a new one.
+    }
+  }
+
+  // No usable session. Xbox presence requires a short-lived XSTS token, issued
+  // here from the encrypted Microsoft refresh token - the only credential
+  // stored - and then cached until shortly before it expires.
   const loaded = await loadCredentials(userId);
   if (!loaded) return null;
-  let credentials = loaded.credentials;
-  // Xbox presence requires a short-lived XSTS token. Re-issue it on each
-  // activity request while keeping only the encrypted Microsoft refresh token.
-  const oauth = await refreshMicrosoftToken(credentials.refreshToken);
-  credentials = await exchangeXboxTokens(oauth.accessToken, oauth.refreshToken, oauth.expiresIn);
+  const oauth = await refreshMicrosoftToken(loaded.credentials.refreshToken);
+  const credentials = await exchangeXboxTokens(oauth.accessToken, oauth.refreshToken, oauth.expiresIn);
   await saveXboxAccount(userId, credentials);
   const activity = await fetchActivity(credentials);
-  await pool.query("UPDATE clypdat_xbox_account SET console_name = $2, updated_at = NOW() WHERE user_id = $1", [userId, activity.consoleName]);
+  await recordConsole(userId, undefined, activity.consoleName);
+
+  const expiresAt = Math.min(credentials.xstsExpiresAt, Date.now() + SESSION_MAX_MS);
+  const ttlSeconds = (expiresAt - Date.now() - SESSION_MARGIN_MS) / 1000;
+  if (ttlSeconds > 60) {
+    const fresh: XboxSession = { userHash: credentials.userHash, xstsToken: credentials.xstsToken, expiresAt };
+    await writeCached(userId, "xbox-session", { token: encrypt(JSON.stringify(fresh)), consoleName: activity.consoleName }, ttlSeconds);
+  }
   return activity;
 }

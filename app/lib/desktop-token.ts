@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { pool } from "@/app/lib/auth";
+import { readCached, writeCached } from "@/app/lib/account-cache";
 
 const tokenLifetimeSeconds = 60 * 60 * 24 * 30;
 
@@ -40,12 +41,21 @@ export function verifyDesktopToken(token: string) {
  * Verifies the compatible signed token, then checks its subject still exists.
  * A signature failure and a deleted user are both unauthenticated; a database
  * failure is allowed to reach callers as a service error instead.
+ *
+ * "Still exists" comes from the account cache when it can: this runs on every
+ * desktop poll, and a database read each time kept Neon awake. Deleting the
+ * account expires the cached answer everywhere (see databaseHooks in auth.ts),
+ * so a deleted user's token still stops working on its next use. Only a
+ * positive answer is cached - a missing user is always re-checked.
  */
 export async function verifyActiveDesktopToken(token: string) {
   const identity = verifyDesktopToken(token);
   if (!identity) return null;
+  if (await readCached<boolean>(identity.userId, "exists")) return identity;
   const result = await pool.query('SELECT 1 FROM "user" WHERE id = $1', [identity.userId]);
-  return result.rowCount ? identity : null;
+  if (!result.rowCount) return null;
+  await writeCached(identity.userId, "exists", true);
+  return identity;
 }
 
 export const desktopTokenLifetimeSeconds = tokenLifetimeSeconds;

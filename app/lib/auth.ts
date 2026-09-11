@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
+import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
 
 const databaseUrl = process.env.DATABASE_URL;
 const authSecret = process.env.BETTER_AUTH_SECRET;
@@ -67,14 +68,32 @@ export const auth = betterAuth({
     },
   },
   socialProviders,
+  // Every account change the website makes goes through Better Auth, so these
+  // are where the desktop poll's cached account data is dropped: a deleted
+  // user, or a provider linked or unlinked from /account. See account-cache.ts.
+  databaseHooks: {
+    user: {
+      delete: { after: async (user) => expireUserCache(user.id) },
+    },
+    account: {
+      create: { after: async (account) => expireUserCache(account.userId) },
+      delete: { after: async (account) => expireUserCache(account.userId) },
+    },
+  },
 });
 
+// Cached because the desktop poll asks on every request; linking or unlinking
+// either provider expires it (databaseHooks above, unlinkSocialProvider below).
 export async function getLinkedSocialProviders(userId: string) {
+  const cached = await readCached<string[]>(userId, "providers");
+  if (cached) return cached;
   const result = await pool.query<{ providerId: string }>(
     'SELECT "providerId" FROM "account" WHERE "userId" = $1 AND "providerId" IN ($2, $3)',
     [userId, "google", "discord"],
   );
-  return result.rows.map((row) => row.providerId);
+  const providers = result.rows.map((row) => row.providerId);
+  await writeCached(userId, "providers", providers);
+  return providers;
 }
 
 export type SocialProviderId = "google" | "discord";
@@ -96,5 +115,8 @@ export async function unlinkSocialProvider(userId: string, provider: SocialProvi
     'DELETE FROM "account" WHERE "userId" = $1 AND "providerId" = $2 AND (SELECT COUNT(*) FROM "account" WHERE "userId" = $1) > 1',
     [userId, provider],
   );
-  return result.rowCount ? "unlinked" : "last-account";
+  if (!result.rowCount) return "last-account";
+  // A direct DELETE, so Better Auth's account hook never sees it.
+  await expireUserCache(userId);
+  return "unlinked";
 }
