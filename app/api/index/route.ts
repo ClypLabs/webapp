@@ -68,9 +68,14 @@ const html = `<!doctype html>
   .panel-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
   .panel-head .sum { color:var(--muted); font-size:13px; }
   #chart { width:100%; height:140px; display:block; }
-  #chart rect { fill:rgba(52,211,153,.55); }
-  #chart rect.today { fill:var(--accent); }
-  #chart rect:hover { fill:#6ee7b7; }
+  /* Every day sits on a full-height track; bars are muted so the busiest day,
+     the one lit bar, stands out. Today is outlined rather than filled. */
+  #chart .track { fill:rgba(255,255,255,.035); }
+  #chart .bar { fill:rgba(255,255,255,.2); }
+  #chart .peak .bar { fill:var(--accent); }
+  #chart .today .track { stroke:rgba(52,211,153,.6); stroke-width:1; }
+  #chart g:hover .bar { fill:rgba(255,255,255,.35); }
+  #chart g.peak:hover .bar { fill:#6ee7b7; }
   .axis { display:flex; justify-content:space-between; color:var(--faint); font-size:12px; margin-top:8px; }
   code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size:13px; }
   .json { color:var(--muted); font-size:14px; margin:14px 0 0; }
@@ -185,14 +190,20 @@ const html = `<!doctype html>
         if (!d || !d.history || !d.history.length) return;
         var days = d.history, n = days.length, max = 1, sum = 0;
         days.forEach(function (day) { max = Math.max(max, day.total); sum += day.total; });
-        var slot = 300 / n, width = slot * 0.7, svg = "";
+        var slot = 300 / n, width = slot * 0.8, svg = "";
         days.forEach(function (day, i) {
           // A sliver even for zero, so the empty days read as days, not gaps.
-          var h = Math.max(1.5, (day.total / max) * 96);
-          var label = day.date + ": " + day.total + " " + plural(day.total, "clip", "clips");
-          svg += '<rect class="' + (i === n - 1 ? "today" : "") + '" x="' + (i * slot + (slot - width) / 2).toFixed(2) +
-            '" y="' + (100 - h).toFixed(2) + '" width="' + width.toFixed(2) + '" height="' + h.toFixed(2) +
-            '" rx="1"><title>' + label + '</title></rect>';
+          var h = Math.max(1.5, (day.total / max) * 100);
+          var x = (i * slot + (slot - width) / 2).toFixed(2), w = width.toFixed(2);
+          // Ties all light up; an empty month lights nothing.
+          var peak = day.total > 0 && day.total === max;
+          var label = day.date + ": " + day.total + " " + plural(day.total, "clip", "clips") + (peak ? " (most in 30 days)" : "");
+          var cls = (peak ? "peak " : "") + (i === n - 1 ? "today" : "");
+          // The viewBox is stretched non-uniformly, so the outline opts out of
+          // scaling or it would be thick on the sides and hairline on top.
+          svg += '<g class="' + cls + '"><title>' + label + '</title>' +
+            '<rect class="track" x="' + x + '" y="0" width="' + w + '" height="100" rx="1" vector-effect="non-scaling-stroke"></rect>' +
+            '<rect class="bar" x="' + x + '" y="' + (100 - h).toFixed(2) + '" width="' + w + '" height="' + h.toFixed(2) + '" rx="1"></rect></g>';
         });
         $("chart").innerHTML = svg;
         var fmt = function (iso) { return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); };
