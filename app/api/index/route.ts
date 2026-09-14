@@ -149,14 +149,9 @@ const html = `<!doctype html>
         .catch(function () { return null; });
     }
     function plural(n, one, many) { return n === 1 ? one : many; }
-    // Seconds as the largest unit that still reads naturally: 45 sec, 12 min,
-    // 3.4 hours, then whole hours with separators once it is in the hundreds.
+    // Always show total minutes, including totals above an hour.
     function duration(s) {
-      if (s < 60) return [String(Math.round(s)), "sec"];
-      if (s < 3600) return [String(Math.round(s / 60)), "min"];
-      var h = s / 3600;
-      if (h < 100) return [(Math.round(h * 10) / 10).toLocaleString("en-US"), h < 1.05 ? "hour" : "hours"];
-      return [Math.round(h).toLocaleString("en-US"), "hours"];
+      return [Math.round(s / 60).toLocaleString("en-US"), "min"];
     }
 
     // Never step backwards: a stale cache edge can answer with less.

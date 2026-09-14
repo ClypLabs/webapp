@@ -22,13 +22,9 @@ const assets = Promise.all([
   readFile(join(process.cwd(), "public/logo.svg"), "utf8"),
 ]);
 
-// Same units as the page: 45 sec, 12 min, 3.4 hours, then whole hours.
+// Same units as the page: always total minutes.
 function duration(seconds: number): [string, string] {
-  if (seconds < 60) return [String(Math.round(seconds)), "sec"];
-  if (seconds < 3600) return [String(Math.round(seconds / 60)), "min"];
-  const hours = seconds / 3600;
-  if (hours < 100) return [(Math.round(hours * 10) / 10).toLocaleString("en-US"), hours < 1.05 ? "hour" : "hours"];
-  return [Math.round(hours).toLocaleString("en-US"), "hours"];
+  return [Math.round(seconds / 60).toLocaleString("en-US"), "min"];
 }
 
 function Stat({ value, label }: { value: string; label: string }) {

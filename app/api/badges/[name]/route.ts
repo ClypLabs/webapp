@@ -12,14 +12,13 @@ export const dynamic = "force-dynamic";
 const compact = (value: number) =>
   new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
-function hours(seconds: number): string {
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-  return `${compact(Math.round((seconds / 3600) * 10) / 10)} hours`;
+function minutes(seconds: number): string {
+  return `${Math.round(seconds / 60).toLocaleString("en-US")} min`;
 }
 
 const badges: Record<string, () => Promise<{ label: string; message: string }>> = {
   clips: async () => ({ label: "clips saved", message: compact((await getClipStats()).total) }),
-  gameplay: async () => ({ label: "gameplay saved", message: hours((await getClipStats()).seconds.total) }),
+  gameplay: async () => ({ label: "gameplay saved", message: minutes((await getClipStats()).seconds.total) }),
   downloads: async () => ({ label: "downloads", message: compact((await getDownloadStats()).total) }),
 };
 
