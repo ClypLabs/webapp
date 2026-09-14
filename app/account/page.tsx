@@ -42,9 +42,14 @@ type OverviewUser = {
   email: string;
 };
 
+type SpotifyStatus = {
+  connected: boolean;
+};
+
 type Overview = {
   user: OverviewUser | null;
   xbox: XboxStatus;
+  spotify: SpotifyStatus;
   accounts: Account[];
 };
 
@@ -94,6 +99,14 @@ function XboxIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0"><path fill="#4DC44D" d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417zm11.16-14.406c2.5 2.961 7.484 10.313 6.076 12.912C23.002 17.48 24 14.861 24 12.004c0-3.34-1.365-6.362-3.57-8.536 0 0-.027-.022-.082-.042-.063-.022-.152-.045-.281-.045-.592 0-1.985.434-4.805 3.246zM3.654 3.426c-.057.02-.082.041-.086.042C1.365 5.642 0 8.664 0 12.004c0 2.854.998 5.473 2.661 7.533-1.401-2.605 3.579-9.951 6.08-12.91-2.82-2.813-4.216-3.245-4.806-3.245-.131 0-.223.021-.281.046v-.002zM12 3.551S9.055 1.828 6.755 1.746c-.903-.033-1.454.295-1.521.339C7.379.646 9.659 0 11.984 0H12c2.334 0 4.605.646 6.766 2.085-.068-.046-.615-.372-1.52-.339C14.946 1.828 12 3.545 12 3.545v.006z" /></svg>;
 }
 
+// Same mark the desktop app draws (IntegrationsSection.axaml SpotifyMark), at
+// Spotify's own brand green. Spotify itself has no sign-in role here - its
+// whole connection lives in the desktop app - so this row is informational
+// only: no Connect/Disconnect action, just what the desktop app reported.
+function SpotifyIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0"><path fill="#1ED760" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" /></svg>;
+}
+
 export default function AccountPage() {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -103,6 +116,7 @@ export default function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [xbox, setXbox] = useState<XboxStatus | null>(null);
   const [xboxActivity, setXboxActivity] = useState<XboxActivity | null>(null);
+  const [spotify, setSpotify] = useState<SpotifyStatus | null>(null);
   const [xboxBusy, setXboxBusy] = useState(false);
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountsBusy, setAccountsBusy] = useState(false);
@@ -356,6 +370,7 @@ export default function AccountPage() {
       overviewFor.current = data.user?.id ?? expectUser;
       setOverviewUser(data.user);
       setXbox(data.xbox);
+      setSpotify(data.spotify);
       setAccounts(data.accounts);
     } catch {
       // The session hook still renders the page; only the fast path is lost.
@@ -615,6 +630,7 @@ export default function AccountPage() {
       setOverviewUser(null);
       setAccounts([]);
       setXbox({ connected: false });
+      setSpotify({ connected: false });
       // Better Auth has cleared the server cookie. A full ordinary-account
       // navigation also drops the client session cache and any desktop-link
       // parameters, so deletion never resumes a desktop handoff.
@@ -701,7 +717,8 @@ export default function AccountPage() {
                 {linkedSocials.map((provider) => <div key={provider} className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>)}
                 {xboxConnected && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 text-sm text-zinc-300 underline-offset-4 hover:text-red-200 hover:underline">Disconnect</button>}</div>}
                 {googleLinked && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span><span className="block font-semibold">Google</span><span className="text-sm text-zinc-400">Sign-in only, while Google is retired</span></span><span className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-zinc-300">Connected</span></div></div>}
-                {!linkedSocials.length && !googleLinked && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
+                {spotify && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SpotifyIcon /><span><span className="block font-semibold">Spotify</span><span className="text-sm text-zinc-400">Connect or disconnect this from the ClypDat app</span></span></span><span className={`rounded-full px-2 py-1 text-xs font-medium ${spotify.connected ? "bg-emerald-300/15 text-emerald-200" : "bg-white/10 text-zinc-300"}`}>{spotify.connected ? "Connected" : "Not connected"}</span></div></div>}
+                {!linkedSocials.length && !googleLinked && !xboxConnected && !spotify?.connected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
               </div>
             </div>
           </div>
@@ -712,6 +729,7 @@ export default function AccountPage() {
               setOverviewUser(null);
               setAccounts([]);
               setXbox({ connected: false });
+              setSpotify({ connected: false });
               router.push("/account");
             })}
             className="mt-8 w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06]"

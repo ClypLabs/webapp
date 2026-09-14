@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { createDesktopToken, desktopTokenLifetimeSeconds } from "@/app/lib/desktop-token";
+import { storePendingConnect } from "@/app/lib/desktop-connect-state";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(account);
   }
 
+  const token = createDesktopToken(session.user.id);
+  // Stashed the moment a session is found, before the redirect below - so the
+  // token is claimable (see app/api/desktop/connect/claim/route.ts) even if
+  // this redirect never reaches the desktop app's local listener, whose own
+  // window can run out first on a slow or interrupted round trip.
+  await storePendingConnect(state, token, desktopTokenLifetimeSeconds);
+
   const callback = new URL(redirectUri);
   callback.searchParams.set("state", state);
-  callback.searchParams.set("token", createDesktopToken(session.user.id));
+  callback.searchParams.set("token", token);
   callback.searchParams.set("expires_in", String(desktopTokenLifetimeSeconds));
   return NextResponse.redirect(callback);
 }
