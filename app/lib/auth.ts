@@ -27,6 +27,11 @@ const socialProviders = {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
           disableSignUp: true,
+          // Better Auth 1.7's ID-token sign-in (POST /sign-in/social with an
+          // idToken) checks provider.disableSignUp, which Google's provider
+          // object never sets, so it would still make new accounts. Nothing
+          // here signs in that way; the redirect flow honours disableSignUp.
+          disableIdTokenSignIn: true,
         },
       }
     : {}),
