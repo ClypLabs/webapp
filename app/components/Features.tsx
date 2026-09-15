@@ -32,7 +32,7 @@ const features: Feature[] = [
     id: "detection",
     title: "Game detection",
     description:
-      "ClypDat matches the window in front against its game catalog and the install manifests Steam, Epic, Battle.net and Riot keep for every game you have installed. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
+      "ClypDat matches the window in front against its game catalogue and the install manifests Steam, Epic, Battle.net and Riot keep for every game you have installed. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
   },
 ];
 
@@ -48,7 +48,7 @@ const alsoDoes = [
   {
     title: "Import from Medal and SteelSeries",
     description:
-      "Pulls in clips from Medal and SteelSeries Moments using their local catalogs, or their clip folders if a catalog can't be read. Copy or move them; titles and games come across.",
+      "Pulls in clips from Medal and SteelSeries Moments using their local catalogues, or their clip folders if a catalogue can't be read. Copy or move them; titles and games come across.",
   },
 ];
 
@@ -214,7 +214,7 @@ function FeatureVisual({ id }: { id: string }) {
           {/* The detector's own ladder, in the order it tries them - see
               ForegroundGameDetector.ResolveWindowMatch in the app. */}
           <div className="flex flex-wrap gap-2 pt-1">
-            {["Your games", "Catalog", "Steam", "Epic", "Battle.net", "Riot"].map(
+            {["Your games", "Catalogue", "Steam", "Epic", "Battle.net", "Riot"].map(
               (source) => (
                 <span key={source} className={chip}>
                   {source}
