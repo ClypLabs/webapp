@@ -10,7 +10,9 @@ type Mode = "sign-in" | "sign-up";
 // The page stops asking the server for anything after this long without a
 // click, key press, scroll or touch, and shows a "Paused" card until someone
 // clicks Continue. The session is left alone: pausing never signs anyone out.
-const IDLE_AFTER_MS = 10 * 60 * 1000;
+// Five minutes also matches Neon's own idle time, so an abandoned tab stops
+// keeping the database awake about as soon as it could suspend anyway.
+const IDLE_AFTER_MS = 5 * 60 * 1000;
 // And after this long regardless of activity. Nothing on this page needs
 // watching for half an hour, and it bounds what a mouse jiggler or an
 // auto-clicker left running can cost: one Continue per half hour, by hand.
@@ -670,7 +672,7 @@ export default function AccountPage() {
             <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0f1318] p-7 text-center shadow-2xl shadow-black/40">
               <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Paused</p>
               <h2 id="idle-title" className="mt-3 text-xl font-semibold">Still there?</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">This page stops checking for updates after 10 minutes without activity, or after 30 minutes open. You are still signed in.</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">This page stops checking for updates after 5 minutes without activity, or after 30 minutes open. You are still signed in.</p>
               <button type="button" autoFocus onClick={resumeFromIdle} className="mt-6 w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
                 Continue
               </button>
