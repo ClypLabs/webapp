@@ -9,7 +9,8 @@
     "lint": "eslint",
     "auth:migrate": "npx auth@latest migrate --config app/lib/auth.ts",
     "mirror:push": "node --env-file-if-exists=.env.local scripts/mirror-sync.mjs",
-    "test:security": "node --test tests/security.test.mjs"
+    "test:security": "node --test tests/security.test.mjs",
+    "test:branding": "node --test tests/branding.test.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

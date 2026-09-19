@@ -112,9 +112,8 @@ export default function Header() {
       >
         <div className="flex h-14 items-center justify-between gap-4 pl-4 pr-2 sm:pl-5">
           <Link href="/" className="group flex items-center gap-2.5" aria-label="ClypDat home">
-            {/* The vector mark, not /icon.png through the image optimizer: that
-                URL predates the logo change, and a cached resize of it kept
-                serving the old mark after the file itself was replaced. */}
+            {/* Serve the approved mark directly, without a cached optimizer
+                resize from an earlier logo revision. */}
             <Image
               src="/logo.svg"
               alt=""

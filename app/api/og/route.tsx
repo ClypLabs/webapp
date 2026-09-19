@@ -19,7 +19,7 @@ const HEIGHT = 630;
 const assets = Promise.all([
   readFile(join(process.cwd(), "app/api/og/geist-400.ttf")),
   readFile(join(process.cwd(), "app/api/og/geist-700.ttf")),
-  readFile(join(process.cwd(), "public/logo.svg"), "utf8"),
+  readFile(join(process.cwd(), "public/logo.png")),
 ]);
 
 // Same units as the page: always total minutes.
@@ -81,7 +81,7 @@ export async function GET() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- rendered by Satori, not the browser */}
-            <img src={`data:image/svg+xml,${encodeURIComponent(logo)}`} width={64} height={36} alt="" />
+            <img src={`data:image/png;base64,${logo.toString("base64")}`} width={64} height={38} alt="" />
             <div style={{ display: "flex", fontSize: 40, fontWeight: 700 }}>
               ClypDat<span style={{ color: "#34d399", marginLeft: 12 }}>API</span>
             </div>
