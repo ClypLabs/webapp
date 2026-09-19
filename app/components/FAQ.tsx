@@ -9,7 +9,7 @@ type Faq = { q: string; a: string[] };
 // on the page and are stripped for the JSON-LD.
 //
 // Every claim here is checked against the desktop app, not the marketing copy:
-// the defaults (Insert, F8, 60 seconds) are AppSettings.cs, the length
+// the defaults (Insert, F10, 60 seconds) are AppSettings.cs, the length
 // presets are MainWindowViewModel.DurationPresets, the import sources are
 // Settings > Import Clips. Change them together.
 export const faqs: Faq[] = [
@@ -54,7 +54,7 @@ export const faqs: Faq[] = [
   {
     q: "Can I record a whole session, not just clips?",
     a: [
-      "Turn on Full Session Recording, then press `F8` to start or stop it. ClypDat writes video and separate audio tracks as you play while the rolling buffer keeps running.",
+      "Turn on Full Session Recording, then press `F10` to start or stop it. ClypDat writes video and separate audio tracks as you play while the rolling buffer keeps running.",
       "A storage limit deletes the oldest sessions automatically once you pass it.",
     ],
   },
