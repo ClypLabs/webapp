@@ -1,17 +1,21 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { Pool } from "pg";
 import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
+import { authSecret } from "@/app/lib/secret";
+import { databaseConnectionString } from "@/app/lib/database-config";
 
 const databaseUrl = process.env.DATABASE_URL;
-const authSecret = process.env.BETTER_AUTH_SECRET;
 
 // The fallback keeps `next build` useful before Vercel variables are pulled
 export const pool = new Pool({
-  connectionString: databaseUrl ?? "postgresql://localhost/clypdat",
+  connectionString: databaseConnectionString(databaseUrl),
   max: 1,
   idleTimeoutMillis: 10_000,
   connectionTimeoutMillis: 5_000,
-  ssl: databaseUrl ? { rejectUnauthorized: false } : undefined,
+  // The connection string also enforces verify-full; pg lets its SSL options
+  // override this setting.
+  ssl: databaseUrl ? true : undefined,
 });
 
 // Discord is the social sign-in. Google was dropped in September 2026, but an
@@ -40,11 +44,8 @@ const socialProviders = {
         discord: {
           clientId: process.env.DISCORD_CLIENT_ID,
           clientSecret: process.env.DISCORD_CLIENT_SECRET,
-          // The desktop app shows the Discord name and picture, so each
-          // Discord sign-in refreshes them: a changed avatar would otherwise
-          // leave a dead CDN link behind. It also replaces a display name set
-          // on /account, which says so.
-          overrideUserInfoOnSignIn: true,
+          // refreshDiscordProfile updates name and picture without replacing
+          // the account's sign-in email with Discord's email.
           // Better Auth defaults Discord to prompt=none, which approves an app
           // the account authorised before without waiting, so the consent
           // screen flashes past with its button already loading.
@@ -58,9 +59,11 @@ export const auth = betterAuth({
   database: pool,
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   basePath: "/api/auth",
-  secret: authSecret ?? "development-only-change-me-before-deploying",
+  // `next build` evaluates this module without the secret, which only matters
+  // once requests arrive; a running production server insists on it (secret.ts).
+  secret: process.env.NEXT_PHASE === "phase-production-build" ? process.env.BETTER_AUTH_SECRET ?? "build-time-placeholder" : authSecret(),
   trustedOrigins: [
-    "http://localhost:3000",
+    ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000"]),
     "https://clypdat.xyz",
     "https://www.clypdat.xyz",
     "https://app.clypdat.xyz",
@@ -70,6 +73,10 @@ export const auth = betterAuth({
     // Turn this on when a transactional email provider is configured. Until
     // then, accounts can be tested without pretending verification was sent.
     requireEmailVerification: false,
+    onPasswordReset: async ({ user }) => {
+      const { revokeAllDesktopTokens } = await import("@/app/lib/desktop-token");
+      await revokeAllDesktopTokens(user.id);
+    },
   },
   session: {
     // Destructive account changes need a recent sign-in unless the current
@@ -103,17 +110,40 @@ export const auth = betterAuth({
     },
   },
   socialProviders,
+  hooks: {
+    after: createAuthMiddleware(async (context) => {
+      if (context.path === "/revoke-sessions" && context.context.session
+          && !(context.context.returned instanceof Error)) {
+        const { revokeAllDesktopTokens } = await import("@/app/lib/desktop-token");
+        await revokeAllDesktopTokens(context.context.session.user.id);
+      }
+    }),
+  },
   // Every account change the website makes goes through Better Auth, so these
   // are where the desktop poll's cached account data is dropped: a deleted
   // user, or a provider linked or unlinked from /account. See account-cache.ts.
   databaseHooks: {
     user: {
       delete: { after: async (user) => expireUserCache(user.id) },
-      // Name and picture changes, so the app's account card follows them.
-      update: { after: async (user) => expireUserCache(user.id) },
+      update: {
+        // Name and picture changes, so the app's account card follows them.
+        after: async (user) => expireUserCache(user.id),
+      },
     },
     account: {
-      create: { after: async (account) => expireUserCache(account.userId) },
+      create: { after: async (account) => {
+        await expireUserCache(account.userId);
+        if (account.providerId === "credential") {
+          const { revokeAllDesktopTokens } = await import("@/app/lib/desktop-token");
+          await revokeAllDesktopTokens(account.userId);
+        }
+      } },
+      update: { after: async (account) => {
+        if (account.providerId === "credential") {
+          const { revokeAllDesktopTokens } = await import("@/app/lib/desktop-token");
+          await revokeAllDesktopTokens(account.userId);
+        }
+      } },
       delete: { after: async (account) => expireUserCache(account.userId) },
     },
   },

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { pool } from "@/app/lib/auth";
 import { expireUserCache } from "@/app/lib/account-cache";
+import { purposeKey } from "@/app/lib/secret";
 import { ensureXboxSchema, moveXboxAccount } from "@/app/lib/xbox";
 
 /**
@@ -22,14 +23,10 @@ import { ensureXboxSchema, moveXboxAccount } from "@/app/lib/xbox";
 export const MERGE_COOKIE = "clypdat_account_merge";
 export const MERGE_TICKET_SECONDS = 10 * 60;
 
-function secret() {
-  return process.env.BETTER_AUTH_SECRET ?? "development-only-change-me-before-deploying";
-}
-
-// The purpose is part of what is signed, so a desktop token (signed with the
-// same secret, in the same shape) can never pass as a merge ticket.
+// Its own key (secret.ts), so a desktop token - the same shape - can never pass
+// as a merge ticket.
 function sign(payload: string) {
-  return createHmac("sha256", secret()).update(`account-merge:${payload}`).digest("base64url");
+  return createHmac("sha256", purposeKey("account-merge")).update(`account-merge:${payload}`).digest("base64url");
 }
 
 export function createMergeTicket(userId: string) {

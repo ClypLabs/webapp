@@ -52,10 +52,14 @@ export const MIRROR_RELEASES_KEY = "api/releases/index.json";
 const PROBE_TTL_MS = 60_000;
 const PROBE_TIMEOUT_MS = 4_000;
 
-let probe: { reachable: boolean; at: number } | null = null;
+// Per URL. One shared answer let a request for an asset a release legitimately
+// lacks (the MSI, say) mark GitHub "down" for every other file for a minute -
+// and let a healthy Setup.exe probe send that missing file to GitHub's 404.
+const probes = new Map<string, { reachable: boolean; at: number }>();
 
 export async function isGitHubReachable(url: string): Promise<boolean> {
   const now = Date.now();
+  const probe = probes.get(url);
   if (probe && now - probe.at < PROBE_TTL_MS) return probe.reachable;
 
   let reachable = false;
@@ -76,6 +80,6 @@ export async function isGitHubReachable(url: string): Promise<boolean> {
     reachable = false;
   }
 
-  probe = { reachable, at: now };
+  probes.set(url, { reachable, at: now });
   return reachable;
 }

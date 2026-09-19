@@ -8,6 +8,7 @@ import {
   type ClipStatAdd,
   type ClipStatKind,
 } from "@/app/lib/clip-stats";
+import { clientAddress, takeDailyAllowance } from "@/app/lib/ip-allowance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +20,15 @@ export const dynamic = "force-dynamic";
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 120;
 const recent = new Map<string, { count: number; resetAt: number }>();
+const MAX_SAVES_PER_ADDRESS_PER_DAY = 2_000;
 
 function allow(ip: string): boolean {
   const now = Date.now();
   if (recent.size > 5000) {
     for (const [key, entry] of recent) if (entry.resetAt <= now) recent.delete(key);
+    // Still full of live entries (addresses rotated faster than the window):
+    // start over rather than walk an ever-growing map on every request.
+    if (recent.size > 5000) recent.clear();
   }
   const entry = recent.get(ip);
   if (!entry || entry.resetAt <= now) {
@@ -40,7 +45,16 @@ function allow(ip: string): boolean {
 // MAX_SECONDS_PER_SAVE for that kind. Seconds are optional, since app builds
 // from before length tracking send counts alone. Unknown keys are ignored.
 export async function POST(request: Request) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Only the desktop app reports saves. A web page could otherwise make every
+  // visitor's browser add to the totals: a text/plain POST is sent cross-site
+  // without asking first. Browsers always attach Origin to such a POST; the app
+  // never does, and it sends application/json. 415 is not a 400, so an app
+  // whose request is refused keeps its count and retries.
+  if (request.headers.has("origin")) return NextResponse.json({ error: "Browser requests are not accepted" }, { status: 403 });
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
+    return NextResponse.json({ error: "Expected application/json" }, { status: 415 });
+  }
+  const ip = clientAddress(request);
   if (!allow(ip)) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   let body: unknown;
@@ -79,8 +93,12 @@ export async function POST(request: Request) {
     sum += count as number;
   }
   if (sum === 0) return NextResponse.json({ error: "Nothing to count" }, { status: 400 });
-
+  // Far above what one PC saves in a day, so a real backlog always gets
+  // through, but it caps how far one address can move the totals.
   try {
+    if (!(await takeDailyAllowance("clips", ip, sum, MAX_SAVES_PER_ADDRESS_PER_DAY))) {
+      return NextResponse.json({ error: "Too many saves reported today" }, { status: 429 });
+    }
     await addClipStats(adds);
     return new NextResponse(null, { status: 204 });
   } catch {

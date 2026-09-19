@@ -8,14 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "auth:migrate": "npx auth@latest migrate --config app/lib/auth.ts",
-    "mirror:push": "node --env-file-if-exists=.env.local scripts/mirror-sync.mjs"
+    "mirror:push": "node --env-file-if-exists=.env.local scripts/mirror-sync.mjs",
+    "test:security": "node --test tests/security.test.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.9.7",
     "@vercel/speed-insights": "^2.0.0",
     "better-auth": "^1.7.2",
-    "next": "16.3.0",
+    "next": "16.3.5",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -29,7 +30,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   },

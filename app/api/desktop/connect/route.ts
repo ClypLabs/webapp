@@ -1,48 +1,51 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
+import { connectSearchParams, isSameOriginPost, issueConnectCode, readConnectRequest } from "@/app/lib/desktop-connect";
 import { createDesktopToken, desktopTokenLifetimeSeconds } from "@/app/lib/desktop-token";
-import { storePendingConnect } from "@/app/lib/desktop-connect-state";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function isLocalCallback(value: string | null) {
-  if (!value) return false;
-  try {
-    const uri = new URL(value);
-    return (uri.protocol === "http:" && (uri.hostname === "127.0.0.1" || uri.hostname === "localhost") && uri.pathname === "/callback/");
-  } catch {
-    return false;
-  }
-}
-
+// Where the desktop app's Link button lands. Never issues anything itself: it
+// only passes the request on to the confirmation page (see desktop-connect.ts
+// for why).
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const redirectUri = url.searchParams.get("redirect_uri");
-  const state = url.searchParams.get("state");
-  if (!isLocalCallback(redirectUri) || !state || state.length > 200) {
-    return NextResponse.json({ error: "Invalid desktop callback" }, { status: 400 });
+  const connect = readConnectRequest(url.searchParams);
+  if (!connect) return NextResponse.json({ error: "Invalid desktop callback" }, { status: 400 });
+  const confirm = new URL("/account/connect", url.origin);
+  confirm.search = connectSearchParams(connect).toString();
+  return NextResponse.redirect(confirm, 303);
+}
+
+// The confirmation page's Link / Cancel buttons.
+export async function POST(request: Request) {
+  if (!isSameOriginPost(request)) return NextResponse.json({ error: "Cross-site request refused" }, { status: 403 });
+  const form = await request.formData().catch(() => null);
+  const connect = form ? readConnectRequest(form) : null;
+  if (!form || !connect) return NextResponse.json({ error: "Invalid desktop callback" }, { status: 400 });
+
+  const callback = new URL(connect.redirectUri);
+  callback.searchParams.set("state", connect.state);
+
+  if (form.get("decision") !== "link") {
+    callback.searchParams.set("error", "access_denied");
+    return NextResponse.redirect(callback, 303);
   }
-  if (!redirectUri) return NextResponse.json({ error: "Invalid desktop callback" }, { status: 400 });
 
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user) {
-    const account = new URL("/account", url.origin);
-    account.searchParams.set("desktop_connect", "1");
-    account.searchParams.set("redirect_uri", redirectUri);
-    account.searchParams.set("state", state);
-    return NextResponse.redirect(account);
+    const account = new URL("/account", new URL(request.url).origin);
+    account.search = connectSearchParams(connect).toString();
+    return NextResponse.redirect(account, 303);
   }
 
-  const token = createDesktopToken(session.user.id);
-  // Stashed the moment a session is found, before the redirect below - so the
-  // token is claimable (see app/api/desktop/connect/claim/route.ts) even if
-  // this redirect never reaches the desktop app's local listener, whose own
-  // window can run out first on a slow or interrupted round trip.
-  await storePendingConnect(state, token, desktopTokenLifetimeSeconds);
-
-  const callback = new URL(redirectUri);
-  callback.searchParams.set("state", state);
-  callback.searchParams.set("token", token);
-  callback.searchParams.set("expires_in", String(desktopTokenLifetimeSeconds));
-  return NextResponse.redirect(callback);
+  if (connect.codeChallenge) {
+    callback.searchParams.set("code", await issueConnectCode(session.user.id, connect.codeChallenge));
+  } else {
+    // Apps from before the code exchange read the token off the redirect.
+    callback.searchParams.set("token", await createDesktopToken(session.user.id));
+    callback.searchParams.set("expires_in", String(desktopTokenLifetimeSeconds));
+  }
+  return NextResponse.redirect(callback, 303);
 }

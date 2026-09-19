@@ -6,6 +6,23 @@ import type { NextConfig } from "next";
 const apiHost = [{ type: "host" as const, value: "api.clypdat.xyz" }];
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // No page here is meant to be framed; /account and the desktop-link
+          // confirmation especially must not be clickable through someone
+          // else's page.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return {
       // beforeFiles rewrites run in sequence, each seeing the previous one's
@@ -21,6 +38,14 @@ const nextConfig: NextConfig = {
         { source: "/v1/releases/latest", has: apiHost, destination: "/api/releases/latest" },
         { source: "/v1/releases", has: apiHost, destination: "/api/releases" },
         { source: "/og.png", has: apiHost, destination: "/api/og" },
+        // The catch-all below leaves /api/ alone so the rules above keep
+        // working, which also left sign-in, account and desktop routes answering
+        // on this host. They belong to www only.
+        {
+          source: "/api/:group(auth|account|desktop|xbox)/:rest*",
+          has: apiHost,
+          destination: "/api/unknown",
+        },
         {
           source: "/:path((?!api/|favicon\\.ico$).*)",
           has: apiHost,

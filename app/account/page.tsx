@@ -18,6 +18,8 @@ const IDLE_AFTER_MS = 5 * 60 * 1000;
 // auto-clicker left running can cost: one Continue per half hour, by hand.
 const MAX_ACTIVE_MS = 30 * 60 * 1000;
 const XBOX_POLL_MS = 60 * 1000;
+// What the desktop app's Link request carries through signing in.
+const DESKTOP_CONNECT_PARAMS = ["redirect_uri", "state", "code_challenge", "code_challenge_method"] as const;
 
 type XboxStatus = {
   connected: boolean;
@@ -139,6 +141,8 @@ export default function AccountPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [desktopSignOutBusy, setDesktopSignOutBusy] = useState(false);
+  const [desktopSignedOut, setDesktopSignedOut] = useState(false);
   const [overviewUser, setOverviewUser] = useState<OverviewUser | null>(null);
   const [overviewPending, setOverviewPending] = useState(true);
   const overviewLoaded = useRef(false);
@@ -185,10 +189,10 @@ export default function AccountPage() {
     const current = new URL(window.location.href);
     if (current.searchParams.get("desktop_connect") === "1") {
       url.searchParams.set("desktop_connect", "1");
-      const redirectUri = current.searchParams.get("redirect_uri");
-      const state = current.searchParams.get("state");
-      if (redirectUri) url.searchParams.set("redirect_uri", redirectUri);
-      if (state) url.searchParams.set("state", state);
+      for (const name of DESKTOP_CONNECT_PARAMS) {
+        const value = current.searchParams.get(name);
+        if (value) url.searchParams.set(name, value);
+      }
     }
     const linkProvider = getSocialProvider(current.searchParams.get("link_provider"));
     if (preserveLinkProvider && linkProvider) url.searchParams.set("link_provider", linkProvider);
@@ -278,12 +282,13 @@ export default function AccountPage() {
     // A merge finishes first; it reloads the page, which then hands off.
     if (current.searchParams.has("merge")) return;
     if (current.searchParams.get("desktop_connect") !== "1") return;
-    const redirectUri = current.searchParams.get("redirect_uri");
-    const state = current.searchParams.get("state");
-    if (!redirectUri || !state) return;
+    if (!current.searchParams.get("redirect_uri") || !current.searchParams.get("state")) return;
+    // To the confirmation page, which asks before anything is linked.
     const handoff = new URL("/api/desktop/connect", window.location.origin);
-    handoff.searchParams.set("redirect_uri", redirectUri);
-    handoff.searchParams.set("state", state);
+    for (const name of DESKTOP_CONNECT_PARAMS) {
+      const value = current.searchParams.get(name);
+      if (value) handoff.searchParams.set(name, value);
+    }
     window.location.assign(handoff);
   }, [linking, session?.user]);
 
@@ -551,6 +556,27 @@ export default function AccountPage() {
     }
   }
 
+  // For a PC that is lost, sold or shared: every desktop sign-in this account
+  // has issued stops working on its next request.
+  async function signOutDesktopApps() {
+    setError(null);
+    setDesktopSignedOut(false);
+    setDesktopSignOutBusy(true);
+    try {
+      const response = await fetch("/api/account/desktop-signout", { method: "POST" });
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(result?.error ?? "Your PCs could not be signed out. Try again.");
+        return;
+      }
+      setDesktopSignedOut(true);
+    } catch {
+      setError("Your PCs could not be signed out. Try again.");
+    } finally {
+      setDesktopSignOutBusy(false);
+    }
+  }
+
   async function disconnectXbox() {
     setXboxBusy(true);
     try {
@@ -751,6 +777,12 @@ export default function AccountPage() {
           >
             Sign out
           </button>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm">
+            <button type="button" disabled={desktopSignOutBusy} onClick={signOutDesktopApps} className="text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline disabled:cursor-wait">
+              {desktopSignOutBusy ? "Signing out your PCs…" : "Sign out ClypDat on all PCs"}
+            </button>
+            {desktopSignedOut && <span className="text-zinc-500">Every PC linked to this account is signed out.</span>}
+          </div>
           <section className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Your data</p>
             <h2 className="mt-2 text-lg font-semibold">Access, correct, and take your data</h2>

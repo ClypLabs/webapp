@@ -24,7 +24,8 @@ const badges: Record<string, () => Promise<{ label: string; message: string }>> 
 
 export async function GET(_request: Request, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
-  const badge = badges[name];
+  // Own keys only: `badges[name]` alone also found "constructor" and friends.
+  const badge = Object.hasOwn(badges, name) ? badges[name] : undefined;
   if (!badge) return Response.json({ error: `Unknown badge. Use one of: ${Object.keys(badges).join(", ")}` }, { status: 404 });
   try {
     const { label, message } = await badge();

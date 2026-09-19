@@ -2,12 +2,13 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import type { PoolClient } from "pg";
 import { pool } from "@/app/lib/auth";
 import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
+import { authSecret, purposeKey } from "@/app/lib/secret";
 
 export const XBOX_OAUTH_COOKIE = "clypdat_xbox_oauth";
 const XBOX_SCOPE = "XboxLive.signin XboxLive.offline_access";
 const MICROSOFT_AUTHORIZE = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
 const MICROSOFT_TOKEN = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
-const TOKEN_VERSION = "v1";
+const TOKEN_VERSION = "v2";
 
 type OAuthState = { state: string; verifier: string; issuedAt: number };
 
@@ -50,20 +51,20 @@ function base64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64url");
 }
 
-function authSecret(): string {
-  return required("BETTER_AUTH_SECRET");
-}
-
 function redirectUri(): string {
   return process.env.XBOX_REDIRECT_URI ?? `${(process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/xbox/callback`;
 }
 
-function encryptionKey(): Buffer {
+// v1 sealed with SHA-256 of the secret, which is also the HMAC key everywhere
+// else. v2 uses its own derived key (secret.ts). v1 still opens, so stored
+// refresh tokens keep working; each is re-sealed as v2 the next time the Xbox
+// session is issued (getXboxActivity saves the account every time).
+function legacyEncryptionKey(): Buffer {
   return createHash("sha256").update(authSecret()).digest();
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", authSecret()).update(value).digest("base64url");
+  return createHmac("sha256", purposeKey("xbox-oauth")).update(value).digest("base64url");
 }
 
 export function createXboxAuthorization() {
@@ -95,10 +96,14 @@ export function readXboxAuthorization(value: string | undefined): OAuthState | n
   if (separator <= 0) return null;
   const payload = value.slice(0, separator);
   const signature = value.slice(separator + 1);
-  const expected = sign(payload);
-  if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  // Compared as decoded bytes: comparing string lengths and then UTF-8 buffers
+  // threw on a cookie with multi-byte characters.
+  const actual = Buffer.from(signature, "base64url");
+  const expected = Buffer.from(sign(payload), "base64url");
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
   try {
     const state = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as OAuthState;
+    if (typeof state.state !== "string" || typeof state.verifier !== "string" || typeof state.issuedAt !== "number") return null;
     if (!state.state || !state.verifier || Date.now() - state.issuedAt > 10 * 60 * 1000) return null;
     return state;
   } catch {
@@ -295,15 +300,16 @@ async function createSchema(): Promise<void> {
 
 function encrypt(value: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const cipher = createCipheriv("aes-256-gcm", purposeKey("xbox-seal"), iv);
   const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
   return [TOKEN_VERSION, iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
 
 function decrypt(value: string): string {
   const [version, ivEncoded, tagEncoded, ciphertextEncoded] = value.split(".");
-  if (version !== TOKEN_VERSION || !ivEncoded || !tagEncoded || !ciphertextEncoded) throw new Error("Invalid Xbox token");
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivEncoded, "base64url"));
+  if ((version !== TOKEN_VERSION && version !== "v1") || !ivEncoded || !tagEncoded || !ciphertextEncoded) throw new Error("Invalid Xbox token");
+  const key = version === "v1" ? legacyEncryptionKey() : purposeKey("xbox-seal");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivEncoded, "base64url"));
   decipher.setAuthTag(Buffer.from(tagEncoded, "base64url"));
   return Buffer.concat([decipher.update(Buffer.from(ciphertextEncoded, "base64url")), decipher.final()]).toString("utf8");
 }

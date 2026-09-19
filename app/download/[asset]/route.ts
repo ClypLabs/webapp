@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { isCountedDownload, looksLikeAPerson, recordDownload } from "@/app/lib/download-stats";
+import { clientAddress, takeDailyAllowance } from "@/app/lib/ip-allowance";
 import {
   GITHUB_RELEASE_BASE,
   MIRROR_BASE,
@@ -30,8 +31,17 @@ export async function GET(
   // Counted after the redirect is on its way (see download-stats.ts), and only
   // for a GET from something that looks like a browser: HEAD probes and link
   // unfurlers are not downloads. A failure to count never affects the download.
+  // Once per address per file per day, so a script or a hot-linked <img> cannot
+  // run the total up (every count is also a database write).
   if (request.method === "GET" && isCountedDownload(asset) && looksLikeAPerson(request.headers.get("user-agent"))) {
-    after(() => recordDownload(asset).catch((error) => console.error("Download count failed", error)));
+    const address = clientAddress(request);
+    after(async () => {
+      try {
+        if (await takeDailyAllowance(`download-${asset}`, address, 1, 1)) await recordDownload(asset);
+      } catch (error) {
+        console.error("Download count failed", error);
+      }
+    });
   }
 
   const githubUrl = `${GITHUB_RELEASE_BASE}/${asset}`;
