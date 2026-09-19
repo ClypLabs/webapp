@@ -54,8 +54,8 @@ export const faqs: Faq[] = [
   {
     q: "Can I record a whole session, not just clips?",
     a: [
-      "Turn on Full Session Recording, then press `F8` to start or stop it. The full session is written to a separate file while the rolling buffer keeps running, and audio is resynced every 60 seconds so a six-hour recording stays in sync.",
-      "A storage limit deletes the oldest sessions automatically once you pass it.",
+      "Turn on Full Session Recording, then press `F8` to start or stop it. ClypDat writes video and separate audio tracks as you play while the rolling buffer keeps running.",
+      "A storage limit deletes the oldest sessions automatically once you pass it. If ClypDat or Windows stops unexpectedly, the completed part of an MKV session can usually be recovered.",
     ],
   },
   {

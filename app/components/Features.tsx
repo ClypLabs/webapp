@@ -26,7 +26,7 @@ const features: Feature[] = [
     id: "session",
     title: "Full session recording",
     description:
-      "Record the whole session to its own file while the clip buffer keeps running. Audio is resynced every 60 seconds, so a four-hour session ends as in sync as it started.",
+      "Record the whole session with separate audio tracks while the clip buffer keeps running. ClypDat writes each track as you play, and an interrupted MKV session can usually be recovered.",
   },
   {
     id: "detection",
