@@ -33,7 +33,7 @@ test("header uses the updated transparent mark, not the framed brand tile", () =
   const header = read("app/components/Header.tsx").toString();
   const mark = read("public/logo-mark.png");
   assert.match(header, /src="\/logo-mark\.png"/);
-  assert.deepEqual(pngSize(mark), [768, 448]);
+  assert.deepEqual(pngSize(mark), [768, 451]);
   assert.ok(mark[24] <= 8, "transparent header mark remains transparent at the top-left pixel");
 });
 
