@@ -35,11 +35,48 @@ const html = `<!doctype html>
   :root { color-scheme: dark; --bg:#0a0d11; --card:rgba(255,255,255,.03); --line:rgba(255,255,255,.09);
     --text:#e9eef4; --muted:#8a94a3; --faint:#5b6472; --accent:#34d399; --bad:#f87171; }
   * { box-sizing: border-box; }
-  body { margin:0; background:
-      radial-gradient(900px 500px at 50% -120px, rgba(16,185,129,.16), transparent),
-      var(--bg);
+  body { margin:0; background:var(--bg);
     color:var(--text); font:15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     min-height:100vh; padding:0 20px; }
+
+  /* The same page-wide atmosphere the other hosts use, rebuilt in plain CSS so
+     this page stays self-contained. One flat radial gradient on the body banded
+     badly: a wash this faint has only a handful of green steps to spread over
+     the viewport, and the steps show as rings. Four offset washes at different
+     strengths plus the grain below break the steps up, and each wash drifts on
+     its own long duration so no two line up. Fixed, so the light stays put
+     while the page scrolls past it. */
+  .amb { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
+  /* Radial gradients, not blurred circles: a blur that size is re-rasterised on
+     every frame it moves, while a gradient is painted once and then costs only
+     a composite to translate. Translate and opacity only, for the same reason. */
+  .amb i { position:absolute; display:block; will-change:transform, opacity; }
+  .amb .b1 { left:-14%; top:-22%; width:1220px; height:1040px;
+    background:radial-gradient(closest-side, rgba(16,185,129,.13), transparent);
+    animation:amb-a 19s ease-in-out infinite; }
+  .amb .b2 { right:-20%; top:18%; width:1160px; height:980px;
+    background:radial-gradient(closest-side, rgba(45,212,191,.09), transparent);
+    animation:amb-b 23s ease-in-out infinite; }
+  .amb .b3 { left:14%; bottom:-18%; width:1200px; height:940px;
+    background:radial-gradient(closest-side, rgba(6,182,212,.08), transparent);
+    animation:amb-c 31s ease-in-out infinite; }
+  .amb .b4 { left:30%; top:48%; width:920px; height:820px;
+    background:radial-gradient(closest-side, rgba(52,211,153,.07), transparent);
+    animation:amb-d 41s ease-in-out infinite; }
+  /* Grain over the washes: fine noise hides whatever banding is left and stops
+     the flat areas reading as plastic. No mix-blend-mode - a full-viewport blend
+     layer forces the GPU to re-read what is under it. */
+  .amb .grain { position:absolute; inset:0; opacity:.025;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E"); }
+  @keyframes amb-a { 0%,100% { transform:translate3d(0,0,0); opacity:.7; } 50% { transform:translate3d(6%,4%,0); opacity:1; } }
+  @keyframes amb-b { 0%,100% { transform:translate3d(0,0,0); opacity:.6; } 50% { transform:translate3d(-8%,5%,0); opacity:.95; } }
+  @keyframes amb-c { 0%,100% { transform:translate3d(0,0,0); opacity:.5; } 50% { transform:translate3d(5%,-6%,0); opacity:.85; } }
+  @keyframes amb-d { 0%,100% { transform:translate3d(0,0,0); opacity:.45; } 50% { transform:translate3d(-4%,-5%,0); opacity:.8; } }
+  /* Phones get two washes, still. Four viewport-sized layers compositing for
+     the whole visit is not worth it on a battery. */
+  @media (max-width:767px) { .amb .b3, .amb .b4 { display:none; }
+    .amb .b1, .amb .b2 { animation:none; opacity:1; } }
+  @media (prefers-reduced-motion: reduce) { .amb i { animation:none; opacity:1; } }
   main { max-width:760px; margin:0 auto; padding:72px 0 64px; }
   a { color:var(--accent); text-decoration:none; }
   a:hover { text-decoration:underline; }
@@ -93,6 +130,10 @@ const html = `<!doctype html>
 </style>
 </head>
 <body>
+<div class="amb" aria-hidden="true">
+  <i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i>
+  <span class="grain"></span>
+</div>
 <main>
   <a class="brand" href="https://www.clypdat.xyz/"><img src="https://www.clypdat.xyz/logo.svg" alt="">ClypDat</a>
   <h1>ClypDat <span>API</span></h1>
