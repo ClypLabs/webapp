@@ -167,7 +167,10 @@ test("polling reads the sign-out state once, then answers from the cache", async
   const beforePolling = reads();
   for (let poll = 0; poll < 5; poll++) assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
   assert.equal(reads() - beforePolling, 1, "five polls cost one database read");
-  assert.ok(state.cacheTtl.get("desktop-auth") <= 5 * 60, "the cached copy is bounded to five minutes");
+  const ttl = state.cacheTtl.get("desktop-auth");
+  // Long enough that Neon can sleep between reads (its idle timer is five
+  // minutes), short enough to bound a cache fill that races a sign-out.
+  assert.ok(ttl > 5 * 60 && ttl <= 30 * 60, `the cached copy is bounded to thirty minutes, got ${ttl}s`);
 });
 
 test("a lost cache entry falls back to the database and still sees the sign-out", async () => {

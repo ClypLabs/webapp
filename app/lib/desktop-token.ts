@@ -115,7 +115,14 @@ async function readDesktopAuthState(userId: string): Promise<DesktopAuthState | 
 // committed and filled the cache just after it. That copy lasts at most this
 // long. Deleting an account expires the entry through the user delete hook in
 // auth.ts, and a missing account is never cached, so it is always re-checked.
-const AUTH_STATE_TTL_SECONDS = 5 * 60;
+//
+// Why 30 minutes: each read keeps Neon awake for its five idle minutes, and the
+// next read comes a poll after the TTL lapses, so the database is up for about
+// 5 / (TTL + 2) of the time. At five minutes that is still ~83% (the first
+// version of this cache, which barely helped); at 30 it is ~16%. The cost is
+// that a change made to clypdat_desktop_auth by hand, or by a future code path
+// that skips revokeDesktopToken / revokeAllDesktopTokens, waits out this long.
+const AUTH_STATE_TTL_SECONDS = 30 * 60;
 const AUTH_STATE_KEY = "desktop-auth";
 
 function isAuthState(value: unknown): value is DesktopAuthState {
