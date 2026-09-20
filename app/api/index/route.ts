@@ -39,39 +39,44 @@ const html = `<!doctype html>
     color:var(--text); font:15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     min-height:100vh; padding:0 20px; }
 
-  /* The same page-wide atmosphere the other hosts use, rebuilt in plain CSS so
-     this page stays self-contained. One flat radial gradient on the body banded
-     badly: a wash this faint has only a handful of green steps to spread over
-     the viewport, and the steps show as rings. Four offset washes at different
-     strengths plus the grain below break the steps up, and each wash drifts on
-     its own long duration so no two line up. Fixed, so the light stays put
-     while the page scrolls past it. */
+  /* The same page-wide atmosphere the other hosts use, rebuilt here so this
+     page stays self-contained. It is drawn by the shader below, with these CSS
+     washes as the fallback. A wash this faint has only ~20 shades of green to
+     spread over hundreds of pixels, so as a plain gradient it shows as rings,
+     and grain at a strength that stays invisible is far too weak to break them
+     up. The shader mixes in full precision and dithers the final colour, which
+     is what removes them. Fixed, so the light stays put while the page scrolls
+     past it. The layout is deliberately not the site's: the main wash sits top
+     right here, where the site puts it top left. */
   .amb { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
+  .amb canvas { position:absolute; inset:0; width:100%; height:100%; display:none; }
+  .amb[data-live] canvas { display:block; }
+  .amb[data-live] .css-washes { display:none; }
   /* Radial gradients, not blurred circles: a blur that size is re-rasterised on
      every frame it moves, while a gradient is painted once and then costs only
      a composite to translate. Translate and opacity only, for the same reason. */
   .amb i { position:absolute; display:block; will-change:transform, opacity; }
-  .amb .b1 { left:-14%; top:-22%; width:1220px; height:1040px;
+  .amb .b1 { right:-12%; top:-20%; width:1240px; height:1080px;
     background:radial-gradient(closest-side, rgba(16,185,129,.13), transparent);
     animation:amb-a 19s ease-in-out infinite; }
-  .amb .b2 { right:-20%; top:18%; width:1160px; height:980px;
-    background:radial-gradient(closest-side, rgba(45,212,191,.09), transparent);
+  .amb .b2 { left:-10%; top:42%; width:1120px; height:940px;
+    background:radial-gradient(closest-side, rgba(45,212,191,.10), transparent);
     animation:amb-b 23s ease-in-out infinite; }
-  .amb .b3 { left:14%; bottom:-18%; width:1200px; height:940px;
+  .amb .b3 { left:44%; bottom:-16%; width:1200px; height:920px;
     background:radial-gradient(closest-side, rgba(6,182,212,.08), transparent);
     animation:amb-c 31s ease-in-out infinite; }
-  .amb .b4 { left:30%; top:48%; width:920px; height:820px;
+  .amb .b4 { left:10%; top:6%; width:920px; height:840px;
     background:radial-gradient(closest-side, rgba(52,211,153,.07), transparent);
     animation:amb-d 41s ease-in-out infinite; }
-  /* Grain over the washes: fine noise hides whatever banding is left and stops
-     the flat areas reading as plastic. No mix-blend-mode - a full-viewport blend
-     layer forces the GPU to re-read what is under it. */
+  /* Grain over whichever layer is showing: it takes the plastic sheen off the
+     flat areas. No mix-blend-mode - a full-viewport blend layer forces the GPU
+     to re-read what is under it every frame. */
   .amb .grain { position:absolute; inset:0; opacity:.025;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E"); }
-  @keyframes amb-a { 0%,100% { transform:translate3d(0,0,0); opacity:.7; } 50% { transform:translate3d(6%,4%,0); opacity:1; } }
-  @keyframes amb-b { 0%,100% { transform:translate3d(0,0,0); opacity:.6; } 50% { transform:translate3d(-8%,5%,0); opacity:.95; } }
-  @keyframes amb-c { 0%,100% { transform:translate3d(0,0,0); opacity:.5; } 50% { transform:translate3d(5%,-6%,0); opacity:.85; } }
-  @keyframes amb-d { 0%,100% { transform:translate3d(0,0,0); opacity:.45; } 50% { transform:translate3d(-4%,-5%,0); opacity:.8; } }
+  @keyframes amb-a { 0%,100% { transform:translate3d(0,0,0); opacity:.7; } 50% { transform:translate3d(-6%,4%,0); opacity:1; } }
+  @keyframes amb-b { 0%,100% { transform:translate3d(0,0,0); opacity:.6; } 50% { transform:translate3d(7%,-5%,0); opacity:.95; } }
+  @keyframes amb-c { 0%,100% { transform:translate3d(0,0,0); opacity:.5; } 50% { transform:translate3d(-5%,-6%,0); opacity:.85; } }
+  @keyframes amb-d { 0%,100% { transform:translate3d(0,0,0); opacity:.45; } 50% { transform:translate3d(4%,6%,0); opacity:.8; } }
   /* Phones get two washes, still. Four viewport-sized layers compositing for
      the whole visit is not worth it on a battery. */
   @media (max-width:767px) { .amb .b3, .amb .b4 { display:none; }
@@ -130,10 +135,142 @@ const html = `<!doctype html>
 </style>
 </head>
 <body>
-<div class="amb" aria-hidden="true">
-  <i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i>
+<div class="amb" id="amb" aria-hidden="true">
+  <canvas id="amb-canvas"></canvas>
+  <div class="css-washes"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div>
   <span class="grain"></span>
 </div>
+<script>
+  // The drawn field. Same technique as the site's ambience layer: every wash is
+  // mixed in full precision and the final colour gets +-1 step of triangular
+  // noise before the display rounds it to 8 bits, so the rings a plain CSS
+  // gradient shows at this faintness never form. The washes drift on mismatched
+  // periods, which is why this redraws rather than painting once.
+  (function () {
+    var layer = document.getElementById("amb");
+    var canvas = document.getElementById("amb-canvas");
+    var gl = canvas.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power" });
+    if (!gl) return; // The CSS washes stay.
+
+    var VERT = "attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }";
+    var FRAG = [
+      "#ifdef GL_FRAGMENT_PRECISION_HIGH",
+      "precision highp float;",
+      "#else",
+      "precision mediump float;",
+      "#endif",
+      "uniform vec2 size;",    // viewport, CSS px
+      "uniform float scale;",  // device px per CSS px
+      "uniform float extras;", // 1 when the two extra washes are shown
+      "uniform float time;",   // seconds since load
+      "vec3 wash(vec3 base, vec2 point, vec2 center, vec2 radii, vec3 rgb, float peak) {",
+      "  float f = clamp(1.0 - length((point - center) / radii), 0.0, 1.0);",
+      "  return mix(base, rgb / 255.0, peak * f);",
+      "}",
+      // Sine-free hash (Hoskins), so it holds up at large pixel coordinates.
+      "float hash(vec2 p) {",
+      "  vec3 p3 = fract(vec3(p.xyx) * 0.1031);",
+      "  p3 += dot(p3, p3.yzx + 33.33);",
+      "  return fract((p3.x + p3.y) * p3.z);",
+      "}",
+      "void main() {",
+      "  vec2 point = vec2(gl_FragCoord.x, size.y * scale - gl_FragCoord.y) / scale;",
+      "  vec3 colour = vec3(10.0, 13.0, 17.0) / 255.0;",
+      "  float a = time * 0.331, b = time * 0.273, c = time * 0.203, d = time * 0.153;",
+      "  colour = wash(colour, point, vec2(1.12 * size.x - 560.0 + 70.0 * sin(a), -0.20 * size.y + 540.0 + 50.0 * cos(a * 0.8)),",
+      "    vec2(620.0, 540.0), vec3(16.0, 185.0, 129.0), 0.13);",
+      "  colour = wash(colour, point, vec2(-0.10 * size.x + 560.0 + 60.0 * cos(b), 0.42 * size.y + 470.0 + 55.0 * sin(b * 0.9)),",
+      "    vec2(560.0, 470.0), vec3(45.0, 212.0, 191.0), 0.10);",
+      "  if (extras > 0.5) {",
+      "    colour = wash(colour, point, vec2(0.44 * size.x + 600.0 + 55.0 * sin(c), 1.16 * size.y - 460.0 + 45.0 * cos(c * 1.1)),",
+      "      vec2(600.0, 460.0), vec3(6.0, 182.0, 212.0), 0.08);",
+      "    colour = wash(colour, point, vec2(0.10 * size.x + 460.0 + 45.0 * cos(d), 0.06 * size.y + 420.0 + 50.0 * sin(d * 1.2)),",
+      "      vec2(460.0, 420.0), vec3(52.0, 211.0, 153.0), 0.07);",
+      "  }",
+      // Triangular noise of +-1 step, which the output's rounding turns into
+      // dither rather than error. It has to go on the final colour: dithering
+      // each translucent layer on its own is undone when the browser stores it
+      // premultiplied.
+      "  float noise = hash(gl_FragCoord.xy) + hash(gl_FragCoord.xy + 91.7) - 1.0;",
+      "  gl_FragColor = vec4(colour + noise / 255.0, 1.0);",
+      "}"
+    ].join("\\n");
+
+    function compile(type, source) {
+      var shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
+    }
+    var vertex = compile(gl.VERTEX_SHADER, VERT);
+    var fragment = compile(gl.FRAGMENT_SHADER, FRAG);
+    var program = gl.createProgram();
+    if (!vertex || !fragment || !program) return;
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+    gl.useProgram(program);
+
+    // One triangle that covers the whole viewport.
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var position = gl.getAttribLocation(program, "p");
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+    var sizeU = gl.getUniformLocation(program, "size");
+    var scaleU = gl.getUniformLocation(program, "scale");
+    var extrasU = gl.getUniformLocation(program, "extras");
+    var timeU = gl.getUniformLocation(program, "time");
+    var wide = window.matchMedia("(min-width: 768px)");
+    var still = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var seconds = 0;
+
+    function draw() {
+      var width = canvas.clientWidth, height = canvas.clientHeight;
+      if (!width || !height) return;
+      // Device pixels, so the dither lands one step per physical pixel. Capped
+      // at 2x - past that the grain is finer than anyone can see anyway.
+      var scale = Math.min(window.devicePixelRatio || 1, 2);
+      var pixelWidth = Math.round(width * scale), pixelHeight = Math.round(height * scale);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+        gl.viewport(0, 0, pixelWidth, pixelHeight);
+      }
+      gl.uniform2f(sizeU, width, height);
+      gl.uniform1f(scaleU, pixelWidth / width);
+      gl.uniform1f(extrasU, wide.matches ? 1 : 0);
+      gl.uniform1f(timeU, seconds);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    var started = 0, drawn = -1;
+    function frame(now) {
+      if (!started) started = now;
+      seconds = (now - started) / 1000;
+      // ~20fps. The washes take 19 to 41 seconds to cross the viewport, so
+      // nothing is lost by skipping two thirds of the full-viewport redraws.
+      if (seconds - drawn >= 0.05) {
+        draw();
+        drawn = seconds;
+      }
+      if (!still.matches) requestAnimationFrame(frame);
+    }
+
+    // Swap on a frame boundary: the CSS washes go and the drawn field appears
+    // in the same paint, so there is no frame of either both or neither.
+    requestAnimationFrame(function (now) {
+      layer.dataset.live = "";
+      frame(now);
+    });
+
+    window.addEventListener("resize", draw);
+    wide.addEventListener("change", draw);
+    canvas.addEventListener("webglcontextlost", function () { delete layer.dataset.live; });
+  })();
+</script>
 <main>
   <a class="brand" href="https://www.clypdat.xyz/"><img src="https://www.clypdat.xyz/logo.svg" alt="">ClypDat</a>
   <h1>ClypDat <span>API</span></h1>
