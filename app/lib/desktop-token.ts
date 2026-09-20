@@ -66,9 +66,9 @@ export function verifyDesktopToken(token: string): DesktopIdentity | null {
 // Desktop sign-ins can be taken back. The signed token alone used to be good
 // for its full 30 days whatever happened on the site; now each account keeps a
 // version (bumped by "Sign out ClypDat on all PCs") and a short list of single
-// tokens signed out from the app. Authorization reads this durable row, never
-// the profile cache: delayed invalidation or a racing cache fill must not
-// restore a token after sign-out. Profile data remains cached separately.
+// tokens signed out from the app. The durable row is the truth; the request
+// path reads a copy of it from the runtime cache (getDesktopAuthState below).
+// Profile data is cached separately.
 type DesktopAuthState = { version: number; revoked: { jti: string; exp: number }[] };
 
 let schemaReady: Promise<void> | null = null;
@@ -102,6 +102,49 @@ async function readDesktopAuthState(userId: string): Promise<DesktopAuthState | 
   return row ? { version: row.version, revoked: row.revoked ?? [] } : null;
 }
 
+// How long a cached copy of an account's sign-out state is trusted. Every poll
+// from the desktop app has to check it, and the app polls every one to three
+// minutes while it is open - inside the five idle minutes after which Neon
+// suspends - so reading Postgres each time held the database awake around the
+// clock, about 6 CU-hours a day against a free plan of 100 a month.
+//
+// Signing out does not wait for this to lapse. Revoking writes the row, then
+// replaces the cached copy with the new state and expires the account's tag, so
+// the revoke path is immediate. What the TTL bounds is the one thing that
+// cannot be closed without a query: a read that began before a revocation
+// committed and filled the cache just after it. That copy lasts at most this
+// long. Deleting an account expires the entry through the user delete hook in
+// auth.ts, and a missing account is never cached, so it is always re-checked.
+const AUTH_STATE_TTL_SECONDS = 5 * 60;
+const AUTH_STATE_KEY = "desktop-auth";
+
+function isAuthState(value: unknown): value is DesktopAuthState {
+  const state = value as DesktopAuthState | null;
+  return Boolean(state) && Number.isSafeInteger(state!.version) && Array.isArray(state!.revoked);
+}
+
+async function getDesktopAuthState(userId: string): Promise<DesktopAuthState | null> {
+  const cached = await readCached<DesktopAuthState>(userId, AUTH_STATE_KEY);
+  if (isAuthState(cached)) return cached;
+  console.info("[db] desktop auth state read");
+  const state = await readDesktopAuthState(userId);
+  if (state) await writeCached(userId, AUTH_STATE_KEY, state, AUTH_STATE_TTL_SECONDS);
+  return state;
+}
+
+// After a revocation: put the state just written where the next poll will find
+// it, rather than leaving a miss for a racing reader to fill with the old one.
+// Best effort - the row is already committed, and the tag expiry has already
+// dropped the old copy, so a failure here must not report the sign-out as failed.
+async function replaceCachedAuthState(userId: string): Promise<void> {
+  try {
+    const state = await readDesktopAuthState(userId);
+    if (state) await writeCached(userId, AUTH_STATE_KEY, state, AUTH_STATE_TTL_SECONDS);
+  } catch {
+    // The next poll reads the row itself.
+  }
+}
+
 /** Signs out one desktop token: the app's own Sign out. */
 export async function revokeDesktopToken(identity: DesktopIdentity): Promise<void> {
   await ensureSchema();
@@ -123,6 +166,7 @@ export async function revokeDesktopToken(identity: DesktopIdentity): Promise<voi
     return;
   }
   await expireUserCache(identity.userId);
+  await replaceCachedAuthState(identity.userId);
 }
 
 /** Signs out every desktop app on the account. */
@@ -134,6 +178,7 @@ export async function revokeAllDesktopTokens(userId: string): Promise<void> {
     [userId],
   );
   await expireUserCache(userId);
+  await replaceCachedAuthState(userId);
 }
 
 function isRevoked(identity: DesktopIdentity, state: DesktopAuthState) {
@@ -147,14 +192,15 @@ function isRevoked(identity: DesktopIdentity, state: DesktopAuthState) {
  * token are all unauthenticated; a database failure is allowed to reach callers
  * as a service error instead.
  *
- * Account existence and revocation are checked together against Postgres.
- * This costs one read per authenticated request but remains correct when the
- * runtime cache is unavailable or has not received an invalidation yet.
+ * Account existence and revocation are checked together, from a copy of the
+ * account's row kept in the runtime cache for at most AUTH_STATE_TTL_SECONDS.
+ * A revocation replaces that copy at once; see the note on the TTL for the one
+ * case that waits it out. A cache outage falls back to reading Postgres.
  */
 export async function verifyActiveDesktopToken(token: string) {
   const identity = verifyDesktopToken(token);
   if (!identity) return null;
-  const state = await readDesktopAuthState(identity.userId);
+  const state = await getDesktopAuthState(identity.userId);
   if (!state || isRevoked(identity, state)) return null;
   if (!(await readCached<boolean>(identity.userId, "exists"))) {
     console.info("[db] desktop token user check");

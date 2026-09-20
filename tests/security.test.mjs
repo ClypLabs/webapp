@@ -159,6 +159,36 @@ test("individual revocation preserves other sessions despite stale cache", async
   assert.equal((await tokens.verifyActiveDesktopToken(second)).userId, "user-1");
 });
 
+test("polling reads the sign-out state once, then answers from the cache", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  const reads = () => state.queries.filter((query) => query.sql.startsWith("SELECT COALESCE(a.version, 0)")).length;
+  const beforePolling = reads();
+  for (let poll = 0; poll < 5; poll++) assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  assert.equal(reads() - beforePolling, 1, "five polls cost one database read");
+  assert.ok(state.cacheTtl.get("desktop-auth") <= 5 * 60, "the cached copy is bounded to five minutes");
+});
+
+test("a lost cache entry falls back to the database and still sees the sign-out", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  await tokens.revokeDesktopToken(tokens.verifyDesktopToken(token));
+  state.cache.clear();
+  assert.equal(await tokens.verifyActiveDesktopToken(token), null);
+});
+
+test("a revocation replaces the cached state even when invalidation is delayed", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  await tokens.revokeAllDesktopTokens("user-1");
+  assert.equal(state.cache.get("user-1:desktop-auth").version, 1);
+  assert.equal(await tokens.verifyActiveDesktopToken(token), null);
+});
+
 test("global revocation rejects current and raw-secret legacy tokens", async () => {
   const { load, state } = securityFixture();
   const tokens = load("@/app/lib/desktop-token");
@@ -181,7 +211,10 @@ test("legacy sign-out revokes all legacy sessions and deleted users fail closed"
   const current = await tokens.createDesktopToken("user-1");
   await tokens.verifyActiveDesktopToken(current);
   assert.equal(state.cache.get("user-1:exists"), true);
+  // Deleting an account expires its cache through the user delete hook.
   state.users.delete("user-1");
+  state.invalidationWorks = true;
+  await load("@/app/lib/account-cache").expireUserCache("user-1");
   assert.equal(await tokens.verifyActiveDesktopToken(current), null);
   await assert.rejects(() => tokens.createDesktopToken("user-1"));
 });

@@ -18,6 +18,8 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
     auth: new Map(),
     codes: new Map(),
     cache: new Map(),
+    cacheTtl: new Map(),
+    invalidationWorks: false,
     queries: [],
     session: { user: { id: "user-1" } },
     sessionReads: 0,
@@ -153,9 +155,16 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
     },
     "@/app/lib/account-cache": {
       readCached: async (id, key) => state.cache.get(`${id}:${key}`) ?? null,
-      writeCached: async (id, key, value) => { state.cache.set(`${id}:${key}`, value); },
-      // Deliberately simulate stale caches even after invalidation is requested.
-      expireUserCache: async () => {},
+      writeCached: async (id, key, value, ttl) => {
+        state.cache.set(`${id}:${key}`, value);
+        state.cacheTtl.set(key, ttl);
+      },
+      // Simulates stale caches even after invalidation is requested, unless a
+      // test opts in to invalidation working, as it does in production.
+      expireUserCache: async (id) => {
+        if (!state.invalidationWorks) return;
+        for (const key of [...state.cache.keys()]) if (key.startsWith(`${id}:`)) state.cache.delete(key);
+      },
     },
     "@/app/lib/ip-allowance": {
       clientAddress: () => "192.0.2.10",
