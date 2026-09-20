@@ -14,7 +14,7 @@ function pngSize(bytes) {
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
 }
 
-test("framed SVG and social-card PNG render the approved Silver Outline tile", async () => {
+test("framed SVG and social-card PNG render the approved Silver Edge tile", async () => {
   const svg = read("public/logo.svg").toString();
   const embedded = svg.match(/xlink:href="data:image\/png;base64,([^"]+)"/);
   assert.ok(embedded);
@@ -23,7 +23,8 @@ test("framed SVG and social-card PNG render the approved Silver Outline tile", a
   const [width, height] = pngSize(png);
   assert.deepEqual([width, height], [768, 768]);
   assert.ok(svg.includes('viewBox="0 0 512 512"'));
-  assert.match(svg, /fill="#17191c" stroke="#bec2c7" stroke-width="9"/);
+  assert.match(svg, /<linearGradient id="silver-edge"/);
+  assert.match(svg, /fill="#17191c" stroke="url\(#silver-edge\)" stroke-width="18"/);
   const rendered = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer();
   const pixels = await sharp(png).ensureAlpha().raw().toBuffer();
   assert.deepEqual(rendered, pixels);
