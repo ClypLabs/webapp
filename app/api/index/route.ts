@@ -203,7 +203,7 @@ const html = `<!doctype html>
         $("chart").innerHTML = svg;
         var fmt = function (iso) { return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Australia/Melbourne" }); };
         $("axis-start").textContent = fmt(days[0].date);
-        $("axis-end").textContent = "Today (Melbourne)";
+        $("axis-end").textContent = "Today (Sydney)";
         $("history-sum").textContent = sum.toLocaleString("en-US") + " " + plural(sum, "clip", "clips") + " in 30 days";
       });
     }
