@@ -14,7 +14,7 @@ function pngSize(bytes) {
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
 }
 
-test("header SVG and social-card PNG render the approved Silver Outline tile", async () => {
+test("framed SVG and social-card PNG render the approved Silver Outline tile", async () => {
   const svg = read("public/logo.svg").toString();
   const embedded = svg.match(/xlink:href="data:image\/png;base64,([^"]+)"/);
   assert.ok(embedded);
@@ -29,12 +29,16 @@ test("header SVG and social-card PNG render the approved Silver Outline tile", a
   assert.deepEqual(rendered, pixels);
 });
 
-test("header uses the updated transparent mark, not the framed brand tile", () => {
+test("header uses the updated transparent mark, not the framed brand tile", async () => {
   const header = read("app/components/Header.tsx").toString();
   const mark = read("public/logo-mark.png");
   assert.match(header, /src="\/logo-mark\.png"/);
-  assert.deepEqual(pngSize(mark), [768, 451]);
-  assert.ok(mark[24] <= 8, "transparent header mark remains transparent at the top-left pixel");
+  assert.deepEqual(pngSize(mark), [768, 450]);
+  const { data, info } = await sharp(mark).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  // PNG byte 24 is the bit depth, not a pixel. Check decoded alpha instead.
+  for (const [x, y] of [[0, 0], [info.width - 1, info.height - 1], [192, 225], [576, 225]]) {
+    assert.equal(data[(y * info.width + x) * 4 + 3], 0, "Header background and both inner holes stay transparent");
+  }
 });
 
 test("favicon includes valid PNG frames for every desktop icon size", () => {
