@@ -44,7 +44,7 @@ const html = `<!doctype html>
   a { color:var(--accent); text-decoration:none; }
   a:hover { text-decoration:underline; }
   .brand { display:flex; align-items:center; gap:10px; color:var(--text); font-weight:600; font-size:17px; }
-  .brand img { height:16px; }
+  .brand img { width:28px; height:28px; }
   h1 { font-size:40px; line-height:1.1; letter-spacing:-.02em; margin:28px 0 10px; }
   h1 span { background:linear-gradient(100deg,#6ee7b7,#34d399 55%,#2dd4bf); -webkit-background-clip:text; background-clip:text; color:transparent; }
   h2 { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin:0 0 12px; font-weight:600; }

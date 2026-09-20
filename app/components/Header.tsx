@@ -118,10 +118,10 @@ export default function Header() {
               src="/logo.svg"
               alt=""
               width={32}
-              height={18}
+              height={32}
               unoptimized
               priority
-              className="h-[18px] w-auto transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+              className="h-8 w-8 transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100"
             />
             <span className="text-[17px] font-semibold tracking-tight text-zinc-50">
               ClypDat

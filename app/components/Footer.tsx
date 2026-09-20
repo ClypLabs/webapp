@@ -67,7 +67,7 @@ export default function Footer() {
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
           <div>
             <Link href="/" className="inline-flex items-center gap-2.5">
-              <Image src="/logo.svg" alt="" width={28} height={16} unoptimized className="h-4 w-auto" />
+              <Image src="/logo.svg" alt="" width={28} height={28} unoptimized className="h-7 w-7" />
               <span className="font-semibold tracking-tight text-zinc-100">ClypDat</span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-6 text-zinc-500">

@@ -60,7 +60,7 @@ export const metadata: Metadata = {
       "ClypDat is always recording in the background. Press one key and the last few minutes of your gameplay are already saved.",
     url: siteUrl,
     siteName: "ClypDat",
-    images: ["/icon.png?v=2"],
+    images: ["/icon.png?v=3"],
     type: "website",
   },
   twitter: {
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     title: "ClypDat - Instant replay buffer for Windows",
     description:
       "ClypDat is always recording in the background. Press one key and the last few minutes of your gameplay are already saved.",
-    images: ["/icon.png?v=2"],
+    images: ["/icon.png?v=3"],
   },
 };
 

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import test from "node:test";
+
+const require = createRequire(import.meta.url);
+const sharp = require(require.resolve("sharp", { paths: [dirname(require.resolve("next/package.json"))] }));
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url));
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -9,15 +14,19 @@ function pngSize(bytes) {
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
 }
 
-test("header SVG and social-card PNG contain the same approved mark", () => {
+test("header SVG and social-card PNG render the approved Silver Outline tile", async () => {
   const svg = read("public/logo.svg").toString();
   const embedded = svg.match(/xlink:href="data:image\/png;base64,([^"]+)"/);
   assert.ok(embedded);
   const png = read("public/logo.png");
-  assert.deepEqual(Buffer.from(embedded[1], "base64"), png);
+  assert.deepEqual(pngSize(Buffer.from(embedded[1], "base64")), [1254, 1254]);
   const [width, height] = pngSize(png);
-  assert.ok(svg.includes(`viewBox="0 0 ${width} ${height}"`));
-  assert.ok(width > height);
+  assert.deepEqual([width, height], [768, 768]);
+  assert.ok(svg.includes('viewBox="0 0 512 512"'));
+  assert.match(svg, /fill="#17191c" stroke="#bec2c7" stroke-width="9"/);
+  const rendered = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer();
+  const pixels = await sharp(png).ensureAlpha().raw().toBuffer();
+  assert.deepEqual(rendered, pixels);
 });
 
 test("favicon includes valid PNG frames for every desktop icon size", () => {
