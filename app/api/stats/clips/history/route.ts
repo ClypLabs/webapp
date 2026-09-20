@@ -3,7 +3,7 @@ import { getClipHistory, HISTORY_WINDOWS, type HistoryWindow } from "@/app/lib/c
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Clips saved per UTC day. ?days= is 7, 30 (default), 90 or 365.
+// Clips saved per Melbourne day. ?days= is 7, 30 (default), 90 or 365.
 // [{ date, clip, auto_clip, full_session, total, seconds }], oldest first,
 // with every day present - days with nothing saved are zeros, not missing.
 export async function GET(request: Request) {

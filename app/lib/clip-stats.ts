@@ -1,5 +1,6 @@
 import { getCache } from "@vercel/functions";
 import { pool } from "@/app/lib/auth";
+import { melbourneDay } from "@/app/lib/melbourne-time";
 
 // The public "clips saved" counter. The desktop app reports a count whenever
 // it saves a clip, an auto-clip or a full session, plus how many seconds of
@@ -47,7 +48,7 @@ function ensureSchema(): Promise<void> {
     await pool.query(
       "ALTER TABLE clypdat_clip_stats ADD COLUMN IF NOT EXISTS seconds BIGINT NOT NULL DEFAULT 0",
     );
-    // The same numbers filed by UTC day, for /stats/clips/history. Totals stay
+    // The same numbers filed by Melbourne day, for /stats/clips/history. Totals stay
     // in clypdat_clip_stats: summing every day on each read would grow without
     // bound, and the totals predate this table.
     await pool.query(`
@@ -89,7 +90,7 @@ export async function addClipStats(adds: Partial<Record<ClipStatKind, ClipStatAd
   );
   await pool.query(
     `INSERT INTO clypdat_clip_stats_daily (day, kind, count, seconds)
-     VALUES ${rows.map((_, index) => `((NOW() AT TIME ZONE 'UTC')::date, $${index * 3 + 1}, $${index * 3 + 2}::bigint, $${index * 3 + 3}::bigint)`).join(", ")}
+     VALUES ${rows.map((_, index) => `((NOW() AT TIME ZONE 'Australia/Melbourne')::date, $${index * 3 + 1}, $${index * 3 + 2}::bigint, $${index * 3 + 3}::bigint)`).join(", ")}
      ON CONFLICT (day, kind) DO UPDATE
        SET count = clypdat_clip_stats_daily.count + EXCLUDED.count,
            seconds = clypdat_clip_stats_daily.seconds + EXCLUDED.seconds`,
@@ -180,7 +181,7 @@ export async function getClipHistory(days: HistoryWindow): Promise<ClipHistoryDa
   }
   const history = await readClipHistory(days);
   try {
-    // Until the next save deletes it (addClipStats), or midnight UTC adds a
+    // Until the next save deletes it (addClipStats), or midnight Melbourne adds a
     // day - the TTL is what rolls the window over.
     await statsCache().set(historyKey(days), history, { ttl: 60 * 60, tags: [STATS_TAG], name: "clip-history" });
   } catch {
@@ -195,13 +196,15 @@ async function readClipHistory(days: number): Promise<ClipHistoryDay[]> {
   const result = await pool.query<{ day: string; kind: string; count: string; seconds: string }>(
     `SELECT to_char(day, 'YYYY-MM-DD') AS day, kind, count, seconds
      FROM clypdat_clip_stats_daily
-     WHERE day > (NOW() AT TIME ZONE 'UTC')::date - $1::int`,
+     WHERE day > (NOW() AT TIME ZONE 'Australia/Melbourne')::date - $1::int`,
     [days],
   );
   // Every day in the window appears, including days with nothing saved, so a
   // chart can draw the gaps instead of joining the bars either side of them.
   const byDay = new Map<string, ClipHistoryDay>();
-  const today = new Date();
+  // Treat midnight UTC as a calendar-date carrier only. melbourneDay supplies
+  // the correct date, and UTC arithmetic avoids the function host's timezone.
+  const today = new Date(`${melbourneDay()}T00:00:00.000Z`);
   for (let offset = days - 1; offset >= 0; offset--) {
     const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset))
       .toISOString()

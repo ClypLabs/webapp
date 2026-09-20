@@ -201,9 +201,9 @@ const html = `<!doctype html>
             '<rect class="bar" x="' + x + '" y="' + (100 - h).toFixed(2) + '" width="' + w + '" height="' + h.toFixed(2) + '" rx="1"></rect></g>';
         });
         $("chart").innerHTML = svg;
-        var fmt = function (iso) { return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); };
+        var fmt = function (iso) { return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Australia/Melbourne" }); };
         $("axis-start").textContent = fmt(days[0].date);
-        $("axis-end").textContent = "Today (UTC)";
+        $("axis-end").textContent = "Today (Melbourne)";
         $("history-sum").textContent = sum.toLocaleString("en-US") + " " + plural(sum, "clip", "clips") + " in 30 days";
       });
     }

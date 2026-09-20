@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { getCache } from "@vercel/functions";
 import { purposeKey } from "@/app/lib/secret";
 import { pool } from "@/app/lib/auth";
+import { melbourneDay } from "@/app/lib/melbourne-time";
 
 // Per-address daily allowances for the public counters, shared by every
 // function instance through Postgres. Exhausted allowances are cached to stop
@@ -34,7 +35,7 @@ export function clientAddress(request: Request) {
 }
 
 function dayKey(kind: string, address: string) {
-  const day = new Date().toISOString().slice(0, 10);
+  const day = melbourneDay();
   const hash = createHmac("sha256", purposeKey("stats-ip")).update(`${day}\0${address}`).digest("base64url").slice(0, 22);
   return `allowance:${kind}:${day}:${hash}`;
 }
