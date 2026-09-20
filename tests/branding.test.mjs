@@ -42,6 +42,12 @@ test("header uses the updated transparent mark, not the framed brand tile", asyn
   }
 });
 
+test("API landing page uses the transparent mark, not the framed brand tile", () => {
+  const api = read("app/api/index/route.ts").toString();
+  assert.match(api, /src="https:\/\/www\.clypdat\.xyz\/logo-mark\.png"/);
+  assert.doesNotMatch(api, /src="https:\/\/www\.clypdat\.xyz\/logo\.svg"/);
+});
+
 test("favicon includes valid PNG frames for every desktop icon size", () => {
   const icon = read("app/favicon.ico");
   const sizes = [16, 24, 32, 48, 64, 128, 256];
