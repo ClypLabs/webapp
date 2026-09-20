@@ -115,13 +115,13 @@ export default function Header() {
             {/* Serve the approved mark directly, without a cached optimizer
                 resize from an earlier logo revision. */}
             <Image
-              src="/logo.svg"
+              src="/logo-mark.png"
               alt=""
               width={32}
-              height={32}
+              height={18}
               unoptimized
               priority
-              className="h-8 w-8 transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+              className="h-[18px] w-auto transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100"
             />
             <span className="text-[17px] font-semibold tracking-tight text-zinc-50">
               ClypDat

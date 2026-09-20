@@ -29,6 +29,14 @@ test("header SVG and social-card PNG render the approved Silver Outline tile", a
   assert.deepEqual(rendered, pixels);
 });
 
+test("header uses the updated transparent mark, not the framed brand tile", () => {
+  const header = read("app/components/Header.tsx").toString();
+  const mark = read("public/logo-mark.png");
+  assert.match(header, /src="\/logo-mark\.png"/);
+  assert.deepEqual(pngSize(mark), [768, 448]);
+  assert.ok(mark[24] <= 8, "transparent header mark remains transparent at the top-left pixel");
+});
+
 test("favicon includes valid PNG frames for every desktop icon size", () => {
   const icon = read("app/favicon.ico");
   const sizes = [16, 24, 32, 48, 64, 128, 256];
