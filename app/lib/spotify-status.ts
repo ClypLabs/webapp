@@ -1,5 +1,5 @@
 import { pool } from "@/app/lib/auth";
-import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
+import { readCached, writeCached } from "@/app/lib/account-cache";
 
 // Spotify's whole OAuth cycle happens inside the desktop app, straight
 // against Spotify's own endpoints (SpotifyNowPlayingService.cs) - this
@@ -31,6 +31,12 @@ async function createSchema(): Promise<void> {
 }
 
 export async function setSpotifyConnected(userId: string, connected: boolean): Promise<void> {
+  // The app reports on every launch, and almost always it is repeating what the
+  // site already holds. Answered from the cache that costs no query, where it
+  // used to be a write plus an expiry of everything cached for the account: the
+  // sign-out state, the Xbox session, the linked providers. Neon woke for the
+  // write, and the next poll then re-read all of those from a cold cache.
+  if ((await getSpotifyStatus(userId)).connected === connected) return;
   await ensureSchema();
   await pool.query(
     `INSERT INTO clypdat_spotify_status (user_id, connected, updated_at)
@@ -38,11 +44,14 @@ export async function setSpotifyConnected(userId: string, connected: boolean): P
      ON CONFLICT (user_id) DO UPDATE SET connected = EXCLUDED.connected, updated_at = NOW()`,
     [userId, connected],
   );
-  await expireUserCache(userId);
+  // Only the Spotify entry depends on this row, so replace it rather than
+  // expiring the account's whole cache. Functions run in a single region
+  // (vercel.json pins syd1), so there is no other region's copy to go stale.
+  await writeCached(userId, "spotify", { connected, updatedAt: new Date().toISOString() });
 }
 
 // Cached with the rest of the account (account-cache.ts); reporting a change
-// expires it immediately, same as linking/unlinking Xbox or a social account.
+// replaces it immediately (setSpotifyConnected).
 export async function getSpotifyStatus(userId: string): Promise<SpotifyStatus> {
   const cached = await readCached<SpotifyStatus>(userId, "spotify");
   if (cached) return cached;

@@ -1,5 +1,6 @@
 import { getCache } from "@vercel/functions";
 import { pool } from "@/app/lib/auth";
+import { databaseSeenReachable, noteDatabaseReachable } from "@/app/lib/database-heartbeat";
 import { GITHUB_RELEASE_BASE, MIRROR_BASE, MIRROR_LATEST_KEY, isGitHubReachable } from "@/app/lib/mirror";
 
 export const runtime = "nodejs";
@@ -11,9 +12,9 @@ export const dynamic = "force-dynamic";
 //   github   - releases and the updater's first source
 //   mirror   - the release mirror downloads and updates fall back to (R2)
 //
-// Checked at most every ten minutes and cached. The database check is a real
-// query, and Neon bills for being awake: an uncached status endpoint polled by
-// anything would keep the database up around the clock for nothing.
+// Checked at most every ten minutes and cached. The database is the exception
+// (see checkDatabase): a real query wakes Neon, which bills for being awake, so
+// it is answered from recent real traffic where it can be.
 
 type State = "operational" | "down" | "not configured";
 type Status = {
@@ -27,19 +28,44 @@ const TIMEOUT_MS = 4_000;
 const statusCache = () => getCache({ namespace: "clypdat-status" });
 // Bump when the checks change, so a deploy does not keep serving a verdict
 // the old checks cached.
-const STATUS_KEY = "status-v3";
+const STATUS_KEY = "status-v4";
+const DATABASE_VERDICT_KEY = "database-verdict";
+// A probe that found the database up is trusted for half an hour; one that found
+// it down is rechecked within the minute, so recovery shows up quickly.
+const DATABASE_UP_TTL_SECONDS = 30 * 60;
+const DATABASE_DOWN_TTL_SECONDS = 60;
 
+// Recent successful traffic answers this without touching the database. Only
+// when nothing has reached it lately is it queried, and that verdict is kept for
+// half an hour so a page loading the status cannot wake it every ten minutes.
 async function checkDatabase(): Promise<State> {
+  if (await databaseSeenReachable()) return "operational";
+  try {
+    const cached = (await statusCache().get(DATABASE_VERDICT_KEY)) as State | undefined;
+    if (cached) return cached;
+  } catch {
+    // Probe instead.
+  }
+  let state: State = "operational";
   try {
     console.info("[db] status check");
     await Promise.race([
       pool.query("SELECT 1"),
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS)),
     ]);
-    return "operational";
+    await noteDatabaseReachable();
   } catch {
-    return "down";
+    state = "down";
   }
+  try {
+    await statusCache().set(DATABASE_VERDICT_KEY, state, {
+      ttl: state === "operational" ? DATABASE_UP_TTL_SECONDS : DATABASE_DOWN_TTL_SECONDS,
+      name: "database-verdict",
+    });
+  } catch {
+    // Probed again next time.
+  }
+  return state;
 }
 
 async function checkMirror(): Promise<State> {

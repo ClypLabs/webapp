@@ -18,6 +18,9 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
     auth: new Map(),
     codes: new Map(),
     cache: new Map(),
+    expired: [],
+    spotify: new Map(),
+    spotifyWrites: [],
     cacheTtl: new Map(),
     invalidationWorks: false,
     queries: [],
@@ -50,6 +53,16 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
       const sql = statement.replace(/\s+/g, " ").trim();
       state.queries.push({ sql, args });
       if (sql.startsWith("CREATE TABLE IF NOT EXISTS")) return { rows: [] };
+      if (sql === "SELECT 1") return { rows: [{ "?column?": 1 }] };
+      if (sql.startsWith("SELECT connected, updated_at FROM clypdat_spotify_status")) {
+        const row = state.spotify.get(args[0]);
+        return { rows: row ? [{ connected: row.connected, updated_at: new Date(row.updatedAt) }] : [] };
+      }
+      if (sql.startsWith("INSERT INTO clypdat_spotify_status")) {
+        state.spotify.set(args[0], { connected: args[1], updatedAt: state.now });
+        state.spotifyWrites.push({ userId: args[0], connected: args[1] });
+        return { rows: [] };
+      }
       if (sql.startsWith("INSERT INTO clypdat_stats_allowance")) {
         assert.match(sql, /ON CONFLICT \(bucket\) DO UPDATE SET used = clypdat_stats_allowance.used \+ EXCLUDED.used WHERE clypdat_stats_allowance.used <= \$3 - EXCLUDED.used RETURNING used$/);
         const [key, amount, limit] = args;
@@ -162,6 +175,7 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
       // Simulates stale caches even after invalidation is requested, unless a
       // test opts in to invalidation working, as it does in production.
       expireUserCache: async (id) => {
+        state.expired.push(id);
         if (!state.invalidationWorks) return;
         for (const key of [...state.cache.keys()]) if (key.startsWith(`${id}:`)) state.cache.delete(key);
       },
@@ -201,6 +215,8 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
         static now() { return state.now; }
       },
       console: { info() {}, warn() {}, error() {} },
+      // Timeouts never fire in fixtures; a probe that should time out fails the fixture database instead.
+      setTimeout: () => 0,
       fetch() { throw new Error("Network is prohibited in security fixtures"); },
     });
     new vm.Script(outputText, { filename: path }).runInContext(context);

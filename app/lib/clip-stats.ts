@@ -1,5 +1,6 @@
 import { getCache } from "@vercel/functions";
 import { pool } from "@/app/lib/auth";
+import { noteDatabaseReachable } from "@/app/lib/database-heartbeat";
 import { melbourneDay } from "@/app/lib/melbourne-time";
 
 // The public "clips saved" counter. The desktop app reports a count whenever
@@ -96,6 +97,7 @@ export async function addClipStats(adds: Partial<Record<ClipStatKind, ClipStatAd
            seconds = clypdat_clip_stats_daily.seconds + EXCLUDED.seconds`,
     rows.flat(),
   );
+  await noteDatabaseReachable();
   // Today's bar changed, so every cached history window is stale. Deleted
   // rather than rebuilt: nobody may look at a given window before it changes
   // again, and the next read rebuilds it from a database that is awake anyway.

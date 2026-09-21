@@ -192,6 +192,63 @@ test("a revocation replaces the cached state even when invalidation is delayed",
   assert.equal(await tokens.verifyActiveDesktopToken(token), null);
 });
 
+test("a repeated Spotify report costs no write and leaves the account cache alone", async () => {
+  const { load, state } = securityFixture();
+  const spotify = load("@/app/lib/spotify-status");
+  await spotify.setSpotifyConnected("user-1", true);
+  assert.equal(state.spotifyWrites.length, 1);
+  state.cache.set("user-1:exists", true); // stands in for the sign-out state, Xbox session and the rest
+  state.expired.length = 0;
+  // An app launch reports the status it already has.
+  await spotify.setSpotifyConnected("user-1", true);
+  await spotify.setSpotifyConnected("user-1", true);
+  assert.equal(state.spotifyWrites.length, 1, "no further writes");
+  assert.deepEqual(state.expired, [], "no cache expiry");
+  assert.equal(state.cache.get("user-1:exists"), true);
+  // A real change writes once and replaces its own entry only.
+  await spotify.setSpotifyConnected("user-1", false);
+  assert.equal(state.spotifyWrites.length, 2);
+  assert.equal((await spotify.getSpotifyStatus("user-1")).connected, false);
+  assert.deepEqual(state.expired, [], "a change does not expire the account's cache either");
+  assert.equal(state.cache.get("user-1:exists"), true);
+});
+
+test("reporting Spotify as disconnected for an account with no row writes nothing", async () => {
+  const { load, state } = securityFixture();
+  await load("@/app/lib/spotify-status").setSpotifyConnected("user-1", false);
+  assert.equal(state.spotifyWrites.length, 0);
+});
+
+test("the status check takes recent database traffic as proof and does not query", async () => {
+  const { load, state } = securityFixture();
+  const probes = () => state.queries.filter((query) => query.sql === "SELECT 1").length;
+  await load("@/app/lib/database-heartbeat").noteDatabaseReachable();
+  const body = await (await load("@/app/api/status/route").GET()).json();
+  assert.equal(body.services.database, "operational");
+  assert.equal(probes(), 0);
+});
+
+test("without recent traffic the status check probes once and keeps the verdict", async () => {
+  const { load, state } = securityFixture();
+  const probes = () => state.queries.filter((query) => query.sql === "SELECT 1").length;
+  const route = load("@/app/api/status/route");
+  assert.equal((await (await route.GET()).json()).services.database, "operational");
+  assert.equal(probes(), 1);
+  // The overall verdict is cached too; drop it to force a recheck of everything.
+  for (const key of [...state.runtimeCache.keys()]) if (key.includes("status-v")) state.runtimeCache.delete(key);
+  state.runtimeCache.delete("clypdat-status:database-seen-ok");
+  assert.equal((await (await route.GET()).json()).services.database, "operational");
+  assert.equal(probes(), 1, "the half-hour database verdict answers the second check");
+});
+
+test("a database that fails the probe is reported down", async () => {
+  const { load, state } = securityFixture();
+  state.failDatabase = true;
+  const body = await (await load("@/app/api/status/route").GET()).json();
+  assert.equal(body.services.database, "down");
+  assert.equal(body.status, "degraded");
+});
+
 test("global revocation rejects current and raw-secret legacy tokens", async () => {
   const { load, state } = securityFixture();
   const tokens = load("@/app/lib/desktop-token");

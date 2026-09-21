@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { pool } from "@/app/lib/auth";
 import { expireUserCache, readCached, writeCached } from "@/app/lib/account-cache";
+import { noteDatabaseReachable } from "@/app/lib/database-heartbeat";
 import { authSecret, purposeKey } from "@/app/lib/secret";
 
 const tokenLifetimeSeconds = 60 * 60 * 24 * 30;
@@ -135,6 +136,7 @@ async function getDesktopAuthState(userId: string): Promise<DesktopAuthState | n
   if (isAuthState(cached)) return cached;
   console.info("[db] desktop auth state read");
   const state = await readDesktopAuthState(userId);
+  await noteDatabaseReachable();
   if (state) await writeCached(userId, AUTH_STATE_KEY, state, AUTH_STATE_TTL_SECONDS);
   return state;
 }
