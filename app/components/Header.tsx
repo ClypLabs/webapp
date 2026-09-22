@@ -95,7 +95,12 @@ export default function Header() {
   const lifted = scrolled || menuOpen;
 
   return (
-    <header className="sticky top-0 z-50 px-3 pt-3 sm:px-4">
+    // Fixed at the closed bar's height: the hero pulls itself up by exactly this
+    // much (-mt-[69px] in Hero.tsx) so its glow runs behind the bar. When the
+    // phone menu opened, the header grew with it and pushed the hero down,
+    // leaving a flat strip behind the menu with the glow cut off in a line
+    // under it. Now the open menu overflows the header and floats over the page.
+    <header className="sticky top-0 z-50 h-[69px] px-3 pt-3 sm:px-4">
       {/* transition on colours and shadow only, not `all`: this is sticky, and
           `all` makes the browser watch every animatable property on it. */}
       <div
