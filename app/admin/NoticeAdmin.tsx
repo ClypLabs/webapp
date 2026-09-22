@@ -148,7 +148,9 @@ export default function NoticeAdmin() {
   }
 
   const visible = (notices ?? []).filter((notice) => showArchived || !notice.archived);
-  const input = "[color-scheme:dark] w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-teal-400/60";
+  // The site-wide focus outline sits 3px outside the element, where it runs into
+  // the label above; fields here show focus as a border and inner glow instead.
+  const input = "[color-scheme:dark] w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus-visible:outline-none focus:border-teal-400/70 focus:shadow-[inset_0_0_0_1px_rgba(45,212,191,0.45)]";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-12">
@@ -223,8 +225,9 @@ export default function NoticeAdmin() {
                 <input value={draft.linkLabel} onChange={set("linkLabel")} placeholder="Read more" maxLength={40} className={input} />
               </label>
               <label className="block space-y-1.5 text-sm">
-                <span className="text-zinc-400">Link (clypdat.xyz, github.com/ClypLabs or the Discord)</span>
+                <span className="text-zinc-400">Link</span>
                 <input value={draft.linkUrl} onChange={set("linkUrl")} placeholder="https://www.clypdat.xyz/..." className={input} />
+                <span className="block text-xs text-zinc-500">clypdat.xyz, github.com/ClypLabs or the ClypDat Discord only.</span>
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
