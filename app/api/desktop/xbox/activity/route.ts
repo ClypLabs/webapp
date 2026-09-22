@@ -3,7 +3,6 @@ import { deleteXboxAccount, getXboxAccount, getXboxActivity } from "@/app/lib/xb
 import { getDesktopProfile, verifyActiveDesktopToken, type DesktopProfile } from "@/app/lib/desktop-token";
 import { getLinkedSocialProviders } from "@/app/lib/auth";
 import { refreshDiscordProfile } from "@/app/lib/discord-profile";
-import { getSpotifyStatus } from "@/app/lib/spotify-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,21 +38,12 @@ export async function GET(request: Request) {
     }
     const account = await getXboxAccount(identity.userId);
     const profile = providers.includes("discord") ? discordProfile(await getDesktopProfile(identity.userId)) : null;
-    // What the site believes about Spotify, so the app can notice the two have
-    // drifted apart and say so again. The app's report of a connect is
-    // fire-and-forget, so one dropped request used to leave the account page
-    // saying "Not connected" until the next connect, disconnect or link.
-    // Served from the account cache, so this costs no query of its own.
-    const spotifyStatus = await getSpotifyStatus(identity.userId);
-    const spotify = spotifyStatus.connected;
-    // Disconnect pressed on the account page: the app drops its own Spotify
-    // token when this is newer than its connection, then reports back, which
-    // clears it. A field of its own because `spotify` is a bool older apps
-    // already read.
-    const spotifyDisconnect = spotifyStatus.disconnectRequestedAt ?? undefined;
-    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile, spotify, spotifyDisconnect });
+    // Spotify is not reported here: the site keeps no Spotify data at all. It
+    // lives only in the desktop app, which reads it from the PC or from the
+    // user's own Spotify app. Older apps read a missing field as "no opinion".
+    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile });
     const activity = await getXboxActivity(identity.userId);
-    return NextResponse.json({ connected: true, account, activity, providers, profile, spotify, spotifyDisconnect });
+    return NextResponse.json({ connected: true, account, activity, providers, profile });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });
   }

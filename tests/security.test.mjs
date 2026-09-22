@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { securityFixture, TEST_SECRET } from "./helpers/security-fixture.mjs";
 
@@ -192,75 +194,21 @@ test("a revocation replaces the cached state even when invalidation is delayed",
   assert.equal(await tokens.verifyActiveDesktopToken(token), null);
 });
 
-test("a repeated Spotify report costs no write and leaves the account cache alone", async () => {
-  const { load, state } = securityFixture();
-  const spotify = load("@/app/lib/spotify-status");
-  await spotify.setSpotifyConnected("user-1", true);
-  assert.equal(state.spotifyWrites.length, 1);
-  state.cache.set("user-1:exists", true); // stands in for the sign-out state, Xbox session and the rest
-  state.expired.length = 0;
-  // An app launch reports the status it already has.
-  await spotify.setSpotifyConnected("user-1", true);
-  await spotify.setSpotifyConnected("user-1", true);
-  assert.equal(state.spotifyWrites.length, 1, "no further writes");
-  assert.deepEqual(state.expired, [], "no cache expiry");
-  assert.equal(state.cache.get("user-1:exists"), true);
-  // A real change writes once and replaces its own entry only.
-  await spotify.setSpotifyConnected("user-1", false);
-  assert.equal(state.spotifyWrites.length, 2);
-  assert.equal((await spotify.getSpotifyStatus("user-1")).connected, false);
-  assert.deepEqual(state.expired, [], "a change does not expire the account's cache either");
-  assert.equal(state.cache.get("user-1:exists"), true);
-});
-
-function spotifyDisconnectRequest(headers = { origin, "sec-fetch-site": "same-origin" }) {
-  return new Request(`${origin}/api/account/spotify`, { method: "POST", headers });
-}
-
-test("the account page's Spotify disconnect needs a same-origin POST and a session", async () => {
-  const { load, state } = securityFixture();
-  const { POST } = load("@/app/api/account/spotify/route");
-  assert.equal((await POST(spotifyDisconnectRequest({ origin: "https://evil.test", "sec-fetch-site": "cross-site" }))).status, 403);
-  state.session = null;
-  assert.equal((await POST(spotifyDisconnectRequest())).status, 401);
-  assert.equal(state.spotifyWrites.length, 0, "nothing was written for a refused request");
-});
-
-test("a Spotify disconnect stays pending until the app acts on it", async () => {
-  const { load, state } = securityFixture();
-  const spotify = load("@/app/lib/spotify-status");
-  await spotify.setSpotifyConnected("user-1", true);
-  state.now += 60_000;
-  const response = await load("@/app/api/account/spotify/route").POST(spotifyDisconnectRequest());
-  assert.equal(response.status, 200);
-  const { spotify: shown } = await response.json();
-  assert.equal(shown.connected, false, "the page shows it disconnected at once");
-  assert.equal(typeof shown.disconnectRequestedAt, "string");
-  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, shown.disconnectRequestedAt, "the app's poll sees the request");
-  // The app disconnects and reports it: the report is written despite the
-  // status already reading disconnected, and clears the request.
-  state.now += 60_000;
-  await spotify.setSpotifyConnected("user-1", false);
-  const after = await spotify.getSpotifyStatus("user-1");
-  assert.equal(after.connected, false);
-  assert.equal(after.disconnectRequestedAt, null);
-  state.cache.clear();
-  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, null, "cleared in the row, not only the cache");
-});
-
-test("reconnecting Spotify in the app after a disconnect request supersedes it", async () => {
-  const { load, state } = securityFixture();
-  const spotify = load("@/app/lib/spotify-status");
-  await spotify.setSpotifyConnected("user-1", true);
-  state.now += 60_000;
-  await spotify.requestSpotifyDisconnect("user-1");
-  state.now += 60_000;
-  await spotify.setSpotifyConnected("user-1", true);
-  const status = await spotify.getSpotifyStatus("user-1");
-  assert.equal(status.connected, true);
-  assert.equal(status.disconnectRequestedAt, null);
-  state.cache.clear();
-  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, null);
+test("the site keeps no Spotify data: no status table, routes or imports", () => {
+  const appRoot = new URL("../app/", import.meta.url);
+  for (const gone of ["lib/spotify-status.ts", "api/desktop/spotify/route.ts", "api/account/spotify/route.ts"]) {
+    assert.equal(existsSync(new URL(gone, appRoot)), false, `${gone} is removed`);
+  }
+  const offenders = [];
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name) && /clypdat_spotify_status|spotify-status|spotifyDisconnect/.test(readFileSync(path, "utf8"))) offenders.push(path);
+    }
+  };
+  walk(fileURLToPath(appRoot));
+  assert.deepEqual(offenders, []);
 });
 
 function renewRequest(token, headers = {}) {
@@ -304,12 +252,6 @@ test("renewing a token from before token ids signs out the old sessions but not 
   const { token } = await response.json();
   assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
   assert.equal(await tokens.verifyActiveDesktopToken(legacy), null);
-});
-
-test("reporting Spotify as disconnected for an account with no row writes nothing", async () => {
-  const { load, state } = securityFixture();
-  await load("@/app/lib/spotify-status").setSpotifyConnected("user-1", false);
-  assert.equal(state.spotifyWrites.length, 0);
 });
 
 test("the status check takes recent database traffic as proof and does not query", async () => {

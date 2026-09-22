@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { getXboxAccount } from "@/app/lib/xbox";
-import { getSpotifyStatus } from "@/app/lib/spotify-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,18 +20,16 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
-  if (!session?.user) return NextResponse.json({ user: null, xbox: { connected: false }, spotify: { connected: false }, accounts: [] });
+  if (!session?.user) return NextResponse.json({ user: null, xbox: { connected: false }, accounts: [] });
 
   try {
-    const [account, accounts, spotify] = await Promise.all([
+    const [account, accounts] = await Promise.all([
       getXboxAccount(session.user.id),
       auth.api.listUserAccounts({ headers: request.headers }),
-      getSpotifyStatus(session.user.id),
     ]);
     return NextResponse.json({
       user: { id: session.user.id, name: session.user.name, email: session.user.email },
       xbox: { connected: Boolean(account), account },
-      spotify,
       accounts: accounts.map(({ id, providerId }) => ({ id, providerId })),
     });
   } catch {

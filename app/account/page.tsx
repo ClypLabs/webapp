@@ -46,16 +46,9 @@ type OverviewUser = {
   email: string;
 };
 
-type SpotifyStatus = {
-  connected: boolean;
-  // Set after Disconnect here, until the desktop app has carried it out.
-  disconnectRequestedAt?: string | null;
-};
-
 type Overview = {
   user: OverviewUser | null;
   xbox: XboxStatus;
-  spotify: SpotifyStatus;
   accounts: Account[];
 };
 
@@ -117,15 +110,6 @@ function GoogleIcon() {
   );
 }
 
-// Same mark the desktop app draws (IntegrationsSection.axaml SpotifyMark), at
-// Spotify's own brand green. Spotify has no sign-in role here - its whole
-// connection lives in the desktop app - so connecting happens there. This row
-// shows what the app reported and can ask it to disconnect
-// (app/api/account/spotify/route.ts).
-function SpotifyIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0"><path fill="#1ED760" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" /></svg>;
-}
-
 export default function AccountPage() {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -135,12 +119,10 @@ export default function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [xbox, setXbox] = useState<XboxStatus | null>(null);
   const [xboxActivity, setXboxActivity] = useState<XboxActivity | null>(null);
-  const [spotify, setSpotify] = useState<SpotifyStatus | null>(null);
   const [xboxBusy, setXboxBusy] = useState(false);
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountsBusy, setAccountsBusy] = useState(false);
-  const [confirming, setConfirming] = useState<"discord" | "xbox" | "spotify" | null>(null);
-  const [spotifyBusy, setSpotifyBusy] = useState(false);
+  const [confirming, setConfirming] = useState<"discord" | "xbox" | null>(null);
   // Guards the sign-in buttons: each starts a redirect, and a second click
   // while the first was still being set up started a second OAuth attempt.
   const [signInBusy, setSignInBusy] = useState(false);
@@ -400,7 +382,6 @@ export default function AccountPage() {
       overviewFor.current = data.user?.id ?? expectUser;
       setOverviewUser(data.user);
       setXbox(data.xbox);
-      setSpotify(data.spotify);
       setAccounts(data.accounts);
       setOverviewFailed(false);
     } catch {
@@ -553,27 +534,6 @@ export default function AccountPage() {
     } catch {
       setError("Sign-out could not be completed. Check your connection and try again.");
       setSignOutBusy(false);
-    }
-  }
-
-  // The Spotify token lives in the desktop app, so this leaves a request the
-  // app carries out when it next checks in; the site shows it disconnected now.
-  async function disconnectSpotify() {
-    setError(null);
-    setSpotifyBusy(true);
-    try {
-      const response = await fetch("/api/account/spotify", { method: "POST" });
-      const result = (await response.json().catch(() => null)) as { error?: string; spotify?: SpotifyStatus } | null;
-      if (!response.ok || !result?.spotify) {
-        setError(result?.error ?? "Spotify could not be disconnected. Try again.");
-        return;
-      }
-      setSpotify(result.spotify);
-      setConfirming(null);
-    } catch {
-      setError("Spotify could not be disconnected. Try again.");
-    } finally {
-      setSpotifyBusy(false);
     }
   }
 
@@ -748,7 +708,6 @@ export default function AccountPage() {
       setOverviewUser(null);
       setAccounts([]);
       setXbox({ connected: false });
-      setSpotify({ connected: false });
       // Better Auth has cleared the server cookie. A full ordinary-account
       // navigation also drops the client session cache and any desktop-link
       // parameters, so deletion never resumes a desktop handoff.
@@ -834,8 +793,7 @@ export default function AccountPage() {
                 {linkedSocials.map((provider) => <div key={provider} className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 rounded-full border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>)}
                 {xboxConnected && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 rounded-full border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>}
                 {googleLinked && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><GoogleIcon /><span><span className="block font-semibold">Google</span><span className="text-sm text-zinc-400">Sign-in only, while Google is retired</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div></div>}
-                {spotify && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SpotifyIcon /><span><span className="block font-semibold">Spotify</span><span className="text-sm text-zinc-400">{spotify.connected ? "Shows the song playing on your clips, through the ClypDat app" : spotify.disconnectRequestedAt ? "Disconnected. ClypDat on your PC stops reading Spotify when it next checks in - within 15 minutes, or when it next opens." : "Connect in the ClypDat app: Settings → Connected Accounts"}</span></span></span><span className={`rounded-full px-2 py-1 text-xs font-medium ${spotify.connected ? "bg-emerald-300/15 text-emerald-200" : "bg-white/10 text-zinc-300"}`}>{spotify.connected ? "Connected" : "Not connected"}</span></div>{spotify.connected && (confirming === "spotify" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={spotifyBusy} onClick={disconnectSpotify} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950 disabled:cursor-wait disabled:opacity-60">{spotifyBusy ? "Disconnecting…" : "Confirm disconnect"}</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={spotifyBusy} onClick={() => setConfirming("spotify")} className="mt-3 rounded-full border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>)}{(spotify.connected || spotify.disconnectRequestedAt) && <p className="mt-3 text-xs leading-5 text-zinc-500">To take back ClypDat&apos;s access on Spotify&apos;s side too, remove it under <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer" className="text-zinc-300 underline underline-offset-4 hover:text-zinc-100">Manage apps</a> in your Spotify account.</p>}</div>}
-                {!linkedSocials.length && !googleLinked && !xboxConnected && !spotify && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
+                {!linkedSocials.length && !googleLinked && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
                 {overviewFailed && <p className="text-sm text-zinc-400">Your connections could not be loaded. <button type="button" onClick={() => void loadOverview(userId ?? null)} className="text-emerald-300 underline-offset-4 hover:underline">Try again</button></p>}
               </div>
             </div>

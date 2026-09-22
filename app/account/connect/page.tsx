@@ -66,7 +66,7 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
             Cancel
           </button>
         </form>
-        <p className="mt-5 text-xs leading-5 text-zinc-500">Didn&apos;t press Link in ClypDat? Press Cancel. A linked PC can see your connected Xbox, Discord and Spotify status, and you can sign every PC out from your account page.</p>
+        <p className="mt-5 text-xs leading-5 text-zinc-500">Didn&apos;t press Link in ClypDat? Press Cancel. A linked PC can see your connected Xbox and Discord accounts, and you can sign every PC out from your account page.</p>
       </section>
     </main>
   );
