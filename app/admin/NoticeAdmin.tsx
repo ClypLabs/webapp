@@ -40,6 +40,12 @@ const SEVERITY_STYLE: Record<Severity, string> = {
   critical: "bg-red-500/15 text-red-300 ring-red-500/40",
 };
 
+const SEVERITIES: { value: Severity; hint: string; dot: string; ring: string }[] = [
+  { value: "feature", hint: "Pops up once, then lives on the board.", dot: "bg-teal-400", ring: "border-teal-400/60" },
+  { value: "info", hint: "Pops up once. For smaller heads-ups.", dot: "bg-zinc-400", ring: "border-zinc-300/50" },
+  { value: "critical", hint: "Every launch until acknowledged. Security or severe bugs only.", dot: "bg-red-400", ring: "border-red-400/70" },
+];
+
 // <input type="datetime-local"> speaks local time without a zone.
 function toLocalInput(iso: string | null): string {
   if (!iso) return "";
@@ -142,7 +148,7 @@ export default function NoticeAdmin() {
   }
 
   const visible = (notices ?? []).filter((notice) => showArchived || !notice.archived);
-  const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-teal-400/60";
+  const input = "[color-scheme:dark] w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-teal-400/60";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-12">
@@ -179,14 +185,30 @@ export default function NoticeAdmin() {
               )}
             </div>
 
-            <label className="block space-y-1.5 text-sm">
-              <span className="text-zinc-400">Severity</span>
-              <select value={draft.severity} onChange={set("severity")} className={input}>
-                <option value="feature">New feature - shows once</option>
-                <option value="info">Info - shows once</option>
-                <option value="critical">Critical - shows every launch until acknowledged</option>
-              </select>
-            </label>
+            {/* Cards rather than a <select>: the native dropdown opens in the
+                OS's light theme, and each choice needs its consequence spelled
+                out next to it anyway. */}
+            <fieldset className="space-y-1.5 text-sm">
+              <legend className="mb-1.5 text-zinc-400">Severity</legend>
+              <div role="radiogroup" aria-label="Severity" className="grid gap-2 sm:grid-cols-3">
+                {SEVERITIES.map((option) => {
+                  const selected = draft.severity === option.value;
+                  return (
+                    <button key={option.value} type="button" role="radio" aria-checked={selected}
+                      onClick={() => setDraft((current) => ({ ...current, severity: option.value }))}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition ${selected
+                        ? `${option.ring} bg-white/[0.06]`
+                        : "border-white/10 bg-black/30 hover:border-white/20 hover:bg-white/[0.03]"}`}>
+                      <span className="flex items-center gap-2 font-medium text-zinc-100">
+                        <span className={`h-2 w-2 rounded-full ${option.dot}`} />
+                        {SEVERITY_LABEL[option.value]}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-zinc-400">{option.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <label className="block space-y-1.5 text-sm">
               <span className="text-zinc-400">Title</span>
               <input value={draft.title} onChange={set("title")} maxLength={120} required className={input} />
