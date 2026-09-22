@@ -44,10 +44,16 @@ export async function GET(request: Request) {
     // fire-and-forget, so one dropped request used to leave the account page
     // saying "Not connected" until the next connect, disconnect or link.
     // Served from the account cache, so this costs no query of its own.
-    const spotify = (await getSpotifyStatus(identity.userId)).connected;
-    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile, spotify });
+    const spotifyStatus = await getSpotifyStatus(identity.userId);
+    const spotify = spotifyStatus.connected;
+    // Disconnect pressed on the account page: the app drops its own Spotify
+    // token when this is newer than its connection, then reports back, which
+    // clears it. A field of its own because `spotify` is a bool older apps
+    // already read.
+    const spotifyDisconnect = spotifyStatus.disconnectRequestedAt ?? undefined;
+    if (!account) return NextResponse.json({ connected: false, account: null, activity: null, providers, profile, spotify, spotifyDisconnect });
     const activity = await getXboxActivity(identity.userId);
-    return NextResponse.json({ connected: true, account, activity, providers, profile, spotify });
+    return NextResponse.json({ connected: true, account, activity, providers, profile, spotify, spotifyDisconnect });
   } catch {
     return NextResponse.json({ error: "Xbox activity is temporarily unavailable" }, { status: 503 });
   }

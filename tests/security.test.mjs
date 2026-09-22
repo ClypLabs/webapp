@@ -213,6 +213,99 @@ test("a repeated Spotify report costs no write and leaves the account cache alon
   assert.equal(state.cache.get("user-1:exists"), true);
 });
 
+function spotifyDisconnectRequest(headers = { origin, "sec-fetch-site": "same-origin" }) {
+  return new Request(`${origin}/api/account/spotify`, { method: "POST", headers });
+}
+
+test("the account page's Spotify disconnect needs a same-origin POST and a session", async () => {
+  const { load, state } = securityFixture();
+  const { POST } = load("@/app/api/account/spotify/route");
+  assert.equal((await POST(spotifyDisconnectRequest({ origin: "https://evil.test", "sec-fetch-site": "cross-site" }))).status, 403);
+  state.session = null;
+  assert.equal((await POST(spotifyDisconnectRequest())).status, 401);
+  assert.equal(state.spotifyWrites.length, 0, "nothing was written for a refused request");
+});
+
+test("a Spotify disconnect stays pending until the app acts on it", async () => {
+  const { load, state } = securityFixture();
+  const spotify = load("@/app/lib/spotify-status");
+  await spotify.setSpotifyConnected("user-1", true);
+  state.now += 60_000;
+  const response = await load("@/app/api/account/spotify/route").POST(spotifyDisconnectRequest());
+  assert.equal(response.status, 200);
+  const { spotify: shown } = await response.json();
+  assert.equal(shown.connected, false, "the page shows it disconnected at once");
+  assert.equal(typeof shown.disconnectRequestedAt, "string");
+  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, shown.disconnectRequestedAt, "the app's poll sees the request");
+  // The app disconnects and reports it: the report is written despite the
+  // status already reading disconnected, and clears the request.
+  state.now += 60_000;
+  await spotify.setSpotifyConnected("user-1", false);
+  const after = await spotify.getSpotifyStatus("user-1");
+  assert.equal(after.connected, false);
+  assert.equal(after.disconnectRequestedAt, null);
+  state.cache.clear();
+  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, null, "cleared in the row, not only the cache");
+});
+
+test("reconnecting Spotify in the app after a disconnect request supersedes it", async () => {
+  const { load, state } = securityFixture();
+  const spotify = load("@/app/lib/spotify-status");
+  await spotify.setSpotifyConnected("user-1", true);
+  state.now += 60_000;
+  await spotify.requestSpotifyDisconnect("user-1");
+  state.now += 60_000;
+  await spotify.setSpotifyConnected("user-1", true);
+  const status = await spotify.getSpotifyStatus("user-1");
+  assert.equal(status.connected, true);
+  assert.equal(status.disconnectRequestedAt, null);
+  state.cache.clear();
+  assert.equal((await spotify.getSpotifyStatus("user-1")).disconnectRequestedAt, null);
+});
+
+function renewRequest(token, headers = {}) {
+  return new Request(`${origin}/api/desktop/token/renew`, { method: "POST", headers: { authorization: `Bearer ${token}`, ...headers } });
+}
+
+test("token renewal swaps a live desktop token for a new one and signs the old one out", async () => {
+  const { load } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const old = await tokens.createDesktopToken("user-1");
+  const { POST } = load("@/app/api/desktop/token/renew/route");
+  const response = await POST(renewRequest(old));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const { token, expires_in } = await response.json();
+  assert.equal(expires_in, tokens.desktopTokenLifetimeSeconds);
+  assert.notEqual(token, old);
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  assert.equal(await tokens.verifyActiveDesktopToken(old), null, "the renewed token no longer works");
+  assert.equal((await POST(renewRequest(old))).status, 401, "a signed-out token cannot renew");
+});
+
+test("token renewal refuses browser requests and tokens signed out from the site", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  const { POST } = load("@/app/api/desktop/token/renew/route");
+  const before = state.queries.length;
+  assert.equal((await POST(renewRequest(token, { origin }))).status, 403);
+  assert.equal(state.queries.length, before, "refused before any database access");
+  await tokens.revokeAllDesktopTokens("user-1");
+  assert.equal((await POST(renewRequest(token))).status, 401);
+});
+
+test("renewing a token from before token ids signs out the old sessions but not the new one", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const legacy = legacyToken(state.now);
+  const response = await load("@/app/api/desktop/token/renew/route").POST(renewRequest(legacy));
+  assert.equal(response.status, 200);
+  const { token } = await response.json();
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  assert.equal(await tokens.verifyActiveDesktopToken(legacy), null);
+});
+
 test("reporting Spotify as disconnected for an account with no row writes nothing", async () => {
   const { load, state } = securityFixture();
   await load("@/app/lib/spotify-status").setSpotifyConnected("user-1", false);

@@ -54,14 +54,42 @@ export function securityFixture({ realIpAllowance = false, realAuth = false } = 
       state.queries.push({ sql, args });
       if (sql.startsWith("CREATE TABLE IF NOT EXISTS")) return { rows: [] };
       if (sql === "SELECT 1") return { rows: [{ "?column?": 1 }] };
-      if (sql.startsWith("SELECT connected, updated_at FROM clypdat_spotify_status")) {
-        const row = state.spotify.get(args[0]);
-        return { rows: row ? [{ connected: row.connected, updated_at: new Date(row.updatedAt) }] : [] };
-      }
-      if (sql.startsWith("INSERT INTO clypdat_spotify_status")) {
-        state.spotify.set(args[0], { connected: args[1], updatedAt: state.now });
-        state.spotifyWrites.push({ userId: args[0], connected: args[1] });
+      if (sql.startsWith("ALTER TABLE clypdat_spotify_status")) {
+        assert.match(sql, /ADD COLUMN IF NOT EXISTS connected_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS disconnect_requested_at TIMESTAMPTZ$/);
         return { rows: [] };
+      }
+      const spotifyRow = (row) => ({
+        connected: row.connected,
+        updated_at: new Date(row.updatedAt),
+        connected_at: row.connectedAt === null ? null : new Date(row.connectedAt),
+        disconnect_requested_at: row.requestedAt === null ? null : new Date(row.requestedAt),
+      });
+      if (sql.startsWith("SELECT connected, updated_at, connected_at, disconnect_requested_at FROM clypdat_spotify_status")) {
+        const row = state.spotify.get(args[0]);
+        return { rows: row ? [spotifyRow(row)] : [] };
+      }
+      // The app's own report: connected_at moves only on false-to-true, and a
+      // report of disconnected clears a pending request.
+      if (sql.startsWith("INSERT INTO clypdat_spotify_status (user_id, connected, updated_at, connected_at)")) {
+        const [userId, connected] = args;
+        const before = state.spotify.get(userId);
+        const row = {
+          connected,
+          updatedAt: state.now,
+          connectedAt: connected && !before?.connected ? state.now : before?.connectedAt ?? null,
+          requestedAt: connected ? before?.requestedAt ?? null : null,
+        };
+        state.spotify.set(userId, row);
+        state.spotifyWrites.push({ userId, connected });
+        return { rows: [spotifyRow(row)] };
+      }
+      // Disconnect from the account page.
+      if (sql.startsWith("INSERT INTO clypdat_spotify_status (user_id, connected, updated_at, disconnect_requested_at)")) {
+        const before = state.spotify.get(args[0]);
+        const row = { connected: false, updatedAt: state.now, connectedAt: before?.connectedAt ?? null, requestedAt: state.now };
+        state.spotify.set(args[0], row);
+        state.spotifyWrites.push({ userId: args[0], connected: false, requested: true });
+        return { rows: [spotifyRow(row)] };
       }
       if (sql.startsWith("INSERT INTO clypdat_stats_allowance")) {
         assert.match(sql, /ON CONFLICT \(bucket\) DO UPDATE SET used = clypdat_stats_allowance.used \+ EXCLUDED.used WHERE clypdat_stats_allowance.used <= \$3 - EXCLUDED.used RETURNING used$/);
