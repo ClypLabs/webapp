@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auditAdmin, canPublish, currentAdmin, staleSignIn } from "@/app/lib/admin";
 import { isSameOriginPost } from "@/app/lib/desktop-connect";
-import { validateNoticeInput } from "@/app/lib/notice-feed";
-import { setNoticeArchived, updateNotice } from "@/app/lib/notices";
+import { validateNoticeInput, validateSwitchInput } from "@/app/lib/notice-feed";
+import { clearSwitch, setNoticeArchived, updateNotice, updateSwitch } from "@/app/lib/notices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,8 +28,22 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/admin/noti
       auditAdmin(admin, body.archived ? "take-down" : "restore", id);
       return NextResponse.json({ notice });
     }
-    const checked = validateNoticeInput(body);
+    if (body && typeof body === "object" && (body as Record<string, unknown>).clearSwitch === true) {
+      const item = await clearSwitch(id);
+      if (!item) return notFound();
+      auditAdmin(admin, "clear-switch", id, `control=${item.control}`);
+      return NextResponse.json({ switch: item });
+    }
+    const checked = body && typeof body === "object" && (body as Record<string, unknown>).control
+      ? validateSwitchInput(body)
+      : validateNoticeInput(body);
     if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
+    if ("control" in checked.value) {
+      const item = await updateSwitch(id, checked.value);
+      if (!item) return notFound();
+      auditAdmin(admin, "edit-switch", id, `control=${item.control}`);
+      return NextResponse.json({ switch: item });
+    }
     const notice = await updateNotice(id, checked.value);
     if (!notice) return notFound();
     auditAdmin(admin, "edit", id, `severity=${notice.severity}`);

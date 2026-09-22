@@ -12,11 +12,23 @@ import { constants, sign } from "node:crypto";
 // notice, never a build. The app pins the public half (NoticeSigning.cs) and
 // drops anything that does not verify.
 //
-// `flags` is reserved for remote kill switches. It is always empty for now; the
-// app parses and ignores it, so adding flags later needs no schema bump.
+// `flags` carries signed remote kill switches alongside notices, preserving one
+// polling and verification path for both announcements and policy changes.
 
 export const NOTICE_SEVERITIES = ["feature", "info", "critical"] as const;
 export type NoticeSeverity = (typeof NOTICE_SEVERITIES)[number];
+
+export const SWITCH_CONTROLS = [
+  "pause-auto-clipping",
+  "disable-game-detector",
+  "pause-spotify",
+  "pause-xbox-activity",
+  "pause-discord-presence",
+  "block-update-version",
+] as const;
+export type SwitchControl = (typeof SWITCH_CONTROLS)[number];
+
+export const DETECTOR_GAME_IDS = ["cs2", "dota2", "fortnite", "helldivers2", "league", "overwatch"] as const;
 
 export const TITLE_MAX = 120;
 export const BODY_MAX = 4000;
@@ -40,12 +52,26 @@ export type NoticeFeedPayload = {
   schema: 1;
   issuedAt: string;
   notices: Notice[];
-  flags: Record<string, never>;
+  revision: number;
+  flags: KillSwitch[] | Record<string, never>;
 };
 
 export type SignedNoticeFeed = { payload: string; signature: string };
 
 export type NoticeInput = Omit<Notice, "id" | "publishedAt">;
+
+export type KillSwitch = {
+  id: string;
+  control: SwitchControl;
+  target: string | null;
+  reason: string;
+  minVersion: string | null;
+  maxVersion: string | null;
+  publishedAt: string;
+  expiresAt: string;
+};
+
+export type KillSwitchInput = Omit<KillSwitch, "id" | "publishedAt">;
 
 const VERSION = /^\d+\.\d+\.\d+$/;
 
@@ -131,12 +157,63 @@ export function validateNoticeInput(raw: unknown, now = Date.now()): { ok: true;
   return { ok: true, value: { severity, title, body, minVersion, maxVersion, expiresAt, link } };
 }
 
+export function validateSwitchInput(raw: unknown, now = Date.now()): { ok: true; value: KillSwitchInput } | { ok: false; error: string } {
+  if (!raw || typeof raw !== "object") return { ok: false, error: "Missing switch." };
+  const input = raw as Record<string, unknown>;
+  const control = text(input.control) as SwitchControl;
+  if (!SWITCH_CONTROLS.includes(control)) return { ok: false, error: "Pick a supported control." };
+
+  const target = optionalText(input.target);
+  if (control === "disable-game-detector") {
+    if (!target || !DETECTOR_GAME_IDS.includes(target as (typeof DETECTOR_GAME_IDS)[number])) {
+      return { ok: false, error: "Pick a supported game detector." };
+    }
+  } else if (control === "block-update-version") {
+    if (!target || !VERSION.test(target)) return { ok: false, error: "Update block target must be an exact stable version like 1.5.4." };
+  } else if (target) {
+    return { ok: false, error: "This control does not accept a target." };
+  }
+
+  const reason = text(input.reason);
+  if (!reason) return { ok: false, error: "Reason is required." };
+  if (reason.length > 1000) return { ok: false, error: "Reason is over 1000 characters." };
+
+  const minVersion = optionalText(input.minVersion);
+  const maxVersion = optionalText(input.maxVersion);
+  for (const version of [minVersion, maxVersion]) {
+    if (version && !VERSION.test(version)) return { ok: false, error: `"${version}" is not a version like 1.5.4.` };
+  }
+  if (minVersion && maxVersion && compareVersions(minVersion, maxVersion) > 0) {
+    return { ok: false, error: "Minimum installed version is above the maximum." };
+  }
+
+  let expiresAt: string;
+  const expiresText = optionalText(input.expiresAt);
+  if (!expiresText) expiresAt = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+  else {
+    const expires = new Date(expiresText);
+    if (Number.isNaN(expires.getTime())) return { ok: false, error: "Expiry is not a date." };
+    if (expires.getTime() <= now) return { ok: false, error: "Expiry is in the past." };
+    if (expires.getTime() > now + 7 * 24 * 60 * 60 * 1000) return { ok: false, error: "Expiry cannot be more than seven days away." };
+    expiresAt = expires.toISOString();
+  }
+
+  return { ok: true, value: { control, target, reason, minVersion, maxVersion, expiresAt } };
+}
+
 /** Notices still live at `now`, newest first. */
-export function buildFeedPayload(notices: Notice[], now = Date.now()): NoticeFeedPayload {
+export function buildFeedPayload(notices: Notice[], switches: KillSwitch[] | number = [], revision = 0, now = Date.now()): NoticeFeedPayload {
+  if (typeof switches === "number") {
+    now = switches;
+    switches = [];
+  }
   const live = notices
     .filter((notice) => !notice.expiresAt || new Date(notice.expiresAt).getTime() > now)
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-  return { schema: 1, issuedAt: new Date(now).toISOString(), notices: live, flags: {} };
+  const activeSwitches = switches
+    .filter((item) => new Date(item.expiresAt).getTime() > now)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  return { schema: 1, issuedAt: new Date(now).toISOString(), notices: live, revision, flags: activeSwitches.length ? activeSwitches : {} };
 }
 
 /**

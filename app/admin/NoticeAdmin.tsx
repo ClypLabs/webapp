@@ -18,6 +18,13 @@ type StoredNotice = {
   updatedAt: string;
 };
 
+type SwitchControl = "pause-auto-clipping" | "disable-game-detector" | "pause-spotify" | "pause-xbox-activity" | "pause-discord-presence" | "block-update-version";
+type StoredSwitch = {
+  id: string; control: SwitchControl; target: string | null; reason: string;
+  minVersion: string | null; maxVersion: string | null; publishedAt: string; expiresAt: string;
+  cleared: boolean;
+};
+
 type Draft = {
   severity: Severity;
   title: string;
@@ -28,10 +35,24 @@ type Draft = {
   maxVersion: string;
   expiresAt: string;
 };
+type SwitchDraft = {
+  control: SwitchControl; target: string; reason: string;
+  minVersion: string; maxVersion: string; expiresAt: string;
+};
 
 const EMPTY: Draft = {
   severity: "feature", title: "", body: "", linkLabel: "", linkUrl: "", minVersion: "", maxVersion: "", expiresAt: "",
 };
+const EMPTY_SWITCH: SwitchDraft = { control: "pause-auto-clipping", target: "", reason: "", minVersion: "", maxVersion: "", expiresAt: "" };
+const SWITCH_LABEL: Record<SwitchControl, string> = {
+  "pause-auto-clipping": "Pause auto-clipping",
+  "disable-game-detector": "Disable one game detector",
+  "pause-spotify": "Pause Spotify",
+  "pause-xbox-activity": "Pause Xbox activity",
+  "pause-discord-presence": "Pause Discord presence",
+  "block-update-version": "Block one stable update",
+};
+const GAME_IDS = ["cs2", "dota2", "fortnite", "helldivers2", "league", "overwatch"];
 
 const SEVERITY_LABEL: Record<Severity, string> = { feature: "New feature", info: "Info", critical: "Critical" };
 const SEVERITY_STYLE: Record<Severity, string> = {
@@ -78,8 +99,11 @@ function Pill({ severity }: { severity: Severity }) {
 export default function NoticeAdmin() {
   const [tab, setTab] = useState<"notices" | "switches">("notices");
   const [notices, setNotices] = useState<StoredNotice[] | null>(null);
+  const [switches, setSwitches] = useState<StoredSwitch[] | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [switchDraft, setSwitchDraft] = useState<SwitchDraft>(EMPTY_SWITCH);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSwitchId, setEditingSwitchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -90,7 +114,9 @@ export default function NoticeAdmin() {
       setError("Notices could not be loaded.");
       return;
     }
-    setNotices((await response.json()).notices);
+    const result = await response.json();
+    setNotices(result.notices);
+    setSwitches(result.switches ?? []);
   }, []);
 
   useEffect(() => {
@@ -101,6 +127,8 @@ export default function NoticeAdmin() {
 
   const set = (key: keyof Draft) => (event: { target: { value: string } }) =>
     setDraft((current) => ({ ...current, [key]: event.target.value }));
+  const setSwitch = (key: keyof SwitchDraft) => (event: { target: { value: string } }) =>
+    setSwitchDraft((current) => ({ ...current, [key]: event.target.value }));
 
   async function send(url: string, method: "POST" | "PATCH", body: unknown) {
     setBusy(true);
@@ -147,6 +175,22 @@ export default function NoticeAdmin() {
     if (window.confirm(question)) await send(`/api/admin/notices/${notice.id}`, "PATCH", { archived });
   }
 
+  async function submitSwitch(event: FormEvent) {
+    event.preventDefault();
+    const targetText = switchDraft.control === "disable-game-detector" ? ` for ${switchDraft.target}`
+      : switchDraft.control === "block-update-version" ? ` for version ${switchDraft.target}` : "";
+    if (!window.confirm(`${editingSwitchId ? "Update" : "Publish"} ${SWITCH_LABEL[switchDraft.control]}${targetText}?\n\n${switchDraft.reason || "No reason supplied."}`)) return;
+    const payload = { ...switchDraft, expiresAt: switchDraft.expiresAt ? new Date(switchDraft.expiresAt).toISOString() : "" };
+    const saved = await send(editingSwitchId ? `/api/admin/notices/${editingSwitchId}` : "/api/admin/notices", editingSwitchId ? "PATCH" : "POST", payload);
+    if (saved) { setSwitchDraft(EMPTY_SWITCH); setEditingSwitchId(null); }
+  }
+
+  async function clearSwitch(item: StoredSwitch) {
+    if (window.confirm(`Clear ${SWITCH_LABEL[item.control]}? The app resumes it on its next policy check.`)) {
+      await send(`/api/admin/notices/${item.id}`, "PATCH", { clearSwitch: true });
+    }
+  }
+
   const visible = (notices ?? []).filter((notice) => showArchived || !notice.archived);
   // The site-wide focus outline sits 3px outside the element, where it runs into
   // the label above; fields here show focus as a border and inner glow instead.
@@ -170,10 +214,43 @@ export default function NoticeAdmin() {
       </header>
 
       {tab === "switches" ? (
-        <section className="mt-10 rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-sm text-zinc-400">
-          Not built yet. The notice feed already carries an empty <code className="text-zinc-300">flags</code> object,
-          so kill switches can be added here without changing how apps fetch or verify it.
-        </section>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <form onSubmit={submitSwitch} className="space-y-4 rounded-3xl border border-red-400/20 bg-white/[0.04] p-6">
+            <div className="flex items-center justify-between">
+              <div><h2 className="text-lg font-semibold">{editingSwitchId ? "Edit kill switch" : "New kill switch"}</h2>
+                <p className="mt-1 text-xs text-zinc-500">Required expiry defaults to 24 hours. Maximum is seven days.</p></div>
+              {editingSwitchId && <button type="button" className="text-sm text-zinc-400 hover:text-zinc-200" onClick={() => { setEditingSwitchId(null); setSwitchDraft(EMPTY_SWITCH); }}>Cancel edit</button>}
+            </div>
+            <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Control</span>
+              <select value={switchDraft.control} onChange={setSwitch("control")} className={input}>
+                {(Object.keys(SWITCH_LABEL) as SwitchControl[]).map((control) => <option key={control} value={control}>{SWITCH_LABEL[control]}</option>)}
+              </select>
+            </label>
+            {(switchDraft.control === "disable-game-detector" || switchDraft.control === "block-update-version") &&
+              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">{switchDraft.control === "block-update-version" ? "Stable version" : "Game detector"}</span>
+                {switchDraft.control === "disable-game-detector" ? <select value={switchDraft.target} onChange={setSwitch("target")} className={input}><option value="">Pick a game</option>{GAME_IDS.map((id) => <option key={id}>{id}</option>)}</select>
+                  : <input value={switchDraft.target} onChange={setSwitch("target")} placeholder="1.5.4" className={input} />}
+              </label>}
+            <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Reason shown in app</span><textarea value={switchDraft.reason} onChange={setSwitch("reason")} maxLength={1000} rows={4} required className={input} /></label>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Installed from</span><input value={switchDraft.minVersion} onChange={setSwitch("minVersion")} placeholder="any" className={input} /></label>
+              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Installed through</span><input value={switchDraft.maxVersion} onChange={setSwitch("maxVersion")} placeholder="any" className={input} /></label>
+              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Expires</span><input type="datetime-local" value={switchDraft.expiresAt} onChange={setSwitch("expiresAt")} className={input} /></label>
+            </div>
+            <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.06] p-4 text-sm text-red-100">Affected capability: <strong>{SWITCH_LABEL[switchDraft.control]}</strong>{switchDraft.target && ` (${switchDraft.target})`}. Active clients poll within one minute and disable it immediately.</div>
+            {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
+            <button type="submit" disabled={busy} className="w-full rounded-full bg-red-300 px-4 py-3 text-sm font-semibold text-red-950 transition hover:bg-red-200 disabled:cursor-wait disabled:opacity-60">{editingSwitchId ? "Update switch" : "Publish switch"}</button>
+          </form>
+          <section className="space-y-3"><h2 className="text-lg font-semibold">Active and expired</h2>
+            {switches === null && <p className="text-sm text-zinc-500">Loading…</p>}
+            {switches?.map((item) => { const expired = new Date(item.expiresAt).getTime() <= Date.now(); return <article key={item.id} className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 ${item.cleared || expired ? "opacity-50" : ""}`}>
+              <div className="flex flex-wrap gap-2 text-xs text-zinc-500"><span className="rounded-full bg-red-400/15 px-2.5 py-0.5 text-red-300">{SWITCH_LABEL[item.control]}</span>{item.target && <span>{item.target}</span>}<span>{expired ? "expired" : item.cleared ? "cleared" : `expires ${new Date(item.expiresAt).toLocaleString()}`}</span></div>
+              <p className="mt-3 text-sm text-zinc-300">{item.reason}</p>
+              {(item.minVersion || item.maxVersion) && <p className="mt-2 text-xs text-zinc-500">Installed versions: {item.minVersion ?? "any"} - {item.maxVersion ?? "any"}</p>}
+              {!item.cleared && !expired && <div className="mt-3 flex gap-4 text-sm"><button type="button" disabled={busy} className="text-zinc-300 hover:text-white" onClick={() => { setEditingSwitchId(item.id); setSwitchDraft({ control: item.control, target: item.target ?? "", reason: item.reason, minVersion: item.minVersion ?? "", maxVersion: item.maxVersion ?? "", expiresAt: toLocalInput(item.expiresAt) }); window.scrollTo({ top: 0 }); }}>Edit</button><button type="button" disabled={busy} className="text-zinc-400 hover:text-zinc-200" onClick={() => clearSwitch(item)}>Clear</button></div>}
+            </article>; })}
+          </section>
+        </div>
       ) : (
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <form onSubmit={submit} className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6">

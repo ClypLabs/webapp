@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auditAdmin, canPublish, currentAdmin, staleSignIn } from "@/app/lib/admin";
 import { isSameOriginPost } from "@/app/lib/desktop-connect";
-import { validateNoticeInput } from "@/app/lib/notice-feed";
-import { createNotice, listNotices } from "@/app/lib/notices";
+import { validateNoticeInput, validateSwitchInput } from "@/app/lib/notice-feed";
+import { createNotice, createSwitch, listNotices, listSwitches } from "@/app/lib/notices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 }
 export async function GET(request: Request) {
   if (!(await currentAdmin(request.headers))) return notFound();
   try {
-    return NextResponse.json({ notices: await listNotices() }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ notices: await listNotices(), switches: await listSwitches() }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Notices are unavailable" }, { status: 503 });
   }
@@ -25,9 +25,17 @@ export async function POST(request: Request) {
   const admin = await currentAdmin(request.headers);
   if (!admin) return notFound();
   if (!canPublish(admin)) return staleSignIn();
-  const checked = validateNoticeInput(await request.json().catch(() => null));
+  const body = await request.json().catch(() => null);
+  const checked = body && typeof body === "object" && (body as Record<string, unknown>).control
+    ? validateSwitchInput(body)
+    : validateNoticeInput(body);
   if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
   try {
+    if ("control" in checked.value) {
+      const item = await createSwitch(checked.value, admin.id);
+      auditAdmin(admin, "create-switch", item.id, `control=${item.control}`);
+      return NextResponse.json({ switch: item }, { status: 201 });
+    }
     const notice = await createNotice(checked.value, admin.id);
     auditAdmin(admin, "create", notice.id, `severity=${notice.severity}`);
     return NextResponse.json({ notice }, { status: 201 });

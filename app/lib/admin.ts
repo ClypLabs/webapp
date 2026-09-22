@@ -54,5 +54,5 @@ export function staleSignIn(): Response {
 
 /** One line per change in the function logs: who, what, which notice. */
 export function auditAdmin(admin: AdminSession, action: string, noticeId: string, detail = ""): void {
-  console.info(`[admin] ${action} notice=${noticeId} by=${admin.id}${detail ? ` ${detail}` : ""}`);
+  console.info(`[admin] at=${new Date().toISOString()} ${action} notice=${noticeId} by=${admin.id}${detail ? ` ${detail}` : ""}`);
 }
