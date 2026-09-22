@@ -18,7 +18,12 @@ export type StoredSwitch = KillSwitch & { cleared: boolean; createdBy: string; u
 
 const cache = () => getCache({ namespace: "clypdat-notices" });
 const FEED_KEY = "feed-v1";
-const FEED_TTL_SECONDS = 60;
+// Long on purpose. Every notice or switch write deletes this entry (see the
+// transaction helper below), so changes still reach apps on their next poll;
+// expiry is enforced by the app itself. At 60 seconds every poll minute
+// rebuilt and re-signed an unchanged feed from Postgres, so Neon never slept,
+// and the fresh issuedAt made every app treat an unchanged feed as new.
+const FEED_TTL_SECONDS = 6 * 60 * 60;
 const PUBLICATION_LOCK = 826341;
 let schemaReady: Promise<void> | null = null;
 

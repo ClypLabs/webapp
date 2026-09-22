@@ -100,6 +100,22 @@ function draftFrom(notice: StoredNotice): Draft {
   };
 }
 
+// A switch rather than a native checkbox: the browser's checkbox ignores the
+// page theme and looked dropped in from another site.
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      className="group flex items-center gap-2.5 rounded-full text-xs text-zinc-400 outline-none transition-colors hover:text-zinc-200 focus-visible:outline-none">
+      <span className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors duration-200 group-focus-visible:shadow-[0_0_0_2px_rgba(45,212,191,0.45)] ${
+        checked ? "border-teal-300/40 bg-teal-400/80" : "border-white/10 bg-white/10"}`}>
+        <span className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full shadow-sm transition-[left,background-color] duration-200 motion-reduce:transition-none ${
+          checked ? "left-[18px] bg-white" : "left-[3px] bg-zinc-400"}`} />
+      </span>
+      {label}
+    </button>
+  );
+}
+
 function Pill({ severity }: { severity: Severity }) {
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${SEVERITY_STYLE[severity]}`}>
@@ -291,7 +307,7 @@ export default function NoticeAdmin() {
           <section className="min-w-0 space-y-4 lg:pt-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2.5 text-lg font-semibold">Active switches <span className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs font-medium tabular-nums text-zinc-400">{switches === null ? "—" : activeSwitches.length}</span></h2>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400"><input type="checkbox" checked={showSwitchHistory} onChange={(event) => setShowSwitchHistory(event.target.checked)} className="accent-teal-300" />Show history</label>
+              <Toggle checked={showSwitchHistory} onChange={setShowSwitchHistory} label="Show history" />
             </div>
             {switches === null && <p className="text-sm text-zinc-500">Loading…</p>}
             {switches !== null && visibleSwitches.length === 0 && <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-10 text-center"><span aria-hidden="true" className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-teal-300/20 bg-teal-300/[0.06] text-teal-200">✓</span><h3 className="text-sm font-medium text-zinc-200">{showSwitchHistory ? "No switches published yet" : "No active kill switches"}</h3><p className="mx-auto mt-2 max-w-64 text-sm leading-6 text-zinc-500">{showSwitchHistory ? "Published switches will appear here, including cleared and expired ones." : "No features are currently disabled by a kill switch."}</p></div>}
@@ -398,10 +414,7 @@ export default function NoticeAdmin() {
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Published</h2>
-              <label className="flex items-center gap-2 text-sm text-zinc-400">
-                <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
-                Show taken down
-              </label>
+              <Toggle checked={showArchived} onChange={setShowArchived} label="Show taken down" />
             </div>
             {notices === null && <p className="text-sm text-zinc-500">Loading…</p>}
             {notices !== null && visible.length === 0 && <p className="text-sm text-zinc-500">Nothing published.</p>}
