@@ -29,6 +29,18 @@ test("feed is RSA-PSS SHA-256 with a 32-byte salt, the padding .NET verifies", (
   assert.deepEqual(payload.flags, {});
 });
 
+test("feed drops expired notices and orders newest first", () => {
+  const { load } = securityFixture();
+  const { buildFeedPayload } = load("@/app/lib/notice-feed");
+  const now = Date.parse("2027-06-01T00:00:00Z");
+  const payload = buildFeedPayload([
+    notice({ id: "old", publishedAt: "2027-01-01T00:00:00.000Z" }),
+    notice({ id: "expired", publishedAt: "2027-05-01T00:00:00.000Z", expiresAt: "2027-05-31T00:00:00.000Z" }),
+    notice({ id: "new", publishedAt: "2027-05-15T00:00:00.000Z", expiresAt: "2027-07-01T00:00:00.000Z" }),
+  ], now);
+  assert.deepEqual(payload.notices.map((n) => n.id), ["new", "old"]);
+});
+
 test("notice links are limited to ClypDat's own places", () => {
   const { load } = securityFixture();
   const { isAllowedNoticeLink } = load("@/app/lib/notice-feed");
@@ -38,6 +50,22 @@ test("notice links are limited to ClypDat's own places", () => {
   for (const url of ["http://www.clypdat.xyz", "https://clypdat.xyz.evil.test", "https://evilclypdat.xyz", "https://github.com/ClypLabsX",
     "https://github.com/someone/ClypLabs", "https://discord.gg/other", "https://user@www.clypdat.xyz", "https://www.clypdat.xyz:8443", "javascript:alert(1)"]) {
     assert.equal(isAllowedNoticeLink(url), false, url);
+  }
+});
+
+test("notice input validation rejects bad severities, versions, links and past expiry", () => {
+  const { load } = securityFixture();
+  const { validateNoticeInput } = load("@/app/lib/notice-feed");
+  const now = Date.parse("2027-01-01T00:00:00Z");
+  const good = { severity: "critical", title: " Update now ", body: "Body", minVersion: "1.5.0", maxVersion: "1.5.4",
+    linkUrl: "https://www.clypdat.xyz/security", linkLabel: "", expiresAt: "2027-02-01T00:00:00Z" };
+  const result = validateNoticeInput(good, now);
+  assert.equal(result.ok, true);
+  assert.equal(result.value.title, "Update now");
+  assert.equal(JSON.stringify(result.value.link), JSON.stringify({ label: "Read more", url: "https://www.clypdat.xyz/security" }));
+  for (const bad of [{ severity: "urgent" }, { title: "" }, { body: "" }, { minVersion: "1.5" }, { minVersion: "1.6.0" },
+    { linkUrl: "https://example.test" }, { expiresAt: "2026-12-31T00:00:00Z" }, { expiresAt: "soon" }, { title: "x".repeat(121) }]) {
+    assert.equal(validateNoticeInput({ ...good, ...bad }, now).ok, false, JSON.stringify(bad));
   }
 });
 

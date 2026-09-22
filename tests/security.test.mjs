@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { securityFixture, TEST_SECRET } from "./helpers/security-fixture.mjs";
 
@@ -115,6 +117,17 @@ test("wrong PKCE verifier fails and consumes the code", async () => {
   assert.equal(await codes.redeemConnectCode(code, verifier), null);
 });
 
+test("codes work before expiry and fail at exactly 60 seconds", async () => {
+  const { load, state } = securityFixture();
+  const codes = load("@/app/lib/desktop-connect");
+  const first = await codes.issueConnectCode("user-1", challenge);
+  state.now += 59_999;
+  assert.equal(await codes.redeemConnectCode(first, verifier), "user-1");
+  const expired = await codes.issueConnectCode("user-1", challenge);
+  state.now += 60_000;
+  assert.equal(await codes.redeemConnectCode(expired, verifier), null);
+});
+
 test("callback URLs and challenges reject attacker-controlled destinations", () => {
   const { load } = securityFixture();
   const { readConnectRequest } = load("@/app/lib/desktop-connect");
@@ -148,6 +161,20 @@ test("individual revocation preserves other sessions despite stale cache", async
   assert.equal((await tokens.verifyActiveDesktopToken(second)).userId, "user-1");
 });
 
+test("polling reads the sign-out state once, then answers from the cache", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  const reads = () => state.queries.filter((query) => query.sql.startsWith("SELECT COALESCE(a.version, 0)")).length;
+  const beforePolling = reads();
+  for (let poll = 0; poll < 5; poll++) assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  assert.equal(reads() - beforePolling, 1, "five polls cost one database read");
+  const ttl = state.cacheTtl.get("desktop-auth");
+  // Long enough that Neon can sleep between reads (its idle timer is five
+  // minutes), short enough to bound a cache fill that races a sign-out.
+  assert.ok(ttl > 5 * 60 && ttl <= 30 * 60, `the cached copy is bounded to thirty minutes, got ${ttl}s`);
+});
+
 test("a lost cache entry falls back to the database and still sees the sign-out", async () => {
   const { load, state } = securityFixture();
   const tokens = load("@/app/lib/desktop-token");
@@ -155,6 +182,33 @@ test("a lost cache entry falls back to the database and still sees the sign-out"
   await tokens.revokeDesktopToken(tokens.verifyDesktopToken(token));
   state.cache.clear();
   assert.equal(await tokens.verifyActiveDesktopToken(token), null);
+});
+
+test("a revocation replaces the cached state even when invalidation is delayed", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  await tokens.revokeAllDesktopTokens("user-1");
+  assert.equal(state.cache.get("user-1:desktop-auth").version, 1);
+  assert.equal(await tokens.verifyActiveDesktopToken(token), null);
+});
+
+test("the site keeps no Spotify data: no status table, routes or imports", () => {
+  const appRoot = new URL("../app/", import.meta.url);
+  for (const gone of ["lib/spotify-status.ts", "api/desktop/spotify/route.ts", "api/account/spotify/route.ts"]) {
+    assert.equal(existsSync(new URL(gone, appRoot)), false, `${gone} is removed`);
+  }
+  const offenders = [];
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name) && /clypdat_spotify_status|spotify-status|spotifyDisconnect/.test(readFileSync(path, "utf8"))) offenders.push(path);
+    }
+  };
+  walk(fileURLToPath(appRoot));
+  assert.deepEqual(offenders, []);
 });
 
 function renewRequest(token, headers = {}) {
@@ -187,6 +241,39 @@ test("token renewal refuses browser requests and tokens signed out from the site
   assert.equal(state.queries.length, before, "refused before any database access");
   await tokens.revokeAllDesktopTokens("user-1");
   assert.equal((await POST(renewRequest(token))).status, 401);
+});
+
+test("renewing a token from before token ids signs out the old sessions but not the new one", async () => {
+  const { load, state } = securityFixture();
+  const tokens = load("@/app/lib/desktop-token");
+  const legacy = legacyToken(state.now);
+  const response = await load("@/app/api/desktop/token/renew/route").POST(renewRequest(legacy));
+  assert.equal(response.status, 200);
+  const { token } = await response.json();
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+  assert.equal(await tokens.verifyActiveDesktopToken(legacy), null);
+});
+
+test("the status check takes recent database traffic as proof and does not query", async () => {
+  const { load, state } = securityFixture();
+  const probes = () => state.queries.filter((query) => query.sql === "SELECT 1").length;
+  await load("@/app/lib/database-heartbeat").noteDatabaseReachable();
+  const body = await (await load("@/app/api/status/route").GET()).json();
+  assert.equal(body.services.database, "operational");
+  assert.equal(probes(), 0);
+});
+
+test("without recent traffic the status check probes once and keeps the verdict", async () => {
+  const { load, state } = securityFixture();
+  const probes = () => state.queries.filter((query) => query.sql === "SELECT 1").length;
+  const route = load("@/app/api/status/route");
+  assert.equal((await (await route.GET()).json()).services.database, "operational");
+  assert.equal(probes(), 1);
+  // The overall verdict is cached too; drop it to force a recheck of everything.
+  for (const key of [...state.runtimeCache.keys()]) if (key.includes("status-v")) state.runtimeCache.delete(key);
+  state.runtimeCache.delete("clypdat-status:database-seen-ok");
+  assert.equal((await (await route.GET()).json()).services.database, "operational");
+  assert.equal(probes(), 1, "the half-hour database verdict answers the second check");
 });
 
 test("a database that fails the probe is reported down", async () => {
@@ -270,6 +357,14 @@ test("stats reject browser and text/plain reports without writing counters", asy
   assert.equal(state.statsWrites.length, 1);
 });
 
+test("malformed Xbox authorization cookies return null without throwing", () => {
+  const { load } = securityFixture();
+  const { readXboxAuthorization } = load("@/app/lib/xbox");
+  for (const cookie of [undefined, "", "bad", "e30." + "é".repeat(43), "e30." + "x".repeat(43), ".signature", "payload."]) {
+    assert.equal(readXboxAuthorization(cookie), null);
+  }
+});
+
 test("Xbox authorization requires a signed issuedAt and expires after ten minutes", () => {
   const { load, state } = securityFixture();
   const { readXboxAuthorization } = load("@/app/lib/xbox");
@@ -307,6 +402,27 @@ test("concurrent quota requests across instances cannot exceed the daily cap", a
   assert.equal([...state.allowances.keys()][0].includes("192.0.2.10"), false);
 });
 
+test("quota survives cache eviction, cache outage, and cold starts", async () => {
+  const { load, reload, state } = securityFixture({ realIpAllowance: true });
+  const first = load("@/app/lib/ip-allowance");
+  assert.equal(await first.takeDailyAllowance("clips", "192.0.2.10", 100, 100), true);
+  state.runtimeCache.clear();
+  assert.equal(await reload("@/app/lib/ip-allowance").takeDailyAllowance("clips", "192.0.2.10", 1, 100), false);
+  state.cacheUnavailable = true;
+  assert.equal(await reload("@/app/lib/ip-allowance").takeDailyAllowance("clips", "192.0.2.10", 1, 100), false);
+  assert.equal([...state.allowances.values()][0], 100);
+});
+
+test("oversized quota request does not mark a remaining smaller allowance exhausted", async () => {
+  const { load, state } = securityFixture({ realIpAllowance: true });
+  const { takeDailyAllowance } = load("@/app/lib/ip-allowance");
+  assert.equal(await takeDailyAllowance("clips", "192.0.2.10", 80, 100), true);
+  assert.equal(await takeDailyAllowance("clips", "192.0.2.10", 30, 100), false);
+  assert.equal(state.runtimeCache.size, 0);
+  assert.equal(await takeDailyAllowance("clips", "192.0.2.10", 20, 100), true);
+  assert.equal(await takeDailyAllowance("clips", "192.0.2.10", 1, 100), false);
+});
+
 test("downloads count once per asset/address/day despite concurrent requests and cache outage", async () => {
   const { load, reload, state } = securityFixture({ realIpAllowance: true });
   state.cacheUnavailable = true;
@@ -324,6 +440,16 @@ test("downloads count once per asset/address/day despite concurrent requests and
   await GET(request(), params);
   await Promise.all(state.afterJobs.splice(0).map((action) => action()));
   assert.equal(state.downloads.get("ClypDat-Setup.exe"), 2);
+});
+
+test("durable quota DB outage returns stats 503 without changing counters", async () => {
+  const { load, state } = securityFixture({ realIpAllowance: true });
+  state.failDatabase = true;
+  const response = await load("@/app/api/stats/clips/route").POST(new Request(`${origin}/api/stats/clips`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clip: 1 }),
+  }));
+  assert.equal(response.status, 503);
+  assert.equal(state.statsWrites.length, 0);
 });
 
 test("actual auth configuration preserves Discord email and production TLS/origins", () => {
@@ -355,6 +481,18 @@ test("actual credential update hook revokes tokens and ignores provider profile 
   assert.equal(await tokens.verifyActiveDesktopToken(token), null);
 });
 
+test("password-reset callback revokes tokens when BetterAuth updateMany reports a row count", async () => {
+  const { load, state } = securityFixture({ realAuth: true });
+  load("@/app/lib/auth");
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  // Installed updatePassword passes updateMany's affected-row count to this
+  // hook; onPasswordReset is the callback that still receives the user.
+  await state.authOptions.databaseHooks.account.update.after(1);
+  await state.authOptions.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
+  assert.equal(await tokens.verifyActiveDesktopToken(token), null);
+});
+
 test("adding a password to an existing OAuth account revokes its desktop sessions", async () => {
   const { load, state } = securityFixture({ realAuth: true });
   load("@/app/lib/auth");
@@ -378,3 +516,24 @@ test("actual revoke-sessions success hook revokes every desktop token", async ()
   assert.equal(await tokens.verifyActiveDesktopToken(token), null);
 });
 
+test("failed revoke-sessions does not revoke desktop tokens or erase the endpoint error", async () => {
+  const { load, state } = securityFixture({ realAuth: true });
+  load("@/app/lib/auth");
+  const tokens = load("@/app/lib/desktop-token");
+  const token = await tokens.createDesktopToken("user-1");
+  // Installed BetterAuth dispatch passes APIError (an Error subclass) here.
+  const failure = Object.assign(new Error("Fixture revoke failed"), { statusCode: 500 });
+  const context = { path: "/revoke-sessions", context: { session: state.session, returned: failure } };
+  assert.equal(await state.authOptions.hooks.after(context), undefined);
+  assert.equal(context.context.returned, failure);
+  assert.equal((await tokens.verifyActiveDesktopToken(token)).userId, "user-1");
+});
+
+test("successful website revocation surfaces a failure to persist desktop revocation", async () => {
+  const { load, state } = securityFixture({ realAuth: true });
+  load("@/app/lib/auth");
+  state.failDatabase = true;
+  await assert.rejects(() => state.authOptions.hooks.after({
+    path: "/revoke-sessions", context: { session: state.session, returned: { status: true } },
+  }), /Fixture database unavailable/);
+});
