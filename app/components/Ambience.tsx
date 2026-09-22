@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 // A single page-wide atmosphere layer, rather than a glow bolted onto each
 // section. Sections previously lit themselves, which left obvious dark bands
@@ -27,10 +27,54 @@ import { useEffect, useRef } from "react";
 // Matches the phone rule in globals.css that drops the two extra blobs.
 const WIDE = "(min-width: 768px)";
 
-// Same boxes as the CSS blobs below, as fractions of the viewport plus pixel
-// offsets to each box's centre, so both paint the same light. Linear falloff
-// from the centre colour to nothing, as radial-gradient(closest-side) draws it.
-const FRAGMENT_SHADER = `
+// Where the light sits. Each blob is a box anchored like the CSS fallback
+// (left/right, top/bottom, as a fraction of the viewport), so the shader and the
+// fallback paint the same light. Its centre is fx*width + sx*rx along x and
+// fy*height + sy*ry along y: sx is +1 for a left-anchored box, -1 for a
+// right-anchored one, and the same for y. Linear falloff from the centre colour
+// to nothing, as radial-gradient(closest-side) draws it.
+//
+// Pages get their own layout so the site does not feel like one wallpaper
+// pasted behind everything; "home" is the original arrangement.
+type Blob = {
+  fx: number; sx: 1 | -1; fy: number; sy: 1 | -1;
+  rx: number; ry: number;
+  rgb: [number, number, number]; peak: number;
+  // Dropped on phones along with the rule in globals.css.
+  extra?: boolean;
+};
+
+const LAYOUTS = {
+  home: [
+    // Top-left wash, warm side of the accent.
+    { fx: -0.14, sx: 1, fy: -0.22, sy: 1, rx: 610, ry: 520, rgb: [16, 185, 129], peak: 0.13 },
+    // Counterweight on the right, cooler, so the page is not lit evenly.
+    { fx: 1.2, sx: -1, fy: 0.18, sy: 1, rx: 580, ry: 490, rgb: [45, 212, 191], peak: 0.09 },
+    // Low and centred, to keep the lower half of the page from going flat.
+    { fx: 0.14, sx: 1, fy: 1.18, sy: -1, rx: 600, ry: 470, rgb: [6, 182, 212], peak: 0.08, extra: true },
+    // Faint fourth, offset so no pair of blobs lines up.
+    { fx: 0.3, sx: 1, fy: 0.48, sy: 1, rx: 460, ry: 410, rgb: [52, 211, 153], peak: 0.07, extra: true },
+  ],
+  // Mirrored: the strong wash top-right over the header's controls, the cool
+  // counterweight low on the left behind the form, a faint band along the
+  // bottom and a lift between the two columns.
+  admin: [
+    { fx: 1.12, sx: -1, fy: -0.24, sy: 1, rx: 620, ry: 520, rgb: [16, 185, 129], peak: 0.12 },
+    { fx: -0.2, sx: 1, fy: 0.5, sy: 1, rx: 560, ry: 480, rgb: [45, 212, 191], peak: 0.09 },
+    { fx: 0.42, sx: 1, fy: 1.22, sy: -1, rx: 640, ry: 460, rgb: [6, 182, 212], peak: 0.07, extra: true },
+    { fx: 0.5, sx: 1, fy: 0.16, sy: 1, rx: 420, ry: 380, rgb: [52, 211, 153], peak: 0.06, extra: true },
+  ],
+} satisfies Record<string, Blob[]>;
+
+export type AmbienceLayout = keyof typeof LAYOUTS;
+
+const f = (value: number) => value.toFixed(4);
+
+function fragmentShader(blobs: Blob[]) {
+  const wash = (blob: Blob) =>
+    `colour = wash(colour, point, vec2(${f(blob.fx)} * size.x + ${f(blob.sx * blob.rx)}, ${f(blob.fy)} * size.y + ${f(blob.sy * blob.ry)}),
+      vec2(${f(blob.rx)}, ${f(blob.ry)}), vec3(${blob.rgb.map(f).join(", ")}), ${f(blob.peak)});`;
+  return `
   #ifdef GL_FRAGMENT_PRECISION_HIGH
   precision highp float;
   #else
@@ -39,7 +83,7 @@ const FRAGMENT_SHADER = `
 
   uniform vec2 size;    // viewport, CSS px
   uniform float scale;  // device px per CSS px
-  uniform float extras; // 1 when the two extra blobs are shown
+  uniform float extras; // 1 when the extra blobs are shown
 
   vec3 wash(vec3 base, vec2 point, vec2 center, vec2 radii, vec3 rgb, float peak) {
     float f = clamp(1.0 - length((point - center) / radii), 0.0, 1.0);
@@ -56,15 +100,9 @@ const FRAGMENT_SHADER = `
   void main() {
     vec2 point = vec2(gl_FragCoord.x, size.y * scale - gl_FragCoord.y) / scale;
     vec3 colour = vec3(10.0, 13.0, 17.0) / 255.0; // --background
-    colour = wash(colour, point, vec2(-0.14 * size.x + 610.0, -0.22 * size.y + 520.0),
-      vec2(610.0, 520.0), vec3(16.0, 185.0, 129.0), 0.13);
-    colour = wash(colour, point, vec2(1.2 * size.x - 580.0, 0.18 * size.y + 490.0),
-      vec2(580.0, 490.0), vec3(45.0, 212.0, 191.0), 0.09);
+    ${blobs.filter((blob) => !blob.extra).map(wash).join("\n    ")}
     if (extras > 0.5) {
-      colour = wash(colour, point, vec2(0.14 * size.x + 600.0, 1.18 * size.y - 470.0),
-        vec2(600.0, 470.0), vec3(6.0, 182.0, 212.0), 0.08);
-      colour = wash(colour, point, vec2(0.3 * size.x + 460.0, 0.48 * size.y + 410.0),
-        vec2(460.0, 410.0), vec3(52.0, 211.0, 153.0), 0.07);
+      ${blobs.filter((blob) => blob.extra).map(wash).join("\n      ")}
     }
     // Triangular noise of +-1 step, which the output's rounding turns into
     // dither rather than error.
@@ -72,12 +110,26 @@ const FRAGMENT_SHADER = `
     gl_FragColor = vec4(colour + noise / 255.0, 1.0);
   }
 `;
+}
+
+// The CSS fallback's box for a blob: anchored on the same side the shader
+// measures from, so the two agree.
+function blobStyle(blob: Blob): CSSProperties {
+  const percent = (value: number) => `${+(value * 100).toFixed(2)}%`;
+  return {
+    width: blob.rx * 2,
+    height: blob.ry * 2,
+    ...(blob.sx === 1 ? { left: percent(blob.fx) } : { right: percent(1 - blob.fx) }),
+    ...(blob.sy === 1 ? { top: percent(blob.fy) } : { bottom: percent(1 - blob.fy) }),
+    background: `radial-gradient(closest-side, rgba(${blob.rgb.join(",")},${blob.peak}), transparent)`,
+  };
+}
 
 const VERTEX_SHADER = "attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }";
 
 // Compiles the field onto the canvas and returns its draw call, or null if the
 // browser cannot - in which case the CSS blobs simply stay.
-function createField(canvas: HTMLCanvasElement) {
+function createField(canvas: HTMLCanvasElement, blobs: Blob[]) {
   const gl = canvas.getContext("webgl", {
     alpha: false,
     antialias: false,
@@ -95,7 +147,7 @@ function createField(canvas: HTMLCanvasElement) {
     return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
   };
   const vertex = compile(gl.VERTEX_SHADER, VERTEX_SHADER);
-  const fragment = compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
+  const fragment = compile(gl.FRAGMENT_SHADER, fragmentShader(blobs));
   const program = gl.createProgram();
   if (!vertex || !fragment || !program) return null;
   gl.attachShader(program, vertex);
@@ -137,7 +189,8 @@ function createField(canvas: HTMLCanvasElement) {
   };
 }
 
-export default function Ambience() {
+export default function Ambience({ layout = "home" }: { layout?: AmbienceLayout }) {
+  const blobs: Blob[] = LAYOUTS[layout];
   const layerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -146,7 +199,7 @@ export default function Ambience() {
     const canvas = canvasRef.current;
     if (!layer || !canvas) return;
 
-    const draw = createField(canvas);
+    const draw = createField(canvas, blobs);
     if (!draw) return;
 
     // Swap on a frame boundary: the blobs go and the drawn field appears in
@@ -168,7 +221,7 @@ export default function Ambience() {
       wide.removeEventListener("change", draw);
       canvas.removeEventListener("webglcontextlost", lost);
     };
-  }, []);
+  }, [blobs]);
 
   return (
     <div
@@ -192,14 +245,9 @@ export default function Ambience() {
           the entire visit. The drift cycled over 19 to 41 seconds, which reads
           as a still wash anyway. Painted once, then free. */}
       <div className="contents group-data-[live]:hidden">
-        {/* Top-left wash, warm side of the accent. */}
-        <div className="ambience-blob absolute -left-[14%] top-[-22%] h-[1040px] w-[1220px] bg-[radial-gradient(closest-side,rgba(16,185,129,0.13),transparent)]" />
-        {/* Counterweight on the right, cooler, so the page is not lit evenly. */}
-        <div className="ambience-blob absolute -right-[20%] top-[18%] h-[980px] w-[1160px] bg-[radial-gradient(closest-side,rgba(45,212,191,0.09),transparent)]" />
-        {/* Low and centred, to keep the lower half of the page from going flat. */}
-        <div className="ambience-blob ambience-extra absolute bottom-[-18%] left-[14%] h-[940px] w-[1200px] bg-[radial-gradient(closest-side,rgba(6,182,212,0.08),transparent)]" />
-        {/* Faint fourth, offset so no pair of blobs lines up. */}
-        <div className="ambience-blob ambience-extra absolute left-[30%] top-[48%] h-[820px] w-[920px] bg-[radial-gradient(closest-side,rgba(52,211,153,0.07),transparent)]" />
+        {blobs.map((blob, index) => (
+          <div key={index} className={`ambience-blob absolute ${blob.extra ? "ambience-extra" : ""}`} style={blobStyle(blob)} />
+        ))}
       </div>
 
       {/* Grain. Takes the plastic sheen off the flat areas, over either the

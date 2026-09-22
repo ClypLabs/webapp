@@ -6,6 +6,18 @@ import type { NextConfig } from "next";
 const apiHost = [{ type: "host" as const, value: "api.clypdat.xyz" }];
 
 const nextConfig: NextConfig = {
+  // admin.clypdat.xyz is a memorable door, not a second site: the sign-in
+  // cookie belongs to www, so /admin has to be served from www to see it.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host" as const, value: "admin.clypdat.xyz" }],
+        destination: "https://www.clypdat.xyz/admin",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -37,12 +49,13 @@ const nextConfig: NextConfig = {
         { source: "/v1/status", has: apiHost, destination: "/api/status" },
         { source: "/v1/releases/latest", has: apiHost, destination: "/api/releases/latest" },
         { source: "/v1/releases", has: apiHost, destination: "/api/releases" },
+        { source: "/v1/notices", has: apiHost, destination: "/api/notices" },
         { source: "/og.png", has: apiHost, destination: "/api/og" },
         // The catch-all below leaves /api/ alone so the rules above keep
         // working, which also left sign-in, account and desktop routes answering
         // on this host. They belong to www only.
         {
-          source: "/api/:group(auth|account|desktop|xbox)/:rest*",
+          source: "/api/:group(auth|account|admin|desktop|xbox)/:rest*",
           has: apiHost,
           destination: "/api/unknown",
         },
