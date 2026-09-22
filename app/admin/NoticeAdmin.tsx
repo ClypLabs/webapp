@@ -52,7 +52,19 @@ const SWITCH_LABEL: Record<SwitchControl, string> = {
   "pause-discord-presence": "Pause Discord presence",
   "block-update-version": "Block one stable update",
 };
-const GAME_IDS = ["cs2", "dota2", "fortnite", "helldivers2", "league", "overwatch"];
+const SWITCH_OPTIONS: { control: SwitchControl; name: string; hint: string }[] = [
+  { control: "pause-auto-clipping", name: "Auto-clipping", hint: "Pause automatic clip saves" },
+  { control: "disable-game-detector", name: "Game detector", hint: "Disable one game's detector" },
+  { control: "pause-spotify", name: "Spotify", hint: "Pause the Spotify integration" },
+  { control: "pause-xbox-activity", name: "Xbox activity", hint: "Pause Xbox activity updates" },
+  { control: "pause-discord-presence", name: "Discord presence", hint: "Pause profile activity sharing" },
+  { control: "block-update-version", name: "App update", hint: "Block a specific stable release" },
+];
+const GAMES = [
+  { id: "cs2", name: "Counter-Strike 2" }, { id: "dota2", name: "Dota 2" },
+  { id: "fortnite", name: "Fortnite" }, { id: "helldivers2", name: "Helldivers 2" },
+  { id: "league", name: "League of Legends" }, { id: "overwatch", name: "Overwatch" },
+];
 
 const SEVERITY_LABEL: Record<Severity, string> = { feature: "New feature", info: "Info", critical: "Critical" };
 const SEVERITY_STYLE: Record<Severity, string> = {
@@ -107,6 +119,13 @@ export default function NoticeAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showSwitchHistory, setShowSwitchHistory] = useState(false);
+  const [switchNow, setSwitchNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setSwitchNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/notices", { cache: "no-store" });
@@ -192,6 +211,9 @@ export default function NoticeAdmin() {
   }
 
   const visible = (notices ?? []).filter((notice) => showArchived || !notice.archived);
+  const isSwitchActive = (item: StoredSwitch) => !item.cleared && new Date(item.expiresAt).getTime() > switchNow;
+  const activeSwitches = (switches ?? []).filter(isSwitchActive);
+  const visibleSwitches = showSwitchHistory ? switches ?? [] : activeSwitches;
   // The site-wide focus outline sits 3px outside the element, where it runs into
   // the label above; fields here show focus as a border and inner glow instead.
   const input = "[color-scheme:dark] w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus-visible:outline-none focus:border-teal-400/70 focus:shadow-[inset_0_0_0_1px_rgba(45,212,191,0.45)]";
@@ -214,37 +236,69 @@ export default function NoticeAdmin() {
       </header>
 
       {tab === "switches" ? (
-        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <form onSubmit={submitSwitch} className="space-y-4 rounded-3xl border border-red-400/20 bg-white/[0.04] p-6">
-            <div className="flex items-center justify-between">
+        <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          <form onSubmit={submitSwitch} className="min-w-0 space-y-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-7">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
               <div><h2 className="text-lg font-semibold">{editingSwitchId ? "Edit kill switch" : "New kill switch"}</h2>
-                <p className="mt-1 text-xs text-zinc-500">Required expiry defaults to 24 hours. Maximum is seven days.</p></div>
+                <p className="mt-1 text-sm leading-6 text-zinc-400">Temporarily disable a feature in the app.</p></div>
               {editingSwitchId && <button type="button" className="text-sm text-zinc-400 hover:text-zinc-200" onClick={() => { setEditingSwitchId(null); setSwitchDraft(EMPTY_SWITCH); }}>Cancel edit</button>}
             </div>
-            <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Control</span>
-              <select value={switchDraft.control} onChange={setSwitch("control")} className={input}>
-                {(Object.keys(SWITCH_LABEL) as SwitchControl[]).map((control) => <option key={control} value={control}>{SWITCH_LABEL[control]}</option>)}
-              </select>
-            </label>
-            {(switchDraft.control === "disable-game-detector" || switchDraft.control === "block-update-version") &&
-              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">{switchDraft.control === "block-update-version" ? "Stable version" : "Game detector"}</span>
-                {switchDraft.control === "disable-game-detector" ? <select value={switchDraft.target} onChange={setSwitch("target")} className={input}><option value="">Pick a game</option>{GAME_IDS.map((id) => <option key={id}>{id}</option>)}</select>
-                  : <input value={switchDraft.target} onChange={setSwitch("target")} placeholder="1.5.4" className={input} />}
-              </label>}
-            <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Reason shown in app</span><textarea value={switchDraft.reason} onChange={setSwitch("reason")} maxLength={1000} rows={4} required className={input} /></label>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Installed from</span><input value={switchDraft.minVersion} onChange={setSwitch("minVersion")} placeholder="any" className={input} /></label>
-              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Installed through</span><input value={switchDraft.maxVersion} onChange={setSwitch("maxVersion")} placeholder="any" className={input} /></label>
-              <label className="block space-y-1.5 text-sm"><span className="text-zinc-400">Expires</span><input type="datetime-local" value={switchDraft.expiresAt} onChange={setSwitch("expiresAt")} className={input} /></label>
+            <fieldset className="min-w-0">
+              <legend className="mb-3 text-sm font-medium text-zinc-200">Feature to disable</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {SWITCH_OPTIONS.map((option) => (
+                  <label key={option.control} className="relative cursor-pointer">
+                    <input type="radio" name="switch-control" value={option.control} checked={switchDraft.control === option.control}
+                      onChange={() => setSwitchDraft((current) => ({ ...current, control: option.control, target: "" }))}
+                      className="peer sr-only" />
+                    <span className="flex h-full items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3.5 transition-colors hover:border-white/25 peer-checked:border-teal-300/50 peer-checked:bg-teal-300/[0.06] peer-focus-visible:ring-2 peer-focus-visible:ring-teal-300 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-zinc-950">
+                      <span aria-hidden="true" className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${switchDraft.control === option.control ? "border-teal-300 bg-teal-300" : "border-zinc-600"}`}>
+                        {switchDraft.control === option.control && <span className="h-1.5 w-1.5 rounded-full bg-teal-950" />}
+                      </span>
+                      <span><span className="block text-sm font-medium text-zinc-100">{option.name}</span><span className="mt-1 block text-xs leading-5 text-zinc-400">{option.hint}</span></span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {switchDraft.control === "disable-game-detector" && (
+              <fieldset className="min-w-0">
+                <legend className="mb-3 text-sm font-medium text-zinc-200">Game detector</legend>
+                <div className="flex flex-wrap gap-2">
+                  {GAMES.map((game) => <label key={game.id} className="relative cursor-pointer">
+                    <input type="radio" name="switch-game" value={game.id} required checked={switchDraft.target === game.id} onChange={setSwitch("target")} className="peer sr-only" />
+                    <span className="block rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-white/25 peer-checked:border-teal-300/50 peer-checked:bg-teal-300/10 peer-checked:text-teal-200 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-300">{game.name}</span>
+                  </label>)}
+                </div>
+              </fieldset>
+            )}
+            {switchDraft.control === "block-update-version" && <label className="block space-y-2 text-sm"><span className="font-medium text-zinc-200">Stable version to block</span><input value={switchDraft.target} onChange={setSwitch("target")} placeholder="1.5.4" required className={input} /></label>}
+            <label className="block space-y-2 text-sm"><span className="font-medium text-zinc-200">Message for users</span><textarea value={switchDraft.reason} onChange={setSwitch("reason")} maxLength={1000} rows={3} required placeholder="Explain why this feature is temporarily unavailable…" className={`${input} min-h-24 resize-y`} /><span className="block text-xs text-zinc-500">Shown alongside the disabled feature in the app.</span></label>
+            <div className="space-y-5 border-t border-white/10 pt-5">
+              <label className="block min-w-0 space-y-2 text-sm"><span className="font-medium text-zinc-200">Expires automatically</span><input type="datetime-local" value={switchDraft.expiresAt} onChange={setSwitch("expiresAt")} className={`${input} min-w-0 max-w-full`} /><span className="block text-xs text-zinc-500">Leave blank for 24 hours. Maximum: 7 days.</span></label>
+              <fieldset className="min-w-0">
+                <legend className="mb-2 text-sm font-medium text-zinc-200">Installed app versions <span className="font-normal text-zinc-500">· optional</span></legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1.5 text-xs text-zinc-400">From<input value={switchDraft.minVersion} onChange={setSwitch("minVersion")} placeholder="Any version" className={input} /></label>
+                  <label className="block space-y-1.5 text-xs text-zinc-400">Through<input value={switchDraft.maxVersion} onChange={setSwitch("maxVersion")} placeholder="Any version" className={input} /></label>
+                </div>
+              </fieldset>
             </div>
-            <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.06] p-4 text-sm text-red-100">Affected capability: <strong>{SWITCH_LABEL[switchDraft.control]}</strong>{switchDraft.target && ` (${switchDraft.target})`}. Active clients poll within one minute and disable it immediately.</div>
+            <div className="border-l-2 border-rose-300/50 pl-4 text-sm leading-6"><p className="font-medium text-zinc-200">{SWITCH_LABEL[switchDraft.control]}{switchDraft.target && ` · ${GAMES.find((game) => game.id === switchDraft.target)?.name ?? switchDraft.target}`}</p><p className="text-zinc-400">Applies when connected apps next refresh. Clear the switch to restore access sooner.</p></div>
             {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
-            <button type="submit" disabled={busy} className="w-full rounded-full bg-red-300 px-4 py-3 text-sm font-semibold text-red-950 transition hover:bg-red-200 disabled:cursor-wait disabled:opacity-60">{editingSwitchId ? "Update switch" : "Publish switch"}</button>
+            <button type="submit" disabled={busy} className="w-full rounded-xl bg-rose-300 px-4 py-3 text-sm font-semibold text-rose-950 transition hover:bg-rose-200 disabled:cursor-wait disabled:opacity-60">{busy ? "Saving…" : editingSwitchId ? "Update switch" : "Publish switch"}</button>
           </form>
-          <section className="space-y-3"><h2 className="text-lg font-semibold">Active and expired</h2>
+          <section className="min-w-0 space-y-4 lg:pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold">Active switches <span className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs font-medium tabular-nums text-zinc-400">{switches === null ? "—" : activeSwitches.length}</span></h2>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400"><input type="checkbox" checked={showSwitchHistory} onChange={(event) => setShowSwitchHistory(event.target.checked)} className="accent-teal-300" />Show history</label>
+            </div>
             {switches === null && <p className="text-sm text-zinc-500">Loading…</p>}
-            {switches?.map((item) => { const expired = new Date(item.expiresAt).getTime() <= Date.now(); return <article key={item.id} className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 ${item.cleared || expired ? "opacity-50" : ""}`}>
-              <div className="flex flex-wrap gap-2 text-xs text-zinc-500"><span className="rounded-full bg-red-400/15 px-2.5 py-0.5 text-red-300">{SWITCH_LABEL[item.control]}</span>{item.target && <span>{item.target}</span>}<span>{expired ? "expired" : item.cleared ? "cleared" : `expires ${new Date(item.expiresAt).toLocaleString()}`}</span></div>
+            {switches !== null && visibleSwitches.length === 0 && <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-10 text-center"><span aria-hidden="true" className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-teal-300/20 bg-teal-300/[0.06] text-teal-200">✓</span><h3 className="text-sm font-medium text-zinc-200">{showSwitchHistory ? "No switches published yet" : "No active kill switches"}</h3><p className="mx-auto mt-2 max-w-64 text-sm leading-6 text-zinc-500">{showSwitchHistory ? "Published switches will appear here, including cleared and expired ones." : "No features are currently disabled by a kill switch."}</p></div>}
+            {visibleSwitches.map((item) => { const expired = new Date(item.expiresAt).getTime() <= switchNow; return <article key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium text-zinc-100">{SWITCH_LABEL[item.control]}</h3><span className={`rounded-full px-2.5 py-1 text-xs ${item.cleared || expired ? "bg-white/5 text-zinc-400" : "bg-rose-300/10 text-rose-200"}`}>{item.cleared ? "Cleared" : expired ? "Expired" : "Active"}</span></div>
+              {item.target && <p className="mt-1 text-xs text-zinc-400">{GAMES.find((game) => game.id === item.target)?.name ?? item.target}</p>}
+              <p className="mt-3 text-xs text-zinc-500">{expired ? "Expired" : "Expires"} {new Date(item.expiresAt).toLocaleString()}</p>
               <p className="mt-3 text-sm text-zinc-300">{item.reason}</p>
               {(item.minVersion || item.maxVersion) && <p className="mt-2 text-xs text-zinc-500">Installed versions: {item.minVersion ?? "any"} - {item.maxVersion ?? "any"}</p>}
               {!item.cleared && !expired && <div className="mt-3 flex gap-4 text-sm"><button type="button" disabled={busy} className="text-zinc-300 hover:text-white" onClick={() => { setEditingSwitchId(item.id); setSwitchDraft({ control: item.control, target: item.target ?? "", reason: item.reason, minVersion: item.minVersion ?? "", maxVersion: item.maxVersion ?? "", expiresAt: toLocalInput(item.expiresAt) }); window.scrollTo({ top: 0 }); }}>Edit</button><button type="button" disabled={busy} className="text-zinc-400 hover:text-zinc-200" onClick={() => clearSwitch(item)}>Clear</button></div>}
