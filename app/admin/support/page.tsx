@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { currentAdminId } from "@/app/lib/admin";
-import Ambience from "@/app/components/Ambience";
 import SupportInbox from "./SupportInbox";
 import { listSupportReports, type SupportReport } from "@/app/lib/support";
 
@@ -15,5 +14,5 @@ export default async function SupportPage() {
   let error = "";
   try { reports = await listSupportReports(); }
   catch { error = "Inbox unavailable. Try again shortly."; }
-  return <><Ambience layout="admin" /><SupportInbox initialReports={reports} initialError={error} /></>;
+  return <SupportInbox initialReports={reports} initialError={error} />;
 }

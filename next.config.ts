@@ -60,7 +60,7 @@ const nextConfig: NextConfig = {
           destination: "/api/unknown",
         },
         {
-          source: "/:path((?!api/|favicon\\.ico$).*)",
+          source: "/:path((?!api/|fonts/|favicon\\.ico$).*)",
           has: apiHost,
           destination: "/api/unknown",
         },

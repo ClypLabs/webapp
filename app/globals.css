@@ -56,9 +56,7 @@ html {
 }
 
 body {
-  /* Transparent so the admin pages' ambience layer (-z-10) still shows. The
-     colour lives on `html` above. */
-  background: transparent;
+  background: var(--background);
   color: var(--foreground);
   font-feature-settings: "ss01", "tnum";
 }
@@ -386,27 +384,15 @@ body {
   animation: none !important;
 }
 
-[data-fx="low"] .page-grain {
-  display: none;
-}
-
 [data-fx="low"] .backdrop-blur,
 [data-fx="low"] .backdrop-blur-sm,
 [data-fx="low"] .backdrop-blur-md {
   backdrop-filter: none;
 }
 
-/* The admin pages still draw the ambience layer; a phone gets it still. */
+/* backdrop-filter re-reads and blurs whatever is underneath on every
+   composite; not worth it on a phone. */
 @media (max-width: 767px) {
-  .ambience-blob {
-    animation: none;
-  }
-
-  .ambience-extra,
-  .page-grain {
-    display: none;
-  }
-
   .backdrop-blur,
   .backdrop-blur-sm,
   .backdrop-blur-md {

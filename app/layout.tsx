@@ -95,8 +95,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           />
         </noscript>
       </head>
-      {/* No background here - it belongs on `html`, or it paints over the
-          ambience layer. See globals.css. */}
+      {/* The page colour is set in globals.css, on both html and body. */}
       <body className="min-h-full flex flex-col text-foreground">
         {children}
         <PauseOffscreen />
