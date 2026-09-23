@@ -730,23 +730,23 @@ export default function AccountPage() {
       <main className="flex min-h-screen items-center justify-center px-6 py-20">
         {idle && (
           <div role="dialog" aria-modal="true" aria-labelledby="idle-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0f1318] p-7 text-center shadow-2xl shadow-black/40">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Paused</p>
+            <div className="w-full max-w-sm border border-rule bg-panel p-7 text-center">
+              <p className="slate text-dim">Paused</p>
               <h2 id="idle-title" className="mt-3 text-xl font-semibold">Still there?</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">This page stops checking for updates after 5 minutes without activity, or after 30 minutes open. You are still signed in.</p>
-              <button type="button" autoFocus onClick={resumeFromIdle} className="mt-6 w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
+              <button type="button" autoFocus onClick={resumeFromIdle} className="mt-6 w-full rounded-[3px] bg-paper px-4 py-3 text-sm font-semibold text-ink transition hover:bg-white">
                 Continue
               </button>
             </div>
           </div>
         )}
-        <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-8">
-          <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
-          <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
+        <section className="w-full max-w-4xl border border-rule bg-panel p-6 sm:p-8">
+          <Link href="/" className="text-sm text-dim hover:text-paper">← Back to ClypDat</Link>
+          <p className="mt-10 slate text-dim">ClypDat account</p>
           <div className="mt-3 flex flex-wrap items-center gap-4">
             {linkedSocials.includes("discord") && discordImage(discordProfile?.image ?? session?.user?.image) && (
               // eslint-disable-next-line @next/next/no-img-element -- a Discord CDN avatar; next/image would need the host allow-listed for no gain
-              <img src={discordImage(discordProfile?.image ?? session?.user?.image)!} alt="" width={56} height={56} className="h-14 w-14 rounded-full border border-white/10" />
+              <img src={discordImage(discordProfile?.image ?? session?.user?.image)!} alt="" width={56} height={56} className="h-14 w-14 rounded-full border border-rule" />
             )}
             <h1 className="text-3xl font-semibold tracking-tight">Welcome, {discordProfile?.name ?? user.name}!</h1>
             {linkedSocials.includes("discord") && (
@@ -755,7 +755,7 @@ export default function AccountPage() {
                 disabled={discordRefreshBusy || discordRefreshCooling}
                 onClick={refreshFromDiscord}
                 title={discordRefreshCooling ? "Refresh from Discord works once every 20 minutes. ClypDat also checks every 30 minutes on its own." : "Pull your current Discord name and picture now. ClypDat also checks every 30 minutes."}
-                className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-[#5865F2]/70 hover:bg-[#5865F2]/10 disabled:cursor-wait disabled:opacity-60"
+                className="rounded-[3px] border border-rule-strong px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-[#5865F2]/70 hover:bg-[#5865F2]/10 disabled:cursor-wait disabled:opacity-60"
               >
                 {discordRefreshBusy ? "Refreshing…" : discordRefreshCooling ? `Refresh in ${formatCountdown(discordRefreshReadyAt - clock)}` : "Refresh from Discord"}
               </button>
@@ -763,38 +763,38 @@ export default function AccountPage() {
           </div>
           {discordRefreshNote && <p className="mt-2 text-sm text-zinc-400">{discordRefreshNote}</p>}
           <p className="mt-3 text-zinc-400">{linking ? `Linking ${getSocialProvider(new URL(window.location.href).searchParams.get("link_provider"))}…` : "Manage every way you sign in and connect optional gaming services."}</p>
-          {error && <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
+          {error && <p role="alert" className="mt-5 border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</p>}
           {mergeOffer && (
-            <div className="mt-5 rounded-xl border border-[#5865F2]/40 bg-[#5865F2]/10 px-4 py-4 text-sm text-zinc-200">
+            <div className="mt-5 border border-[#5865F2]/40 bg-[#5865F2]/10 px-4 py-4 text-sm text-zinc-200">
               <p className="font-semibold">That Discord already has its own ClypDat account.</p>
               <p className="mt-1 text-zinc-300">Usually one made by signing in with Discord while Google sign-in was unavailable. Merge it into this account: its Discord sign-in moves here, its Xbox link too if this account has none, and the empty duplicate is deleted. You&apos;ll confirm with Discord once more.</p>
               <div className="mt-3 flex flex-wrap gap-3">
-                <button type="button" disabled={mergeBusy} onClick={() => startMerge("discord")} className="rounded-full bg-[#5865F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-60">{mergeBusy ? "Merging…" : "Merge accounts"}</button>
+                <button type="button" disabled={mergeBusy} onClick={() => startMerge("discord")} className="rounded-[3px] bg-[#5865F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-60">{mergeBusy ? "Merging…" : "Merge accounts"}</button>
                 <button type="button" disabled={mergeBusy} onClick={() => setMergeOffer(false)} className="px-2 py-2 text-sm text-zinc-300">Not now</button>
               </div>
             </div>
           )}
           {!mergeOffer && mergeBusy && <p className="mt-5 text-sm text-zinc-400">Merging your accounts…</p>}
           {googleLinked && !linkedSocials.includes("discord") && !mergeOffer && (
-            <p className="mt-5 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">Google sign-in is being retired. Connect Discord below so you can keep signing in to this account.</p>
+            <p className="mt-5 border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">Google sign-in is being retired. Connect Discord below so you can keep signing in to this account.</p>
           )}
           <div className={`mt-8 grid gap-6 ${canAddAccount ? "lg:grid-cols-2" : ""}`}>
-            {canAddAccount && <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-              <div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Add an account</p><h2 className="mt-2 text-lg font-semibold">More ways to sign in</h2></div>{accountsBusy && <span className="text-xs text-zinc-500">Updating…</span>}</div>
+            {canAddAccount && <div className="border border-rule bg-ink p-5">
+              <div className="flex items-center justify-between gap-4"><div><p className="slate text-dim">Add an account</p><h2 className="mt-2 text-lg font-semibold">More ways to sign in</h2></div>{accountsBusy && <span className="text-xs text-zinc-500">Updating…</span>}</div>
               <div className="mt-5 space-y-3">
-                {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Sign in with Discord and show your Discord name and picture in ClypDat</span></span></span><span className="text-emerald-300">Connect</span></button>)}
-                {!xboxConnected && <a href="/api/xbox/connect" className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 transition hover:border-emerald-300/60 hover:bg-emerald-300/10"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">Xbox</span><span className="text-sm text-zinc-400">Optional activity and presence</span></span></span><span className="text-emerald-300">Connect</span></a>}
+                {availableSocials.map((provider) => <button key={provider} type="button" onClick={() => connectSocial(provider)} className="flex w-full items-center justify-between border border-rule px-4 py-3 text-left transition hover:border-faint hover:bg-panel-2"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span><span className="block font-semibold">{socialProviderName(provider)}</span><span className="text-sm text-zinc-400">Sign in with Discord and show your Discord name and picture in ClypDat</span></span></span><span className="text-paper">Connect</span></button>)}
+                {!xboxConnected && <a href="/api/xbox/connect" className="flex w-full items-center justify-between border border-rule px-4 py-3 transition hover:border-faint hover:bg-panel-2"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">Xbox</span><span className="text-sm text-zinc-400">Optional activity and presence</span></span></span><span className="text-paper">Connect</span></a>}
                 {onlyDiscord && <button type="button" disabled={mergeBusy} onClick={() => startMerge("google")} className="w-full text-left text-sm text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline disabled:cursor-wait">Made a ClypDat account with Google before? Sign in with Google to merge it into this one.</button>}
               </div>
             </div>}
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Connected accounts</p><h2 className="mt-2 text-lg font-semibold">Your account connections</h2>
+            <div className="border border-rule bg-ink p-5">
+              <p className="slate text-dim">Connected accounts</p><h2 className="mt-2 text-lg font-semibold">Your account connections</h2>
               <div className="mt-5 space-y-3">
-                {linkedSocials.map((provider) => <div key={provider} className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 rounded-full border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>)}
-                {xboxConnected && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-full bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 rounded-full border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>}
-                {googleLinked && <div className="rounded-xl border border-white/10 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><GoogleIcon /><span><span className="block font-semibold">Google</span><span className="text-sm text-zinc-400">Sign-in only, while Google is retired</span></span></span><span className="rounded-full bg-emerald-300/15 px-2 py-1 text-xs font-medium text-emerald-200">Connected</span></div></div>}
+                {linkedSocials.map((provider) => <div key={provider} className="border border-rule px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><SocialProviderIcon provider={provider} /><span className="font-semibold">{socialProviderName(provider)}</span></span><span className="border border-rule-strong px-2 py-1 text-xs font-medium text-dim">Connected</span></div>{confirming === provider ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={accountsBusy} onClick={() => disconnectSocial(provider)} className="rounded-[3px] bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={accountsBusy} onClick={() => setConfirming(provider)} className="mt-3 rounded-[3px] border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>)}
+                {xboxConnected && <div className="border border-rule px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><XboxIcon /><span><span className="block font-semibold">{xbox?.account?.gamertag ?? "Xbox"}</span><span className="text-sm text-zinc-400">{xboxActivity?.title ? `Playing ${xboxActivity.title}${xboxActivity.consoleName ? ` on ${xboxActivity.consoleName}` : ""}` : "No active Xbox game detected."}</span></span></span><span className="border border-rule-strong px-2 py-1 text-xs font-medium text-dim">Connected</span></div>{confirming === "xbox" ? <div className="mt-3 flex items-center gap-2"><button type="button" disabled={xboxBusy} onClick={disconnectXbox} className="rounded-[3px] bg-red-300 px-3 py-1.5 text-xs font-semibold text-red-950">Confirm disconnect</button><button type="button" onClick={() => setConfirming(null)} className="px-2 py-1.5 text-xs text-zinc-300">Cancel</button></div> : <button type="button" disabled={xboxBusy} onClick={() => setConfirming("xbox")} className="mt-3 rounded-[3px] border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:border-red-300/70 hover:bg-red-300/20 disabled:cursor-wait disabled:opacity-60">Disconnect</button>}</div>}
+                {googleLinked && <div className="border border-rule px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><GoogleIcon /><span><span className="block font-semibold">Google</span><span className="text-sm text-zinc-400">Sign-in only, while Google is retired</span></span></span><span className="border border-rule-strong px-2 py-1 text-xs font-medium text-dim">Connected</span></div></div>}
                 {!linkedSocials.length && !googleLinked && !xboxConnected && <p className="text-sm text-zinc-400">No extra accounts connected yet.</p>}
-                {overviewFailed && <p className="text-sm text-zinc-400">Your connections could not be loaded. <button type="button" onClick={() => void loadOverview(userId ?? null)} className="text-emerald-300 underline-offset-4 hover:underline">Try again</button></p>}
+                {overviewFailed && <p className="text-sm text-zinc-400">Your connections could not be loaded. <button type="button" onClick={() => void loadOverview(userId ?? null)} className="text-paper underline-offset-4 hover:underline">Try again</button></p>}
               </div>
             </div>
           </div>
@@ -802,7 +802,7 @@ export default function AccountPage() {
             type="button"
             disabled={signOutBusy}
             onClick={signOut}
-            className="mt-8 w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-60"
+            className="mt-8 w-full rounded-[3px] border border-rule-strong px-4 py-3 text-sm font-semibold transition hover:border-faint hover:bg-panel-2 disabled:cursor-wait disabled:opacity-60"
           >
             {signOutBusy ? "Signing out…" : "Sign out"}
           </button>
@@ -812,39 +812,39 @@ export default function AccountPage() {
             </button>
             {desktopSignedOut && <span className="text-zinc-500">Every PC linked to this account is signed out.</span>}
           </div>
-          <section className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Your data</p>
+          <section className="mt-6 border border-rule bg-ink p-5">
+            <p className="slate text-dim">Your data</p>
             <h2 className="mt-2 text-lg font-semibold">Access, correct, and take your data</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">Download everything this account service holds about you, or correct your display name. Recordings made with ClypDat stay on your own device and are never part of this export.</p>
             <div className="mt-5 space-y-4">
-              <a href="/api/account/export" className="inline-flex items-center rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold transition hover:border-emerald-300/60 hover:bg-emerald-300/10">Download my data (JSON)</a>
+              <a href="/api/account/export" className="inline-flex items-center rounded-[3px] border border-rule-strong px-4 py-2.5 text-sm font-semibold transition hover:border-faint hover:bg-panel-2">Download my data (JSON)</a>
               {!renameOpen ? (
                 <div className="flex flex-wrap items-center gap-3">
-                  <button type="button" onClick={() => { setDisplayName(user.name ?? ""); setRenameOpen(true); setRenamed(false); setError(null); }} className="text-sm text-emerald-300 underline-offset-4 hover:underline">Change display name</button>
+                  <button type="button" onClick={() => { setDisplayName(user.name ?? ""); setRenameOpen(true); setRenamed(false); setError(null); }} className="text-sm text-paper underline-offset-4 hover:underline">Change display name</button>
                   {renamed && <span className="text-sm text-zinc-400">Display name updated.</span>}
                   {linkedSocials.includes("discord") && <span className="text-sm text-zinc-500">Your next Discord sign-in replaces it with your Discord name.</span>}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <label className="block text-sm text-zinc-300">Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" /></label>
+                  <label className="block text-sm text-zinc-300">Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-dim" /></label>
                   <div className="flex flex-wrap gap-3">
-                    <button type="button" disabled={renameBusy || !displayName.trim()} onClick={saveDisplayName} className="rounded-full bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50">{renameBusy ? "Saving…" : "Save"}</button>
-                    <button type="button" disabled={renameBusy} onClick={() => { setRenameOpen(false); setDisplayName(""); }} className="rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold hover:bg-white/[0.06]">Cancel</button>
+                    <button type="button" disabled={renameBusy || !displayName.trim()} onClick={saveDisplayName} className="rounded-[3px] bg-paper px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">{renameBusy ? "Saving…" : "Save"}</button>
+                    <button type="button" disabled={renameBusy} onClick={() => { setRenameOpen(false); setDisplayName(""); }} className="rounded-[3px] border border-rule-strong px-4 py-2.5 text-sm font-semibold hover:bg-panel-2">Cancel</button>
                   </div>
                 </div>
               )}
-              <p className="text-sm text-zinc-400">To correct your email address, or to ask about any other data-protection right, email <a className="text-emerald-300 underline" href="mailto:hi@clypdat.xyz">hi@clypdat.xyz</a>. See the <Link className="text-emerald-300 underline" href="/privacy">Privacy Policy</Link>.</p>
+              <p className="text-sm text-zinc-400">To correct your email address, or to ask about any other data-protection right, email <a className="text-paper underline" href="mailto:hi@clypdat.xyz">hi@clypdat.xyz</a>. See the <Link className="text-paper underline" href="/privacy">Privacy Policy</Link>.</p>
             </div>
           </section>
-          <section className="mt-6 rounded-2xl border border-red-300/25 bg-red-300/[0.06] p-5">
+          <section className="mt-6 border border-red-300/25 bg-red-300/[0.06] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-red-200">Delete account</p>
             <h2 className="mt-2 text-lg font-semibold">Permanently delete your ClypDat account</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">This removes your ClypDat account and stored connections. Local recordings and your Discord and Microsoft accounts remain intact.</p>
             {!deleteOpen ? <button type="button" onClick={() => { setDeleteOpen(true); setError(null); }} className="mt-4 text-sm text-red-200 underline-offset-4 hover:underline">Delete account</button> : <div className="mt-5 space-y-4">
               <p className="text-sm text-zinc-300">Type <strong>DELETE</strong> to enable permanent deletion.</p>
-              {accounts?.some((account) => account.providerId === "credential") && <label className="block text-sm text-zinc-300">Current password <span className="text-zinc-500">(needed only if this session is over five minutes old)</span><input value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} type="password" autoComplete="current-password" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>}
-              <label className="block text-sm text-zinc-300">Confirmation<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>
-              <div className="flex flex-wrap gap-3"><button type="button" disabled={deleteConfirmation !== "DELETE" || deleteBusy} onClick={deleteAccount} className="rounded-full bg-red-300 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50">{deleteBusy ? "Deleting…" : "Permanently delete account"}</button><button type="button" disabled={deleteBusy} onClick={() => { setDeleteOpen(false); setDeleteConfirmation(""); setDeletePassword(""); }} className="rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold hover:bg-white/[0.06]">Cancel</button></div>
+              {accounts?.some((account) => account.providerId === "credential") && <label className="block text-sm text-zinc-300">Current password <span className="text-zinc-500">(needed only if this session is over five minutes old)</span><input value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} type="password" autoComplete="current-password" className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>}
+              <label className="block text-sm text-zinc-300">Confirmation<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-red-200/70" /></label>
+              <div className="flex flex-wrap gap-3"><button type="button" disabled={deleteConfirmation !== "DELETE" || deleteBusy} onClick={deleteAccount} className="rounded-[3px] bg-red-300 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50">{deleteBusy ? "Deleting…" : "Permanently delete account"}</button><button type="button" disabled={deleteBusy} onClick={() => { setDeleteOpen(false); setDeleteConfirmation(""); setDeletePassword(""); }} className="rounded-[3px] border border-rule-strong px-4 py-2.5 text-sm font-semibold hover:bg-panel-2">Cancel</button></div>
             </div>}
           </section>
         </section>
@@ -854,9 +854,9 @@ export default function AccountPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-20">
-      <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/30">
-        <Link href="/" className="text-sm text-emerald-300 hover:text-emerald-200">← Back to ClypDat</Link>
-        <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypDat account</p>
+      <section className="w-full max-w-md border border-rule bg-panel p-4 sm:p-8">
+        <Link href="/" className="text-sm text-dim hover:text-paper">← Back to ClypDat</Link>
+        <p className="mt-10 slate text-dim">ClypDat account</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{mode === "sign-in" ? "Sign in" : "Create your account"}</h1>
         <p className="mt-3 text-zinc-400">Optional for recording. Required only for cloud-connected features such as Xbox linking.</p>
 
@@ -864,7 +864,7 @@ export default function AccountPage() {
           type="button"
           disabled={signInBusy}
           onClick={() => socialSignIn("discord")}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-[#5865F2] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-60"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-[3px] bg-[#5865F2] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-60"
         >
           <SocialProviderIcon color="#ffffff" />
           <span>{signInBusy ? "Opening Discord…" : "Continue with Discord"}</span>
@@ -876,7 +876,7 @@ export default function AccountPage() {
           Made your account with Google? Sign in with Google
         </button>
 
-        <div className="my-7 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-zinc-600">
+        <div className="my-7 flex items-center gap-3 slate">
           <span className="h-px flex-1 bg-white/10" /> or use email <span className="h-px flex-1 bg-white/10" />
         </div>
 
@@ -884,19 +884,19 @@ export default function AccountPage() {
           {mode === "sign-up" && (
             <label className="block text-sm text-zinc-300">
               Name
-              <input required value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" />
+              <input required value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-dim" />
             </label>
           )}
           <label className="block text-sm text-zinc-300">
             Email
-            <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" />
+            <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-dim" />
           </label>
           <label className="block text-sm text-zinc-300">
             Password
-            <input required minLength={8} type="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-foreground outline-none transition focus:border-emerald-300/70" />
+            <input required minLength={8} type="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full border border-rule bg-ink px-4 py-3 text-foreground outline-none transition focus:border-dim" />
           </label>
-          {error && <p role="alert" className="rounded-xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-200">{error}</p>}
-          <button disabled={busy} type="submit" className="w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-60">
+          {error && <p role="alert" className="border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+          <button disabled={busy} type="submit" className="w-full rounded-[3px] border border-rule-strong px-4 py-3 text-sm font-semibold transition hover:border-faint hover:bg-panel-2 disabled:cursor-wait disabled:opacity-60">
             {busy ? "Working…" : mode === "sign-in" ? "Sign in with email" : "Create account"}
           </button>
         </form>

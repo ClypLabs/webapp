@@ -1,99 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  /* Warmed very slightly off pure blue-black. The old #0b0f14 was cold enough
-     that the emerald read as clinical; a trace of warmth in the base lets the
-     accent stay the only saturated thing on the page. */
-  --background: #0a0d11;
-  --foreground: #e9eef4;
+/* ---------------------------------------------------------------------------
+   Palette
 
-  /* Headline colour. Deliberately not #fff - full white against a dark
-     background haloes at display sizes, especially on a serif. */
-  --display: #f4f7fa;
+   Broadcast monitor, not marketing page: near-black ink, off-white type, grey
+   rules, and exactly two signal colours. Tally red means "recording" and is
+   used for nothing else - the REC light, the NOW playhead, markers on a
+   timeline. Saved green only ever marks a file that was written. Everything
+   else on the page is ink, paper and rule.
+   --------------------------------------------------------------------------- */
+:root {
+  --background: #0a0c0e;
+  --foreground: #eceef0;
+  --display: #f4f5f6;
+
+  --panel: #101316;
+  --panel-2: #161a1e;
+  --rule: #22272c;
+  --rule-strong: #343b42;
+  --dim: #9aa3ab;
+  --faint: #5f6870;
+  --rec: #ff4136;
+  --saved: #3ddc84;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-display: var(--display);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display);
+  --color-ink: var(--background);
+  --color-paper: var(--foreground);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-rec: var(--rec);
+  --color-saved: var(--saved);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-archivo);
+  --font-app: var(--font-inter);
 }
 
 html {
   scroll-behavior: smooth;
   /* The header is sticky, so anchor targets would otherwise land underneath it. */
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 4.5rem;
 
-  /* The same colour as the body, on the root as well.
-
-     Only `body` carried it, which is normally enough - the root canvas adopts
-     the body's background. It is not enough for the two places the canvas is
-     painted before the document is: the area past the end of the page while a
-     phone is rubber-banding, and the tiles Chrome has not rasterised yet during
-     a fast fling. Both fall back to the browser's own base colour, which is
-     where the pale block at the foot of the page came from. */
+  /* On the root as well as the body: the overscroll gutter and not-yet-painted
+     tiles during a fast fling fall back to the root's colour, not the body's. */
   background: var(--background);
-
-  /* And no rubber-band past the ends at all, so there is no gutter to paint. */
   overscroll-behavior-y: none;
 }
 
-/* Sections carry py-24 (sm:py-32) so they breathe when scrolled past. Landing
-   on one from the nav then parked that entire pad under the header - most of a
-   screen of nothing before the heading. The negative margin eats the pad back,
-   leaving the heading just clear of the bar; the padding still does its job
-   for anyone arriving by scroll. */
-.section-anchor,
-.section-anchor-pinned {
-  scroll-margin-top: -3rem;
-}
-
-@media (min-width: 640px) {
-  .section-anchor,
-  .section-anchor-pinned {
-    scroll-margin-top: -4.5rem;
-  }
-}
-
-/* The capture section's content is inside a sticky stage, which adds its own
-   pad on top of the section's - so the same landing needs a deeper cut here.
-   Only where the stage exists: below this the section is a plain one and the
-   shared offset above is already right. Keep the query in step with the
-   pin-track rules. */
-@media (min-width: 1024px) and (min-height: 820px) {
-  .section-anchor-pinned {
-    scroll-margin-top: -13rem;
-  }
-}
-
-/* While pinned, the stage's own pad already holds the heading off the header,
-   so the section's top pad on top of it was pure gap - over 400px between the
-   step cards and the Capture heading on a tall screen. Drop it, and the landing
-   offset with it: the section top now lands at the header line and the stage
-   pad does the rest, which is also exactly where the pin holds it. */
-@media (min-width: 1024px) and (min-height: 820px) and (prefers-reduced-motion: no-preference) {
-  .pin-section {
-    padding-top: 0;
-  }
-
-  .section-anchor-pinned {
-    scroll-margin-top: -5rem;
-  }
-}
-
 body {
-  /* Deliberately transparent, with the colour on `html` above instead.
-
-     The ambience layer sits at -z-10, behind everything - including the body's
-     own background if the body has one. It only ever worked because a body
-     background is normally propagated up to the root canvas, which leaves the
-     body itself painting nothing. Giving `html` a background stops that
-     propagation, so a colour here would paint over the wash and flatten the
-     whole page. */
+  /* Transparent so the admin pages' ambience layer (-z-10) still shows. The
+     colour lives on `html` above. */
   background: transparent;
   color: var(--foreground);
+  font-feature-settings: "ss01", "tnum";
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -102,315 +69,250 @@ body {
   }
 }
 
-/* The accent phrase in each headline. A gradient fill rather than an italic,
-   which keeps the emphasis without borrowing another site's device. Each word
-   carries its own ramp; at these sizes the seam between words is not visible. */
-.text-accent {
-  background-image: linear-gradient(100deg, #6ee7b7, #34d399 55%, #2dd4bf);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Sections carry generous vertical padding; landing on one from the nav would
+   park all of it under the header. The negative margin eats it back. */
+.section-anchor {
+  scroll-margin-top: -1.25rem;
+}
+
+@media (min-width: 640px) {
+  .section-anchor {
+    scroll-margin-top: -4rem;
+  }
+}
+
+/* Everything in this layer is a component class, so a utility on the same
+   element (text-dim on a .slate, say) still wins. Unlayered, these would beat
+   every Tailwind utility regardless of order. */
+@layer components {
+  /* ---------------------------------------------------------------------------
+     Type
+
+     `.display` is the headline voice: Archivo at the extra-condensed end of its
+     width axis, heavy, upper case, set tight. It is the only place the page
+     raises its voice, so it is not used for anything smaller than a section
+     heading.
+
+     `.slate` is the other voice: the small mono caps a monitor prints over a
+     feed - source, timecode, status. Labels, never sentences.
+     --------------------------------------------------------------------------- */
+  .display {
+    font-family: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+    font-stretch: 62%;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.86;
+    letter-spacing: -0.005em;
+    color: var(--display);
+  }
+
+  .slate {
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--faint);
+  }
+
+  /* Kept for the hidden clip counter (LiveClipCount), which still marks its
+     brand word with it. Solid, like every other colour on the page. */
+  .text-accent {
+    color: var(--foreground);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Buttons
+
+     Square-cornered blocks with a mono label, like hardware keys rather than
+     pills. Primary is paper on ink; red stays reserved for recording.
+     --------------------------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    padding-inline: 1.25rem;
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .btn-sm {
+    height: 2.25rem;
+    padding-inline: 0.875rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-primary {
+    background: var(--foreground);
+    color: var(--background);
+  }
+
+  .btn-primary:hover {
+    background: #ffffff;
+  }
+
+  .btn-ghost {
+    border-color: var(--rule-strong);
+    color: var(--foreground);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--faint);
+    background: var(--panel-2);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Viewfinder
+
+     Corner crop marks around a feed, drawn as eight 1.5px gradient strokes on
+     one pseudo-element - no extra DOM, and nothing to keep in step when the
+     framed content changes size.
+     --------------------------------------------------------------------------- */
+  .viewfinder {
+    --mark: var(--rule-strong);
+    --len: 18px;
+    --w: 1.5px;
+    position: relative;
+    padding: 12px;
+  }
+
+  .viewfinder::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--mark), var(--mark)) top left / var(--len) var(--w) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) top left / var(--w) var(--len) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) top right / var(--len) var(--w) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) top right / var(--w) var(--len) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) bottom left / var(--len) var(--w) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) bottom left / var(--w) var(--len) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) bottom right / var(--len) var(--w) no-repeat,
+      linear-gradient(var(--mark), var(--mark)) bottom right / var(--w) var(--len) no-repeat;
+  }
+
+  @media (max-width: 639px) {
+    .viewfinder {
+      --len: 12px;
+      padding: 6px;
+    }
+  }
+
+  /* Second ticks along a timeline ruler: a minor tick every 1/60th of the width
+     and a major one every quarter, so the ruler reads as one minute whatever
+     width it is drawn at. */
+  .ruler {
+    background:
+      repeating-linear-gradient(
+        to right,
+        var(--rule-strong) 0 1px,
+        transparent 1px calc(100% / 4)
+      )
+      bottom / 100% 10px no-repeat,
+      repeating-linear-gradient(
+        to right,
+        var(--rule) 0 1px,
+        transparent 1px calc(100% / 60)
+      )
+      bottom / 100% 5px no-repeat;
+  }
 }
 
 /* ---------------------------------------------------------------------------
-   Scroll reveal
+   Motion
 
-   State lives in a data attribute rather than a class so the initial (hidden)
-   state is expressible in static HTML, and RevealProvider only ever flips the
-   value. Transition, not animation: an interrupted transition settles where it
-   is, while an interrupted animation snaps back to its first keyframe.
+   Three things move, and each one is the product doing its job: the tally
+   light blinking while it records (RecTimer), the buffer rolling toward NOW, a frame
+   travelling down the capture chain. All transform or opacity.
    --------------------------------------------------------------------------- */
-[data-reveal] {
-  transition:
-    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+
+/* The header's REC light. RecTimer switches it off for the back half of
+   every second off the same clock as the digits, so the two stay in step. A
+   tally light blinks; it does not fade. */
+.rec-light-off {
+  opacity: 0.2;
 }
 
-[data-reveal="hidden"] {
-  opacity: 0;
-  transform: translate3d(0, 18px, 0);
-}
-
-[data-reveal="shown"] {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-}
-
-/* Words rise further and start blurred - at display sizes a 18px lift is
-   imperceptible, and the blur is what makes the line read as settling rather
-   than sliding. */
-.reveal-word[data-reveal="hidden"] {
-  transform: translate3d(0, 100%, 0);
-  filter: blur(6px);
-}
-
-.reveal-word[data-reveal="shown"] {
-  filter: blur(0);
-}
-
-
-/* Fine noise over the whole page. Large blurred gradients band badly on 8-bit
-   displays; a little grain hides the steps and stops the flat areas reading as
-   plastic. Generated inline so it costs no request. */
-.page-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  opacity: 0.025;
-  /* No mix-blend-mode. A full-viewport blend layer cannot be composited
-     independently - the GPU has to re-read what is underneath it every frame,
-     which made a static texture cost as much as the animation did. Plain alpha
-     over a dark page looks near enough. */
-}
-
-/* ---------------------------------------------------------------------------
-   Ambient background
-
-   Three offset blobs on long, mismatched durations so the loop never lines up
-   visibly - a single blob on one duration reads as an obvious repeat within a
-   few seconds.
-
-   Translate and opacity only. These used to scale as well, which is what made
-   the page expensive: a scaling layer cannot be reused between frames, so the
-   GPU redrew every blob from scratch sixty times a second. Moving and fading a
-   layer it already has costs nothing by comparison, and at these sizes and
-   durations the drift reads the same.
-   --------------------------------------------------------------------------- */
-@keyframes drift-a {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.55;
-  }
-  50% {
-    transform: translate3d(6%, 4%, 0);
-    opacity: 0.8;
-  }
-}
-
-@keyframes drift-b {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.45;
-  }
-  50% {
-    transform: translate3d(-8%, 5%, 0);
-    opacity: 0.7;
-  }
-}
-
-@keyframes drift-c {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translate3d(5%, -6%, 0);
-    opacity: 0.55;
-  }
-}
-
-.animate-drift-a {
-  animation: drift-a 19s ease-in-out infinite;
-}
-
-.animate-drift-b {
-  animation: drift-b 23s ease-in-out infinite;
-}
-
-.animate-drift-c {
-  animation: drift-c 31s ease-in-out infinite;
-}
-
-/* Sweeps once across the hero screenshot's top edge, like a scanline catching
-   the glass. Deliberately slow and low-contrast - it should register as the
-   page feeling alive, not as something demanding attention. */
-@keyframes sheen {
-  0% {
-    transform: translateX(-150%);
-    opacity: 0;
-  }
-  6% {
+@media (prefers-reduced-motion: reduce) {
+  .rec-light-off {
     opacity: 1;
   }
-  /* Leaves at the same speed it travelled at, still fully opaque, and is cut
-     off by the parent's overflow rather than fading in place. The previous
-     version slowed to a crawl over the last 6% while fading, which read as the
-     highlight stopping dead in the middle of the panel and evaporating. */
-  55% {
-    transform: translateX(350%);
-    opacity: 1;
-  }
-  56% {
-    transform: translateX(350%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(350%);
-    opacity: 0;
-  }
 }
 
-.animate-sheen {
-  /* Linear: any easing here is visible as the highlight changing speed as it
-     crosses, which is not how light moves across a surface. */
-  animation: sheen 7s linear 1.2s infinite both;
-}
-
-/* The clip grid in the hero graphic. The track holds two identical copies of
-   the column, so translating by exactly half its height lands on a frame
-   identical to the start - the loop has no visible seam. Linear, because any
-   easing would show up as a pause at the wrap point. */
-@keyframes library-scroll {
+/* The buffer strip: one tile's width of travel, and the background repeats
+   every tile, so the loop has no seam. The tile width is set on the element
+   (--tile) because it follows the strip's height. */
+@keyframes roll {
   from {
     transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translate3d(0, -50%, 0);
+    transform: translate3d(calc(var(--tile) * -1), 0, 0);
   }
 }
 
-.animate-library-scroll {
-  /* Timed against the track height - the cards got bigger, so the same duration
-     would have scrolled visibly faster. */
-  animation: library-scroll 52s linear infinite;
+.animate-roll {
+  animation: roll 48s linear infinite;
   will-change: transform;
 }
 
-/* ---------------------------------------------------------------------------
-   Feature panel diagrams
-
-   Each panel states something true about the feature, and the motion is there
-   to show the direction that thing flows in - frames down a pipeline, events
-   arriving, a buffer overwriting itself. All of it is transform/opacity only.
-   --------------------------------------------------------------------------- */
-
-/* A frame travelling down a chain of boxes. */
-@keyframes flow-dot {
+/* A frame moving down the capture chain, node to node. */
+@keyframes packet {
   0% {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.6);
-  }
-  18% {
-    opacity: 1;
-    transform: translateY(-4px) scale(1);
-  }
-  82% {
-    opacity: 1;
-    transform: translateY(4px) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(14px) scale(0.6);
-  }
-}
-
-.animate-flow-dot {
-  animation: flow-dot 1.8s ease-in-out infinite;
-}
-
-.animate-flow-dot-2 {
-  animation: flow-dot 1.8s ease-in-out 0.6s infinite;
-}
-
-.animate-flow-dot-3 {
-  animation: flow-dot 1.8s ease-in-out 1.2s infinite;
-}
-
-/* The row that is actually in use, breathing.
-
-   Opacity on a separate glow element rather than an animated box-shadow. A
-   box-shadow keyframe is a paint property: the browser re-rasterises the whole
-   row on every frame of a 3s loop that never ends. Fading a layer that already
-   carries a static shadow is handled by the compositor and repaints nothing.
-   The glow element must not sit inside an `overflow-hidden` box, or the shadow
-   - which spreads outside its own bounds - gets clipped away. */
-@keyframes row-glow {
-  0%,
-  100% {
+    transform: translate3d(0, 0, 0);
     opacity: 0;
   }
-  50% {
+  8% {
     opacity: 1;
   }
-}
-
-.animate-row-glow {
-  animation: row-glow 3s ease-in-out infinite;
-}
-
-/* Frames continuously entering the rolling buffer and pushing the oldest out. */
-@keyframes buffer-shift {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-25%);
-  }
-}
-
-.animate-buffer-shift {
-  animation: buffer-shift 3.5s linear infinite;
-}
-
-/* A session file growing, then starting over.
-
-   scaleX, not width. Animating width runs layout on every frame - the whole
-   section is re-measured 60+ times a second to draw a bar. A transform is
-   composited and touches nothing outside its own layer. */
-@keyframes fill-grow {
-  0% {
-    transform: scaleX(0.08);
-  }
-  85%,
-  100% {
-    transform: scaleX(1);
-  }
-}
-
-.animate-fill-grow {
-  transform-origin: left center;
-  animation: fill-grow 7s ease-in-out infinite;
-}
-
-/* A highlight sweeping through the row that is actually in use. */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-120%);
-  }
-  60%,
-  100% {
-    transform: translateX(320%);
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 2.8s ease-in-out infinite;
-}
-
-/* A scan passing over the candidate before it locks on. */
-@keyframes scan-line {
-  0% {
-    transform: translateY(-120%);
-    opacity: 0;
-  }
-  20%,
-  70% {
+  92% {
     opacity: 1;
   }
   100% {
-    transform: translateY(320%);
+    transform: translate3d(var(--travel), 0, 0);
     opacity: 0;
   }
 }
 
-.animate-scan-line {
-  animation: scan-line 3.4s ease-in-out infinite;
+.animate-packet {
+  animation: packet 3.2s linear infinite;
 }
 
-/* The recording dot in the hero badge and the step markers - a slow breath
-   rather than a blink, because it represents something continuously running. */
+@keyframes packet-down {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, var(--travel), 0);
+    opacity: 0;
+  }
+}
+
+.animate-packet-down {
+  animation: packet-down 3.2s linear infinite;
+}
+
+/* Still used inside the app mockups (LibraryGraphic, ClipCounter). */
 @keyframes pulse-soft {
   0%,
   100% {
@@ -427,30 +329,43 @@ body {
   animation: pulse-soft 2.6s ease-in-out infinite;
 }
 
-/* The diagram arriving on the capture card. Only one is mounted at a time, so
-   this is an entrance rather than half of a crossfade - nothing is underneath it
-   to read through. Keyed on the feature in Features.tsx so it replays. */
-@keyframes visual-in {
-  0% {
-    transform: translate3d(0, 8px, 0);
-    opacity: 0;
+/* The clip grid in the library mockup: two identical copies of the column,
+   translated by exactly half, so the loop has no visible seam. */
+@keyframes library-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
   }
-  100% {
-    transform: none;
-    opacity: 1;
+  to {
+    transform: translate3d(0, -50%, 0);
   }
 }
 
-.animate-visual-in {
-  animation: visual-in 320ms ease-out both;
+.animate-library-scroll {
+  animation: library-scroll 52s linear infinite;
+  will-change: transform;
 }
 
-/* Anything above is decoration. Honour the OS setting and drop all of it - the
-   layout does not depend on any of these having run.
+/* ---------------------------------------------------------------------------
+   Scroll reveal (hidden clip counter only)
+   --------------------------------------------------------------------------- */
+[data-reveal] {
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
 
-   Matched on the class prefix rather than an explicit list: the list drifted
-   out of date every time a diagram was added or removed, and a decoration that
-   was forgotten here kept animating for someone who had asked it not to. */
+[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+}
+
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Everything that moves is decoration. Honour the OS setting and stop all of
+   it; the layout never depends on an animation having run. */
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-"] {
     animation: none !important;
@@ -463,22 +378,10 @@ body {
   [data-reveal="hidden"] {
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Reduced effects
-
-   Set by PerfMode when the machine cannot actually keep up - see PerfMode.tsx.
-   Integrated laptop GPUs are fill-rate bound long before they are shader
-   bound, and this page's cost is almost entirely large translucent layers
-   being re-composited at the display's refresh rate. On a 144Hz panel that is
-   the same layer blended 144 times a second whether or not anyone can tell it
-   moved.
-
-   Everything dropped here is decoration. The page reads identically still.
-   --------------------------------------------------------------------------- */
+/* Set by PerfMode when the machine cannot keep up - see PerfMode.tsx. */
 [data-fx="low"] [class*="animate-"] {
   animation: none !important;
 }
@@ -493,62 +396,17 @@ body {
   backdrop-filter: none;
 }
 
-/* The blur is the expensive half of the reveal - it forces the text to be
-   re-rasterised on every frame of the transition. The lift is free. */
-[data-fx="low"] [data-reveal] {
-  transition-property: opacity, transform;
-}
-
-[data-fx="low"] .reveal-word[data-reveal="hidden"] {
-  filter: none;
-}
-
-/* The three feature diagrams that are faded out are still fully live: an
-   opacity of 0 does not stop an animation, it just stops you seeing it. Four
-   diagrams' worth of layers were being composited to show one. */
-[data-visual="off"] * {
-  animation-play-state: paused !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Phone performance
-
-   The expensive things on this page are not the scripts, they are the paints.
-   The blobs no longer carry a blur filter at all - they are gradients now, and
-   they only translate and fade - so the desktop cost is largely gone. A phone
-   still gets fewer of them and no motion, because the cheapest layer is the one
-   that never has to be composited again. */
+/* The admin pages still draw the ambience layer; a phone gets it still. */
 @media (max-width: 767px) {
-  /* Half the blobs, and the survivors stop moving. The wash is still there -
-     it just is not being recomputed 60 times a second. */
   .ambience-blob {
     animation: none;
   }
 
-  .ambience-extra {
-    display: none;
-  }
-
-  /* The hero's own glow and the download section's are separate elements from
-     the page-wide ambience, and they were still drifting here: three overlapping
-     translucent layers the size of the viewport, re-composited every frame, on
-     the hardware least able to afford it. The sheen goes for the same reason -
-     it promotes the entire hero card to a layer that has to be re-composited
-     for the whole time it is on screen. */
-  .animate-drift-a,
-  .animate-drift-b,
-  .animate-drift-c,
-  .animate-sheen {
-    animation: none;
-  }
-
-  /* A full-screen blend pass costs more than the banding it hides. */
+  .ambience-extra,
   .page-grain {
     display: none;
   }
 
-  /* backdrop-filter forces the layers underneath to be re-read and blurred on
-     every composite. Not worth it at this size. */
   .backdrop-blur,
   .backdrop-blur-sm,
   .backdrop-blur-md {
@@ -556,110 +414,41 @@ body {
   }
 }
 
-/* Sections below the fold are not rendered - and their animations do not run -
-   until they are close to the viewport. The reserved size keeps the scrollbar
-   honest so this does not cause jumps. */
+/* Sections below the fold are not rendered, and their animations do not run,
+   until they are close to the viewport. */
 .section-lazy {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }
 
 /* ---------------------------------------------------------------------------
-   Scroll-driven feature section
-
-   The track is a tall, empty scroll runway; the stage inside it sticks to the
-   viewport for the whole run. Scrolling through the runway therefore advances
-   the selection instead of moving the section, and once the last feature is
-   reached the stage unsticks and the page carries on normally.
-
-   The runway length is one viewport (the stage itself) plus one step per extra
-   feature, so the step count is a variable the component sets rather than a
-   number duplicated here.
-
-   Desktop only. On a phone the section is a tab row, and hijacking the scroll
-   of the one input the user has for getting past it is hostile.
-
-   The height floor matters as much as the width one: a stage that is taller
-   than the viewport it is stuck to has its bottom cut off with no way to scroll
-   to it, because the scroll is being spent on the runway. Short viewports get
-   the plain section instead. The component tests the same query - keep the two
-   in step. */
-@media (min-width: 1024px) and (min-height: 820px) {
-  .pin-track {
-    height: calc(100vh + (var(--pin-steps) - 1) * var(--pin-step, 70vh));
-  }
-
-  .pin-stage {
-    position: sticky;
-    top: 0;
-    display: flex;
-    min-height: 100vh;
-    flex-direction: column;
-    /* Top aligned rather than centred. Centring split the leftover height
-       evenly, which put ~180px of nothing above the heading on a tall screen -
-       fine when you scroll into it, wrong when the nav drops you on it. The
-       leftover now collects underneath, where it reads as breathing room.
-
-       The pad is what holds the content off the header for the whole pinned
-       run, so it is also where the section sits when the nav lands on it -
-       the two match, and scrolling into the pin moves nothing. */
-    justify-content: flex-start;
-    padding-block: 5rem 3rem;
-  }
-
-  /* Only once there is height to spend. Below this the stage is barely taller
-     than its content and the pad would push the bottom of the section out of
-     reach - the scroll is being spent on the runway, so there is no way to
-     get to it. */
-  @media (min-height: 1000px) {
-    .pin-stage {
-      padding-block-start: 8rem;
-    }
-  }
-}
-
-/* Anyone who has asked for less motion gets the plain, click-driven section:
-   no runway, no pinning, nothing that moves on its own as they scroll. The
-   component skips its scroll listener under the same query. */
-@media (prefers-reduced-motion: reduce) {
-  .pin-track {
-    height: auto;
-  }
-
-  .pin-stage {
-    position: static;
-    min-height: 0;
-    padding-block: 0;
-  }
-}
-
-/* ---------------------------------------------------------------------------
    Keycaps
 
-   Hotkeys are shown as keys, not as a string with plus signs in it - "Ctrl +
-   Shift + F9" is something you read, a row of caps is something you press.
+   Hotkeys are shown as keys, not as a string with plus signs in it.
    --------------------------------------------------------------------------- */
-.kbd {
-  display: inline-flex;
-  min-width: 1.9em;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.4rem;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  border-bottom-width: 2px;
-  background: rgb(255 255 255 / 0.05);
-  padding: 0.05em 0.45em;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 0.8em;
-  line-height: 1.5;
-  color: #e4e4e7;
+@layer components {
+  .kbd {
+    display: inline-flex;
+    min-width: 1.9em;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    border: 1px solid var(--rule-strong);
+    border-bottom-width: 3px;
+    background: var(--panel-2);
+    padding: 0.05em 0.5em;
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-size: 0.8em;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--foreground);
+  }
 }
 
 /* ---------------------------------------------------------------------------
    FAQ accordion
 
-   Native <details>, animated where the browser can size to `auto`. Elsewhere
-   it opens instantly, which is the same thing without the motion.
+   Native <details>, animated where the browser can size to `auto`.
    --------------------------------------------------------------------------- */
 @supports (interpolate-size: allow-keywords) {
   .faq-item {
@@ -669,16 +458,13 @@ body {
   .faq-item::details-content {
     block-size: 0;
     overflow-y: clip;
-    opacity: 0;
     transition:
-      block-size 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-      opacity 0.35s ease,
-      content-visibility 0.35s allow-discrete;
+      block-size 0.25s ease,
+      content-visibility 0.25s allow-discrete;
   }
 
   .faq-item[open]::details-content {
     block-size: auto;
-    opacity: 1;
   }
 }
 
@@ -688,9 +474,27 @@ body {
   }
 }
 
-/* Keyboard focus. The page had no visible focus style of its own, and the
-   browser default ring is close to invisible against this background. */
+/* ---------------------------------------------------------------------------
+   No signal (404)
+
+   SMPTE-style colour bars: seven 75% bars over the reverse-blue castellations
+   and the black/white/black pluge row.
+   --------------------------------------------------------------------------- */
+.smpte {
+  display: grid;
+  grid-template-rows: 67% 8% 25%;
+}
+
+.smpte > div {
+  display: flex;
+}
+
+.smpte span {
+  flex: 1;
+}
+
+/* Keyboard focus: the browser default ring is close to invisible here. */
 :where(a, button, summary, input, select, textarea):focus-visible {
-  outline: 2px solid #34d399;
+  outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }

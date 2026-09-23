@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import Reveal, { RevealWords } from "./Reveal";
+import { Chapter } from "./Slate";
 import { DISCORD_URL, ISSUES_URL, WINGET_ID } from "./links";
 
 type Faq = { q: string; a: string[] };
@@ -22,14 +22,14 @@ export const faqs: Faq[] = [
   {
     q: "Can using ClypDat get me banned by anti-cheat?",
     a: [
-      "ClypDat never loads code into the game process. It reads finished frames from Windows through DXGI Desktop Duplication, the same OS interface screen-sharing tools use, so there is no hook or overlay DLL inside the game for anti-cheat to find.",
+      "ClypDat never loads code into the game process. It reads finished frames through Windows Graphics Capture, the capture API built into Windows 10 and 11, so there is no hook or overlay DLL inside the game for anti-cheat to find.",
     ],
   },
   {
     q: "How do I save a clip?",
     a: [
-      "Press `Insert`. ClypDat writes the last minute of gameplay to your library, named after the game and the time it was saved.",
-      "The key and the length are both in Settings > Replay Buffer. Length presets run from 30 seconds to 5 minutes.",
+      "Press the save key, which is `Insert` by default. ClypDat writes the buffer to your library as a clip, named after the game and the time it was saved.",
+      "The key and the length are both in Settings > Replay Buffer. Length presets run from 30 seconds to 5 minutes, and the default is one minute.",
     ],
   },
   {
@@ -54,7 +54,7 @@ export const faqs: Faq[] = [
   {
     q: "Can I record a whole session, not just clips?",
     a: [
-      "Turn on Full Session Recording, then press `F10` to start or stop it. ClypDat writes video and separate audio tracks as you play while the rolling buffer keeps running.",
+      "Turn on Full Session Recording, then press its hotkey (`F10` by default) to start or stop it. ClypDat writes video and separate audio tracks as you play while the rolling buffer keeps running.",
       "A storage limit deletes the oldest sessions automatically once you pass it.",
     ],
   },
@@ -96,7 +96,7 @@ export const faqs: Faq[] = [
   {
     q: "Is there a Mac or Linux version?",
     a: [
-      "Not today. Capture is built on Windows APIs (DXGI Desktop Duplication and Windows Graphics Capture), so ClypDat runs on Windows 10 and 11 only.",
+      "Not today. Capture is built on Windows Graphics Capture, a Windows API, so ClypDat runs on Windows 10 and 11 only.",
     ],
   },
 ];
@@ -113,7 +113,7 @@ function Answer({ text }: { text: string }) {
             <span key={index} className="inline-flex items-center gap-1 align-baseline">
               {part.split("+").map((key, keyIndex) => (
                 <Fragment key={key}>
-                  {keyIndex > 0 ? <span className="text-zinc-600">+</span> : null}
+                  {keyIndex > 0 ? <span className="text-faint">+</span> : null}
                   <kbd className="kbd">{key}</kbd>
                 </Fragment>
               ))}
@@ -123,7 +123,7 @@ function Answer({ text }: { text: string }) {
         return (
           <code
             key={index}
-            className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[0.85em] text-emerald-200"
+            className="border border-rule bg-panel-2 px-1.5 py-0.5 font-mono text-[0.85em] text-paper"
           >
             {part}
           </code>
@@ -150,7 +150,7 @@ export default function FAQ() {
   return (
     <section
       id="faq"
-      className="section-anchor section-lazy relative px-6 py-24 sm:py-32"
+      className="section-anchor section-lazy border-t border-rule px-4 py-15 sm:px-6 sm:py-28"
     >
       <script
         type="application/ld+json"
@@ -159,73 +159,42 @@ export default function FAQ() {
         }}
       />
 
-      <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
-        {/* The heading column sticks beside the list on desktop, so the way
-            to ask a person stays in view however far down the list you read. */}
-        <div className="lg:sticky lg:top-28 lg:self-start">
-          <Reveal
-            as="p"
-            className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
-          >
-            FAQ
-          </Reveal>
-          <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-            <RevealWords text="Common" />{" "}
-            <RevealWords text="questions." wordClassName="text-accent" />
-          </h2>
-          <Reveal delay={240} as="p" className="mt-6 max-w-md text-lg text-zinc-400">
-            Anti-cheat, hardware, storage, and what happens to your clips.
-          </Reveal>
+      <div className="mx-auto max-w-7xl">
+        <Chapter tc="00:01:37:22" label="FAQ" />
 
-          <Reveal
-            delay={320}
-            className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-          >
-            <p className="text-sm font-semibold text-zinc-200">
-              Something not covered here?
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
+          {/* Sticks beside the list on desktop, so the way to ask a person
+              stays in view however far down the list you read. */}
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <h2 className="display text-[clamp(2.75rem,8vw,6.5rem)]">Questions</h2>
+            <p className="mt-6 max-w-sm leading-relaxed text-dim">
+              Something not covered here? Ask in the Discord, or open a GitHub
+              issue with your Windows version and GPU.
             </p>
-            <p className="mt-1.5 text-sm leading-6 text-zinc-500">
-              Ask in the Discord, or open an issue on GitHub with your Windows
-              version and GPU.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <a
-                href={DISCORD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 items-center rounded-full bg-white/[0.08] px-4 text-sm font-semibold text-zinc-100 transition-colors hover:bg-white/[0.14]"
-              >
-                Join the Discord
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+                Discord
               </a>
-              <a
-                href={ISSUES_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 items-center rounded-full border border-white/15 px-4 text-sm font-semibold text-zinc-300 transition-colors hover:border-white/30 hover:bg-white/5"
-              >
+              <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
                 Report a bug
               </a>
             </div>
-          </Reveal>
-        </div>
+          </div>
 
-        {/* Native <details>: keyboard and screen-reader support come free, it
-            works without JS, and find-in-page opens the matching answer. */}
-        <div className="divide-y divide-white/[0.07] border-y border-white/[0.07]">
-          {faqs.map((item, index) => (
-            <Reveal key={item.q} delay={Math.min(index, 6) * 40}>
-              <details className="faq-item group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-left text-base font-semibold text-zinc-200 transition-colors hover:text-zinc-50 sm:text-lg [&::-webkit-details-marker]:hidden">
-                  {item.q}
-                  <span
-                    aria-hidden
-                    className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 transition-colors duration-300 group-open:border-emerald-400/40 group-open:bg-emerald-400/10"
-                  >
-                    <span className="absolute h-px w-3 bg-zinc-400 group-open:bg-emerald-300" />
-                    <span className="absolute h-3 w-px bg-zinc-400 transition-transform duration-300 group-open:rotate-90 group-open:scale-y-0" />
+          {/* Native <details>: keyboard and screen-reader support come free, it
+              works without JS, and find-in-page opens the matching answer. */}
+          <div className="border-t border-rule">
+            {faqs.map((item, index) => (
+              <details key={item.q} className="faq-item group border-b border-rule">
+                <summary className="flex cursor-pointer list-none items-baseline gap-4 py-5 text-left [&::-webkit-details-marker]:hidden">
+                  <span className="slate w-6 shrink-0">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="flex-1 text-lg font-semibold text-paper transition-colors group-hover:text-white">
+                    {item.q}
                   </span>
+                  <span aria-hidden className="font-mono text-lg text-faint group-open:hidden">+</span>
+                  <span aria-hidden className="hidden font-mono text-lg text-paper group-open:inline">&minus;</span>
                 </summary>
-                <div className="space-y-3 pb-6 pr-2 text-[15px] sm:pr-12 leading-7 text-zinc-400">
+                <div className="space-y-3 pb-6 pl-10 pr-2 leading-7 text-dim sm:pr-10">
                   {item.a.map((paragraph) => (
                     <p key={paragraph}>
                       <Answer text={paragraph} />
@@ -233,8 +202,8 @@ export default function FAQ() {
                   ))}
                 </div>
               </details>
-            </Reveal>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>

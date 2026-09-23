@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DOWNLOAD_URL, GITHUB_URL, sectionLinks, socials } from "./links";
+import RecTimer from "./RecTimer";
 
 // The download section has the big button in the bar itself, so it is not a
 // nav item as well - two "Download"s side by side read as a mistake.
@@ -92,31 +93,18 @@ export default function Header() {
     };
   }, [menuOpen]);
 
-  const lifted = scrolled || menuOpen;
-
   return (
-    // Fixed at the closed bar's height: the hero pulls itself up by exactly this
-    // much (-mt-[69px] in Hero.tsx) so its glow runs behind the bar. When the
-    // phone menu opened, the header grew with it and pushed the hero down,
-    // leaving a flat strip behind the menu with the glow cut off in a line
-    // under it. Now the open menu overflows the header and floats over the page.
-    <header className="sticky top-0 z-50 h-[69px] px-3 pt-3 sm:px-4">
-      {/* transition on colours and shadow only, not `all`: this is sticky, and
-          `all` makes the browser watch every animatable property on it. */}
-      <div
-        // Always a pill, never bare links on the page: fully transparent read
-        // as unfinished at the top, and a full-width bar cut the hero's glow
-        // off in a hard line. Scrolling only firms it up and adds depth.
-        className={`mx-auto max-w-6xl rounded-2xl border border-white/[0.09] backdrop-blur-md transition-[background-color,box-shadow] duration-500 ${
-          lifted
-            ? // Phones drop backdrop-blur for performance (globals.css), so
-              // the bar needs more opacity there or text reads through it.
-              "bg-[#0c1015]/[0.97] shadow-[0_12px_40px_-12px_rgb(0_0_0/0.7)] md:bg-[#0c1015]/90"
-            : "bg-[#0c1015]/55"
-        }`}
-      >
-        <div className="flex h-14 items-center justify-between gap-4 pl-4 pr-2 sm:pl-5">
-          <Link href="/" className="group flex items-center gap-2.5" aria-label="ClypDat home">
+    // A plain broadcast bar across the full width: ink, one rule underneath,
+    // and the REC light counting how long the page has been open. It only
+    // firms up once something has scrolled under it.
+    <header
+      className={`sticky top-0 z-50 border-b transition-colors duration-300 ${
+        scrolled || menuOpen ? "border-rule bg-ink" : "border-transparent bg-ink/80"
+      }`}
+    >
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex items-center gap-5">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="ClypDat home">
             {/* Serve the approved mark directly, without a cached optimizer
                 resize from an earlier logo revision. */}
             <Image
@@ -126,137 +114,115 @@ export default function Header() {
               height={18}
               unoptimized
               priority
-              className="h-[18px] w-auto transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+              className="h-[16px] w-auto"
             />
-            <span className="text-[17px] font-semibold tracking-tight text-zinc-50">
+            <span className="text-[17px] font-bold tracking-tight text-paper [font-stretch:87%]">
               ClypDat
             </span>
           </Link>
-
-          <nav aria-label="Main" className="hidden md:block">
-            <ul className="flex items-center gap-1 text-sm">
-              {navLinks.map((link) => {
-                const active = activeSection === link.href.slice(2);
-                return (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
-                      aria-current={active ? "location" : undefined}
-                      className={`relative block rounded-full px-4 py-1.5 transition-colors duration-300 ${
-                        active
-                          ? "bg-white/[0.07] text-zinc-50"
-                          : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-                      }`}
-                    >
-                      {link.label}
-                      {/* The accent dot under the current section. */}
-                      <span
-                        aria-hidden
-                        className={`absolute bottom-0 left-1/2 h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-emerald-400 transition-opacity duration-300 ${
-                          active ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          <div className="flex items-center gap-1.5">
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="ClypDat on GitHub"
-              className="hidden h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 md:flex"
-            >
-              <svg aria-hidden viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current">
-                <path d={githubIcon} />
-              </svg>
-            </a>
-            <Link
-              href="/account"
-              className={`hidden h-9 items-center rounded-full px-3.5 text-sm transition-colors md:flex ${
-                pathname === "/account"
-                  ? "text-zinc-50"
-                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
-              }`}
-            >
-              Account
-            </Link>
-            <span aria-hidden className="mx-1 hidden h-5 w-px bg-white/10 md:block" />
-            <a
-              href={DOWNLOAD_URL}
-              className="group flex h-9 items-center gap-2 rounded-full bg-emerald-400 pl-3.5 pr-4 text-sm font-semibold text-emerald-950 transition-[background-color,box-shadow] duration-300 hover:bg-emerald-300 hover:shadow-[0_0_28px_-6px] hover:shadow-emerald-400/60"
-            >
-              <DownloadIcon />
-              Download
-            </a>
-            {/* Below md the nav collapses into this. There used to be no phone
-                nav at all - the only way to reach the FAQ or the account page
-                from a phone was to scroll for it. */}
-            <button
-              type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-expanded={menuOpen}
-              aria-controls="mobile-nav"
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-white/[0.06] md:hidden"
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-[18px] w-[18px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-              >
-                {menuOpen ? (
-                  <path d="M6 6l12 12M18 6L6 18" />
-                ) : (
-                  <path d="M4 8h16M4 16h16" />
-                )}
-              </svg>
-            </button>
-          </div>
+          <span className="slate hidden items-center gap-2 text-dim sm:flex">
+            <RecTimer />
+          </span>
         </div>
 
-        <nav
-          id="mobile-nav"
-          aria-label="Main"
-          hidden={!menuOpen}
-          className="border-t border-white/[0.06] px-2 pb-2 pt-1 md:hidden"
-        >
-          <ul className="flex flex-col">
-            {[
-              ...sectionLinks,
-              { href: "/account", label: "Account" },
-              { href: GITHUB_URL, label: "GitHub" },
-            ].map((link) => {
-              const external = link.href.startsWith("http");
+        <nav aria-label="Main" className="hidden md:block">
+          <ul className="flex items-center gap-1">
+            {navLinks.map((link) => {
+              const active = activeSection === link.href.slice(2);
               return (
                 <li key={link.href}>
                   <a
                     href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    {...(external
-                      ? { target: "_blank", rel: "noopener noreferrer" }
-                      : {})}
-                    className="flex items-center justify-between rounded-xl px-3 py-3 text-[15px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-50"
+                    aria-current={active ? "location" : undefined}
+                    className={`slate block px-3 py-2 transition-colors duration-200 ${
+                      active ? "text-paper" : "text-dim hover:text-paper"
+                    }`}
                   >
                     {link.label}
-                    <span aria-hidden className="text-zinc-600">
-                      {external ? "↗" : "→"}
-                    </span>
                   </a>
                 </li>
               );
             })}
           </ul>
         </nav>
+
+        <div className="flex items-center gap-1">
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="ClypDat on GitHub"
+            className="hidden h-9 w-9 items-center justify-center text-dim transition-colors hover:text-paper md:flex"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-current">
+              <path d={githubIcon} />
+            </svg>
+          </a>
+          <Link
+            href="/account"
+            className={`slate hidden px-3 py-2 transition-colors md:block ${
+              pathname === "/account" ? "text-paper" : "text-dim hover:text-paper"
+            }`}
+          >
+            Account
+          </Link>
+          <a href={DOWNLOAD_URL} className="btn btn-primary btn-sm ml-2">
+            <DownloadIcon />
+            Download
+          </a>
+          {/* Below md the nav collapses into this. */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="flex h-9 w-9 items-center justify-center text-paper md:hidden"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-[18px] w-[18px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="square"
+            >
+              {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 8h16M4 16h16" />}
+            </svg>
+          </button>
+        </div>
       </div>
+
+      <nav
+        id="mobile-nav"
+        aria-label="Main"
+        hidden={!menuOpen}
+        className="border-t border-rule bg-ink px-4 pb-3 md:hidden"
+      >
+        <ul className="flex flex-col">
+          {[
+            ...sectionLinks,
+            { href: "/account", label: "Account" },
+            { href: GITHUB_URL, label: "GitHub" },
+          ].map((link) => {
+            const external = link.href.startsWith("http");
+            return (
+              <li key={link.href} className="border-b border-rule last:border-b-0">
+                <a
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  className="slate flex items-center justify-between py-3.5 text-[13px] text-dim transition-colors hover:text-paper"
+                >
+                  {link.label}
+                  <span aria-hidden>{external ? "↗" : "→"}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     </header>
   );
 }

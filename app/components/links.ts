@@ -39,7 +39,7 @@ export const socials = [
 // Hash links are written against "/" so they still land on the right section
 // from the policy pages, not on a fragment of the page you are already on.
 export const sectionLinks = [
-  { href: "/#features", label: "Features" },
+  { href: "/#features", label: "Capture" },
   { href: "/#editor", label: "Editor" },
   { href: "/#faq", label: "FAQ" },
   { href: "/#download", label: "Download" },

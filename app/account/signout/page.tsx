@@ -18,10 +18,10 @@ export default function AccountSignOutPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-20">
-      <section className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/[0.04] p-7 text-center shadow-2xl shadow-black/30">
+      <section className="w-full max-w-sm border border-rule bg-panel p-7 text-center">
         <h1 className="text-xl font-semibold">Sign out of ClypDat in this browser?</h1>
         <p className="mt-2 text-sm leading-6 text-zinc-400">The desktop app has already signed out.</p>
-        <button type="button" autoFocus disabled={busy} onClick={signOut} className="mt-6 w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
+        <button type="button" autoFocus disabled={busy} onClick={signOut} className="mt-6 w-full rounded-[3px] bg-paper px-4 py-3 text-sm font-semibold text-ink transition hover:bg-white disabled:cursor-wait disabled:opacity-60">
           {busy ? "Signing out…" : "Sign out"}
         </button>
         <a href="/account" className="mt-3 inline-block text-sm text-zinc-400 hover:text-zinc-200">Stay signed in</a>

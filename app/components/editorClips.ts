@@ -58,10 +58,11 @@ export type EditorClip = {
 };
 
 // Track identities, in stream order. A clip with one stream is game audio.
+// Colours are the app's own lane palette (MainWindowViewModel.AudioColor).
 export const TRACKS = [
-  { label: "Game Audio", colour: "bg-teal-400/70", volume: 0.72 },
-  { label: "Chat Audio", colour: "bg-sky-400/70", volume: 0.6 },
-  { label: "Microphone", colour: "bg-amber-400/70", volume: 0.66 },
+  { label: "Game Audio", colour: "#05C7B7", volume: 0.72 },
+  { label: "Discord", colour: "#2F9DD4", volume: 0.6 },
+  { label: "Microphone", colour: "#CA8F1B", volume: 0.66 },
 ];
 
 export const clips: EditorClip[] = [

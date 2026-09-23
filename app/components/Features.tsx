@@ -1,545 +1,158 @@
-"use client";
+import type { CSSProperties, ReactNode } from "react";
+import { Chapter } from "./Slate";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import Reveal, { RevealWords } from "./Reveal";
+// The capture path, stage by stage, grouped by whose process each stage runs
+// in. Every line is checked against the desktop app: Windows Graphics Capture
+// for frames, GPU downscale before encode, the encoder order NVENC > AMF >
+// Quick Sync > libx264.
+type Stage = { slate: string; name: string; note: string };
 
-type Feature = {
-  id: string;
-  title: string;
-  description: string;
-};
-
-const features: Feature[] = [
+const groups: { owner: string; stages: Stage[] }[] = [
   {
-    id: "no-hook",
-    title: "No process hook",
-    description:
-      "ClypDat reads frames through DXGI Desktop Duplication instead of injecting into the game, so there's nothing in the game process for anti-cheat to flag. Alt-tab out and it holds the last game frame rather than recording your desktop.",
+    owner: "Game process",
+    stages: [{ slate: "Source", name: "Your game", note: "Untouched. No hook, no overlay DLL." }],
   },
   {
-    id: "gpu",
-    title: "Encodes on your GPU",
-    description:
-      "Frames are downscaled on the GPU, then encoded with NVENC, AMD AMF or Intel Quick Sync, whichever your card has. A PC with none of them falls back to libx264 on the CPU.",
+    owner: "Windows",
+    stages: [
+      {
+        slate: "Capture",
+        name: "Windows Graphics Capture",
+        note: "The game window's finished frames, handed over by the OS.",
+      },
+    ],
   },
   {
-    id: "session",
-    title: "Full session recording",
-    description:
-      "Record the whole session with separate audio tracks while the clip buffer keeps running. ClypDat writes each track as you play.",
+    owner: "ClypDat",
+    stages: [
+      { slate: "Scale", name: "GPU downscale", note: "Resized on the GPU before the encoder sees a frame." },
+      { slate: "Encode", name: "NVENC · AMF · QSV", note: "Whichever your GPU has. libx264 on the CPU if none." },
+      { slate: "Buffer", name: "Last 30 s to 5 min", note: "Oldest frames dropped as new ones arrive." },
+      { slate: "Out", name: "MP4 in your library", note: "Written when you press your save key." },
+    ],
+  },
+];
+
+// Real features that sit beside the capture path rather than on it.
+const more: { label: string; title: string; body: ReactNode; tag?: string }[] = [
+  {
+    label: "Full session",
+    title: "Record the whole session",
+    body: (
+      <>
+        Start and stop it with its own hotkey. Video and each audio track are
+        written as you play, and the replay buffer keeps running alongside.
+        Audio resyncs every 60 seconds, so hour six is still in sync, and a
+        storage limit deletes the oldest sessions once you pass it.
+      </>
+    ),
   },
   {
-    id: "detection",
+    label: "Detection",
     title: "Game detection",
-    description:
-      "ClypDat matches the window in front against its game catalogue and the install manifests Steam, Epic, Battle.net and Riot keep for every game you have installed. Anything it misses, you add once in Settings. Every clip is named after the game it came from.",
+    body: "The window in front is checked against games you added, ClypDat's own catalogue, and the install manifests Steam, Epic, Battle.net and Riot keep. Every clip is named after the game it came from. Alt-tab out and it holds the last game frame instead of recording your desktop.",
+  },
+  {
+    label: "Auto-clip",
+    title: "Auto-clipping",
+    tag: "Experimental",
+    body: "Saves a clip on its own when something happens in a supported game, read from the game's local event feed or from the captured frames. You choose which events count for each game in Settings.",
+  },
+  {
+    label: "Import",
+    title: "Medal and SteelSeries clips",
+    body: "Pulls in clips from Medal and SteelSeries Moments using their local catalogues, or their clip folders if a catalogue can't be read. Copy or move them; titles, games and dates come across.",
   },
 ];
 
-// Real features, but ones that do not need a diagram to land. Keeping them as a
-// short row under the list means the section is four panels deep instead of six
-// without quietly dropping two things the app does.
-const alsoDoes = [
-  {
-    title: "CS2 auto-clipping",
-    description:
-      "Reads CS2's Game State Integration feed, not the screen or your voice, and saves a clip on kills, headshots, assists or deaths. A 3K that turns into a 4K saves once, as the 4K. Experimental.",
-  },
-  {
-    title: "Import from Medal and SteelSeries",
-    description:
-      "Pulls in clips from Medal and SteelSeries Moments using their local catalogues, or their clip folders if a catalogue can't be read. Copy or move them; titles and games come across.",
-  },
-];
-
-// Panel styling shared by every visual, so they read as one family rather than
-// six unrelated illustrations.
-const row =
-  "flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm";
-const chip =
-  "rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-400";
-
-// Diagrams rather than mocked-up screenshots. Each one states something true
-// about the feature - a fake UI would be prettier and would be lying.
-function FeatureVisual({ id }: { id: string }) {
-  switch (id) {
-    case "no-hook":
-      return (
-        <div className="space-y-3">
-          <div className={row}>
-            <span className="text-zinc-300">Your game</span>
-            <span className="text-xs text-zinc-500">Untouched</span>
-          </div>
-          <div className="flex items-center gap-3 px-1">
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <span className="text-[11px] uppercase tracking-widest text-zinc-600">
-              No injection
-            </span>
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          </div>
-          <div className={`${row} border-emerald-400/25 bg-emerald-400/[0.06]`}>
-            <span className="text-emerald-200">DXGI Desktop Duplication</span>
-            <span className="text-xs text-emerald-300/70">OS-level</span>
-          </div>
-          {/* Frames arriving, one after another, without anything touching the
-              game process. */}
-          <div className="flex justify-center gap-2">
-            <span className="animate-flow-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="animate-flow-dot-2 h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="animate-flow-dot-3 h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          </div>
-          <div className={row}>
-            <span className="text-zinc-300">ClypDat</span>
-            <span className="text-xs text-zinc-500">Reads frames</span>
-          </div>
-        </div>
-      );
-
-    case "gpu":
-      return (
-        <div className="space-y-3">
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Encoder, in order of preference
-          </p>
-          {[
-            { name: "NVENC", note: "NVIDIA", active: true },
-            { name: "AMD AMF", note: "Radeon", active: false },
-            { name: "Intel QSV", note: "Arc / Iris Xe", active: false },
-            { name: "libx264", note: "Software fallback", active: false },
-          ].map((encoder) => (
-            <div
-              key={encoder.name}
-              className={`${row} relative ${
-                encoder.active
-                  ? "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200"
-                  : "text-zinc-400"
-              }`}
-            >
-              {encoder.active ? (
-                <>
-                  {/* The glow, as a layer that fades rather than a box-shadow
-                      keyframe. It sits outside the clip below because an outer
-                      shadow spreads past its own element and would be cut off
-                      by an overflow-hidden parent. */}
-                  <span
-                    aria-hidden
-                    className="animate-row-glow pointer-events-none absolute inset-0 rounded-lg shadow-[0_0_20px_-6px_rgb(52_211_153_/_0.5)]"
-                  />
-                  {/* The clip the shimmer needs, on its own element, so the row
-                      itself is free of overflow-hidden. */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg"
-                  >
-                    <span
-                      data-pause-anchor
-                      className="animate-shimmer absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/20 to-transparent"
-                    />
-                  </span>
-                </>
-              ) : null}
-              <span className="relative">{encoder.name}</span>
-              <span className="relative text-xs opacity-70">{encoder.note}</span>
-            </div>
-          ))}
-          <p className="pt-1 text-xs text-zinc-500">
-            Downscaling happens on the GPU, before the encoder ever sees a frame.
-          </p>
-        </div>
-      );
-
-    case "session":
-      return (
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 text-xs uppercase tracking-widest text-zinc-600">
-              Rolling buffer
-            </p>
-            {/* Frames marching through a fixed window - the oldest fall off the
-                left as new ones arrive. */}
-            <div className="relative h-8 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
-              <div className="animate-buffer-shift flex h-full w-[200%] items-center gap-1 px-1">
-                {Array.from({ length: 48 }).map((_, i) => (
-                  <span
-                    key={i}
-                    className="h-4 flex-1 rounded-sm bg-emerald-400/20"
-                  />
-                ))}
-              </div>
-              <div className="absolute inset-y-0 right-0 w-1/4 bg-emerald-400/15" />
-              <div className="absolute inset-y-0 right-1/4 w-px bg-emerald-400/40" />
-            </div>
-            <p className="mt-2 text-xs text-zinc-500">
-              Last few minutes, overwriting oldest frames.
-            </p>
-          </div>
-          <div>
-            <p className="mb-2 text-xs uppercase tracking-widest text-zinc-600">
-              Full session
-            </p>
-            <div className="h-8 overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
-              {/* Full width, scaled down. The bar used to animate its own
-                  `width`, which ran layout on every frame - see globals.css. */}
-              <div className="animate-fill-grow h-full w-full bg-gradient-to-r from-emerald-400/10 to-emerald-400/25" />
-            </div>
-            <p className="mt-2 text-xs text-zinc-500">
-              Audio resyncs every 60s, so hour six is still in sync.
-            </p>
-          </div>
-        </div>
-      );
-
-    case "detection":
-      return (
-        <div className="space-y-3">
-          <div className={row}>
-            <span className="font-mono text-xs text-zinc-500">
-              Foreground window
-            </span>
-          </div>
-          <div className="flex justify-center py-1 text-zinc-600">
-            <span className="animate-flow-dot">&darr;</span>
-          </div>
-          <div
-            className={`${row} relative overflow-hidden border-emerald-400/25 bg-emerald-400/[0.06]`}
-          >
-            <span
-              aria-hidden
-              data-pause-anchor
-              className="animate-scan-line pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-emerald-300/20 to-transparent"
-            />
-            <span className="relative text-emerald-200">Fortnite</span>
-            <span className="relative text-xs text-emerald-300/70">Matched</span>
-          </div>
-          {/* The detector's own ladder, in the order it tries them - see
-              ForegroundGameDetector.ResolveWindowMatch in the app. */}
-          <div className="flex flex-wrap gap-2 pt-1">
-            {["Your games", "Catalogue", "Steam", "Epic", "Battle.net", "Riot"].map(
-              (source) => (
-                <span key={source} className={chip}>
-                  {source}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
-      );
-
-    default:
-      return null;
-  }
+function StageBox({ stage, first }: { stage: Stage; first: boolean }) {
+  return (
+    <div
+      className={`relative flex-1 border bg-panel p-4 ${
+        first ? "border-dashed border-rule-strong bg-transparent" : "border-rule"
+      }`}
+    >
+      <p className="slate">{stage.slate}</p>
+      <p className="mt-2 font-semibold leading-snug text-paper">{stage.name}</p>
+      <p className="mt-1.5 text-sm leading-snug text-dim">{stage.note}</p>
+    </div>
+  );
 }
 
-// The conditions under which the section is scroll-driven. Both are duplicated
-// in globals.css - the CSS builds the runway, this decides whether to read it,
-// and they have to agree.
-const PIN_QUERY = "(min-width: 1024px) and (min-height: 820px)";
-const STILL_QUERY = "(prefers-reduced-motion: reduce)";
-
 export default function Features() {
-  const [active, setActive] = useState(0);
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  // Whether the scroll-driven behaviour applies right now. It has to match the
-  // CSS in globals.css exactly, or the runway and the selection disagree.
-  const pinnedNow = () =>
-    window.matchMedia(PIN_QUERY).matches &&
-    !window.matchMedia(STILL_QUERY).matches;
-
-  // Position within the runway picks the feature: the runway is divided into
-  // one equal band per feature, and whichever band the scroll sits in is the
-  // one on screen.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const desktop = window.matchMedia(PIN_QUERY);
-    const still = window.matchMedia(STILL_QUERY);
-
-    let frame = 0;
-
-    const measure = () => {
-      frame = 0;
-      // The distance the stage spends stuck: everything past the one viewport
-      // the stage itself occupies.
-      const travel = track.offsetHeight - window.innerHeight;
-      if (travel <= 0) return;
-      const progress = -track.getBoundingClientRect().top / travel;
-      const band = Math.floor(progress * features.length);
-      const index = Math.min(features.length - 1, Math.max(0, band));
-      setActive((current) => (current === index ? current : index));
-    };
-
-    // Scroll fires far more often than the screen refreshes, and the read here
-    // forces layout - one measurement per frame is all that can be shown.
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-
-    const detach = () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-
-    const attach = () => {
-      detach();
-      if (!desktop.matches || still.matches) return;
-      window.addEventListener("scroll", onScroll, { passive: true });
-      window.addEventListener("resize", onScroll);
-      measure();
-    };
-
-    attach();
-    desktop.addEventListener("change", attach);
-    still.addEventListener("change", attach);
-
-    return () => {
-      detach();
-      desktop.removeEventListener("change", attach);
-      still.removeEventListener("change", attach);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
-
-  // Clicking a feature still works, but while pinned the selection belongs to
-  // the scroll position - setting it without moving the page would have the
-  // next wheel notch snap it straight back. So a click scrolls to the middle of
-  // that feature's band and lets the measurement above do the selecting.
-  const select = useCallback((index: number) => {
-    setActive(index);
-
-    const track = trackRef.current;
-    if (!track || !pinnedNow()) return;
-
-    const travel = track.offsetHeight - window.innerHeight;
-    if (travel <= 0) return;
-
-    const top =
-      track.getBoundingClientRect().top +
-      window.scrollY +
-      (travel * (index + 0.5)) / features.length;
-    window.scrollTo({ top, behavior: "smooth" });
-  }, []);
-
   return (
-    // No `overflow-hidden` here and no `section-lazy`: the first breaks a
-    // sticky descendant outright (it becomes a scrollport of its own, and the
-    // stage sticks to that instead of to the viewport), and the second reserves
-    // a 900px placeholder for a section that is now several viewports tall,
-    // which makes the scrollbar lie and the runway jump as it resolves.
-    // `overflow-x-clip` still contains the ambient wash sideways without
-    // creating a scroll container.
     <section
       id="features"
-      className="section-anchor-pinned pin-section relative overflow-x-clip px-6 py-24 sm:py-32"
+      className="section-anchor section-lazy border-t border-rule px-4 py-15 sm:px-6 sm:py-28"
     >
       <div className="mx-auto max-w-7xl">
-        {/* The runway. Its only job is to be tall: one viewport for the stage,
-            plus one step of scroll per feature after the first. */}
-        <div
-          ref={trackRef}
-          className="pin-track"
-          style={{ "--pin-steps": features.length } as CSSProperties}
-        >
-          <div className="pin-stage">
-            <div className="max-w-3xl">
-              <Reveal
-                as="p"
-                className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
-              >
-                Capture
-              </Reveal>
-              <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-                <RevealWords text="Capture that stays" />{" "}
-                <RevealWords text="out of the game." wordClassName="text-accent" />
-              </h2>
-              <Reveal delay={280} as="p" className="mt-6 max-w-xl text-lg text-zinc-400">
-                ClypDat&apos;s own capture engine is the default, and Windows
-                Graphics Capture is available as a fallback in Settings. Neither
-                one loads anything into your game.
-              </Reveal>
-            </div>
+        <Chapter tc="00:00:31:18" label="Capture" />
 
-            {/* Phone: a tab row, then the active description, then its diagram.
-                A stacked list with a diagram under each item is far taller than a
-                phone wants, and a panel above the list updates something you have
-                already scrolled past. */}
-            <div className="mt-12 lg:hidden">
-              <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {features.map((feature, index) => (
-                  <button
-                    key={feature.id}
-                    type="button"
-                    onClick={() => setActive(index)}
-                    aria-pressed={index === active}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
-                      index === active
-                        ? "bg-white/[0.08] text-zinc-50"
-                        : "text-zinc-500"
-                    }`}
-                  >
-                    {feature.title}
-                  </button>
-                ))}
-              </div>
+        <h2 className="display mt-10 max-w-5xl text-balance text-[clamp(2.75rem,8vw,6.5rem)]">
+          Nothing runs inside the game.
+        </h2>
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-dim">
+          ClypDat captures through Windows Graphics Capture, the API Windows
+          itself provides for recording a window. It never loads code into the
+          game process, which is what anti-cheat looks for.
+        </p>
 
-              <p className="mt-5 text-sm leading-7 text-zinc-400">
-                {features[active].description}
-              </p>
-
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <FeatureVisual id={features[active].id} />
-              </div>
-            </div>
-
-            {/* Desktop: the list beside its panel, both inside the stuck stage. */}
-            <div className="mt-12 hidden gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
-              <div className="flex flex-col gap-2">
-                {features.map((feature, index) => {
-                  const isActive = index === active;
-                  return (
-                    <button
-                      key={feature.id}
-                      type="button"
-                      onClick={() => select(index)}
-                      aria-pressed={isActive}
-                      className={`rounded-2xl px-6 py-4 text-left transition-all duration-500 ${
-                        isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.02]"
-                      }`}
-                    >
-                      <h3
-                        className={`text-xl font-semibold transition-colors duration-500 ${
-                          isActive ? "text-zinc-50" : "text-zinc-400"
-                        }`}
-                      >
-                        {feature.title}
-                      </h3>
-                      {/* Body copy is always present rather than collapsed - an
-                          accordion here would hide the substance behind a click,
-                          and the four of them together are what fills the stage.
-                          Collapsing the inactive three left half a viewport of
-                          nothing under the section. */}
-                      <p
-                        className={`mt-2 text-[15px] leading-7 transition-colors duration-500 ${
-                          isActive ? "text-zinc-400" : "text-zinc-500"
-                        }`}
-                      >
-                        {feature.description}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Centred against the list rather than stretched to it. Matching
-                  the list's height meant a 300px diagram adrift in a 600px box,
-                  and spreading the diagram out to fill that box only made the
-                  drawing itself look broken - a flow chart with a screen of
-                  nothing between its steps. The panel is the size of its
-                  contents, and the leftover height sits outside it. */}
-              <div className="lg:self-center">
-                {/* A real deck rather than a panel with two painted slivers
-                    behind it: every feature is its own card, and the scroll deals
-                    them. The card in front is the open feature, the ones after it
-                    are stacked behind, and the ones already seen have come
-                    forward and off the front of the stack.
-
-                    The stack is a fixed height because the cards are absolutely
-                    positioned - the tallest diagram, the four-row encoder list,
-                    sets it. Any taller and the stage stops fitting a viewport,
-                    which pushes the section heading off the top while it is
-                    pinned. */}
-                <div className="relative h-[324px]">
-                  {/* The deck behind the front card, clipped to the strip above
-                      it. The front card is a white tint rather than an opaque
-                      surface - which is what gives it its glass - so anything
-                      drawn under its footprint reads straight through the
-                      diagram as stray lines. Clipping at its top edge is what
-                      lets the card stay translucent and still have a stack
-                      behind it.
-
-                      One sliver per feature still to come, so the deck actually
-                      thins out as the scroll steps through it rather than
-                      sitting there as two painted lines that never move. They
-                      move on transform alone - animating `left`/`right` made
-                      each sliver snap to its new width while it slid, which is
-                      what the movement was catching on. */}
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 -top-5 h-5 overflow-hidden"
-                  >
-                    {features.map((feature, index) => {
-                      // Only the cards still to come are behind the front one.
-                      // Past the third the sliver would land under the ones in
-                      // front of it, so the deck stops there.
-                      const depth = index - active;
-                      const shown = depth > 0 && depth <= 3;
-                      const step = Math.min(depth, 3);
-                      return (
-                        <div
-                          key={feature.id}
-                          className="absolute inset-x-0 top-0 h-12 rounded-2xl border border-white/[0.07] bg-white/[0.03] transition-[transform,opacity] duration-500 ease-out"
-                          style={{
-                            // Each card sits a little further up and a little
-                            // narrower than the one in front of it. Cards not in
-                            // the deck park at the front card's own edge, so
-                            // arriving is a slide rather than a pop.
-                            transform: `translate3d(0, ${shown ? 20 - depth * 7 : 20}px, 0) scaleX(${1 - step * 0.04})`,
-                            opacity: shown ? 0.6 - (depth - 1) * 0.2 : 0,
-                            zIndex: features.length - depth,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* One card, not four stacked on top of each other. Four
-                      translucent surfaces crossfading meant two of them were
-                      part-visible at once mid-step, and two 4% tints over each
-                      other is a brighter panel than either - the card flashed on
-                      every step. The surface stays put and its contents are what
-                      change. */}
-                  <div className="absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 sm:p-8">
-                    {/* Only the open diagram is mounted. Crossfading them meant
-                        two diagrams were legible at once for half a second -
-                        two sets of labels overlapping, neither readable - which
-                        is worse than no transition at all. The outgoing one
-                        leaves at once and the incoming one fades up in its
-                        place, so there is only ever one thing to read. */}
-                    <div className="relative h-[260px] w-full">
-                      <div
-                        key={features[active].id}
-                        // Centred in the fixed-height card: the tallest diagram
-                        // sets that height, so the short ones sat at the top
-                        // with a third of the card empty underneath.
-                        className="animate-visual-in absolute inset-0 flex flex-col justify-center"
-                      >
-                        <FeatureVisual id={features[active].id} />
-                      </div>
-                    </div>
-                  </div>
+        {/* The chain. Horizontal from lg, a column below it. The frame
+            travelling along it is decoration; the boxes carry the content. */}
+        <div className="mt-14 lg:mt-20">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1fr_4fr] lg:gap-3">
+            {groups.map((group, groupIndex) => (
+              <div key={group.owner} className="flex flex-col">
+                <div className="flex items-center gap-3">
+                  <span className={`slate ${groupIndex === 2 ? "text-paper" : "text-dim"}`}>
+                    {group.owner}
+                  </span>
+                  <span aria-hidden className="h-px flex-1 bg-rule" />
+                </div>
+                <div className="relative mt-3 flex flex-1 flex-col gap-3 lg:flex-row">
+                  {group.stages.map((stage) => (
+                    <StageBox key={stage.name} stage={stage} first={groupIndex === 0} />
+                  ))}
                 </div>
               </div>
+            ))}
+          </div>
+          {/* The direction frames travel, game to file, with one moving along it. */}
+          <div aria-hidden className="mt-3 hidden items-center gap-3 lg:flex">
+            <span className="slate">Frame in</span>
+            <div className="relative h-px flex-1 bg-rule-strong [container-type:inline-size]">
+              <span
+                data-pause-anchor
+                className="animate-packet absolute -top-[3px] left-0 h-[7px] w-[7px] bg-paper"
+                style={{ "--travel": "calc(100cqw - 7px)" } as CSSProperties}
+              />
+              <span className="absolute -right-px -top-[4px] h-0 w-0 border-y-[4.5px] border-l-[7px] border-y-transparent border-l-rule-strong" />
             </div>
+            <span className="slate">File out</span>
           </div>
         </div>
 
-        {/* The rest of the section, below the runway - reached once the last
-            feature has had its turn and the stage lets go. */}
-        {/* No extra top margin on desktop: the stage already ends with half a
-            viewport of centring slack under it, and stacking a margin on top of
-            that put the divider most of a screen away from anything. */}
-        <div className="mt-12 grid gap-5 border-t border-white/[0.06] pt-8 sm:grid-cols-2 sm:gap-8 lg:mt-0">
-          {alsoDoes.map((item) => (
-            <div key={item.title}>
-              <h3 className="text-sm font-semibold text-zinc-300">
-                {item.title}
-              </h3>
-              <p className="mt-1.5 text-sm leading-6 text-zinc-500">
-                {item.description}
-              </p>
-            </div>
-          ))}
+        <div className="mt-20 sm:mt-28">
+          <p className="slate">Other capture features</p>
+          <dl className="mt-4 border-t border-rule">
+            {more.map((item) => (
+              <div
+                key={item.label}
+                className="grid gap-2 border-b border-rule py-6 sm:grid-cols-[10rem_16rem_minmax(0,1fr)] sm:gap-8"
+              >
+                <dt className="slate pt-1">{item.label}</dt>
+                <dd className="font-semibold text-paper">
+                  {item.title}
+                  {item.tag ? (
+                    <span className="slate ml-2 border border-rule-strong px-1.5 py-0.5 text-[10px] text-dim">
+                      {item.tag}
+                    </span>
+                  ) : null}
+                </dd>
+                <dd className="max-w-2xl leading-relaxed text-dim">{item.body}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </section>

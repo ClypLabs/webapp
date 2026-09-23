@@ -24,10 +24,10 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
   if (!connect) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 py-20">
-        <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-7 text-center shadow-2xl shadow-black/30">
+        <section className="w-full max-w-md border border-rule bg-panel p-7 text-center">
           <h1 className="text-xl font-semibold">This link request is not valid</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-400">Press Link ClypDat account in the desktop app again.</p>
-          <Link href="/account" className="mt-6 inline-block text-sm text-emerald-300 hover:text-emerald-200">Go to your account</Link>
+          <Link href="/account" className="mt-6 inline-block text-sm text-dim hover:text-paper">Go to your account</Link>
         </section>
       </main>
     );
@@ -38,15 +38,15 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-20">
-      <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-7 shadow-2xl shadow-black/30">
-        <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Link the desktop app</p>
+      <section className="w-full max-w-md border border-rule bg-panel p-7">
+        <p className="slate text-dim">Link the desktop app</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">Link ClypDat on this PC to your account?</h1>
         <p className="mt-3 text-sm leading-6 text-zinc-300">
           Signed in as <strong className="text-zinc-100">{session.user.name}</strong>
           {session.user.email ? <> ({session.user.email})</> : null}.
         </p>
-        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Pairing code</p>
+        <div className="mt-6 border border-rule bg-ink p-5 text-center">
+          <p className="slate">Pairing code</p>
           <p className="mt-2 font-mono text-3xl font-semibold tracking-[0.2em] text-zinc-100">{pairingCode(connect.state)}</p>
           <p className="mt-3 text-sm leading-6 text-zinc-400">ClypDat shows the same code while it waits. Only continue if you just pressed Link in the app and the codes match.</p>
         </div>
@@ -59,10 +59,10 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
               <input type="hidden" name="code_challenge_method" value="S256" />
             </>
           )}
-          <button type="submit" name="decision" value="link" className="w-full rounded-full bg-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200">
+          <button type="submit" name="decision" value="link" className="w-full rounded-[3px] bg-paper px-4 py-3 text-sm font-semibold text-ink transition hover:bg-white">
             Link this PC
           </button>
-          <button type="submit" name="decision" value="cancel" className="w-full rounded-full border border-white/15 px-4 py-3 text-sm font-semibold transition hover:border-white/30 hover:bg-white/[0.06]">
+          <button type="submit" name="decision" value="cancel" className="w-full rounded-[3px] border border-rule-strong px-4 py-3 text-sm font-semibold transition hover:border-faint hover:bg-panel-2">
             Cancel
           </button>
         </form>

@@ -6,8 +6,6 @@ import Editor from "./components/Editor";
 import Download from "./components/Download";
 import FAQ from "./components/FAQ";
 import Footer from "./components/Footer";
-import { RevealProvider } from "./components/Reveal";
-import Ambience from "./components/Ambience";
 
 // The live clips-saved counter (components/ClipCounter.tsx) is hidden for now.
 // Counting carries on regardless: the app reports every save to
@@ -19,10 +17,6 @@ import Ambience from "./components/Ambience";
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      {/* One observer drives every reveal on the page - see Reveal.tsx. */}
-      <RevealProvider />
-      {/* One atmosphere layer for the whole page - see Ambience.tsx. */}
-      <Ambience />
       <Header />
       <main className="flex-1">
         <Hero />

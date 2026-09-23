@@ -1,27 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
+import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import PauseOffscreen from "./components/PauseOffscreen";
 import PerfMode from "./components/PerfMode";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// One family for body and headlines. Archivo carries a width axis, so the
+// headlines are the same face pulled to its extra-condensed end (font-stretch
+// 62%) - the tall, tight caps of a broadcast lower third - rather than a second
+// display font dropped in beside it.
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  axes: ["wdth"],
+});
+
+// The desktop app's UI face (App.axaml: fonts:Inter#Inter). Only the two window
+// mockups use it, so they read as the app rather than as this page.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Display face for headlines only - body copy stays on Geist. A grotesque with
-// some actual character in its shapes, rather than a serif: a serif at this
-// size is the reference site's signature, and borrowing it would read as a
-// copy rather than as a page of our own.
-const displayFont = Bricolage_Grotesque({
-  variable: "--font-display",
+// Timecodes, filenames, keys and every other value the app itself would print.
+const mono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
 });
 
@@ -35,7 +39,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "ClypDat - Instant replay buffer for Windows",
   description:
-    "Free, open-source replay buffer for Windows. Press one key to save the last few minutes of gameplay. Nothing injected into the game, a built-in editor, and CS2 auto-clipping.",
+    "Free, open-source replay buffer for Windows. It records in the background and saves the last few minutes of gameplay when you press a key. Nothing is loaded into the game, and every clip opens in a built-in editor.",
   // No explicit icon entry - app/favicon.ico is picked up automatically by
   // Next's file convention, and duplicating it here just risks the two
   // drifting if one gets swapped and not the other.
@@ -57,7 +61,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ClypDat - Instant replay buffer for Windows",
     description:
-      "ClypDat is always recording in the background. Press one key and the last few minutes of your gameplay are already saved.",
+      "ClypDat records in the background. Press a key and the last few minutes of gameplay are saved as a clip.",
     url: siteUrl,
     siteName: "ClypDat",
     images: ["/icon.png?v=3"],
@@ -67,7 +71,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "ClypDat - Instant replay buffer for Windows",
     description:
-      "ClypDat is always recording in the background. Press one key and the last few minutes of your gameplay are already saved.",
+      "ClypDat records in the background. Press a key and the last few minutes of gameplay are saved as a clip.",
     images: ["/icon.png?v=3"],
   },
 };
@@ -76,7 +80,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
+      className={`${archivo.variable} ${inter.variable} ${mono.variable} h-full antialiased`}
     >
       <head>
         {/* Reveal-on-scroll starts elements hidden and a client observer brings

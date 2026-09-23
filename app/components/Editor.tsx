@@ -1,66 +1,40 @@
 import EditorGraphic from "./EditorGraphic";
 import ScaleToFit from "./ScaleToFit";
-import Reveal, { RevealWords } from "./Reveal";
+import { Chapter } from "./Slate";
 
-const editorPoints = [
-  "Trim the start and end with thumbnail scrubbing and a waveform view",
-  "Game, chat and mic are separate tracks, each with its own volume",
-  "Export mixes every track into one file that plays anywhere",
-  "Save Trim cuts the file in place and keeps the tracks separate",
-  "GPU export with NVENC (H.264, H.265 or AV1), CPU when there's no GPU encoder",
+// A channel strip under the window: one column per thing the editor does,
+// each with the label the app would print over it.
+const strip = [
+  { label: "Trim", text: "Set the start and end with thumbnail scrubbing and a waveform view." },
+  { label: "Tracks", text: "Game, chat and mic are separate tracks, each with its own volume." },
+  { label: "Export", text: "Mixes every track into one file that plays anywhere." },
+  { label: "Save trim", text: "Cuts the file in place and keeps the tracks separate." },
+  { label: "Encode", text: "NVENC export in H.264, H.265 or AV1, falling back to the CPU when there's no GPU encoder." },
 ];
-
 
 export default function Editor() {
   return (
     <section
       id="editor"
-      className="section-anchor section-lazy relative px-6 py-24 sm:py-32"
+      className="section-anchor section-lazy border-t border-rule px-4 py-15 sm:px-6 sm:py-28"
     >
-      <div className="mx-auto max-w-6xl">
-        {/* Copy on the left, the points beside it on the right, so the window
-            below gets the full column and the section still ends with it
-            rather than with a list. */}
-        <div className="grid gap-x-16 gap-y-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-end">
-          <div>
-            <Reveal
-              as="p"
-              className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400/70"
-            >
-              Editor
-            </Reveal>
-            <h2 className="font-display text-display mt-6 font-semibold text-4xl leading-[1.05] tracking-[-0.02em] text-balance sm:text-6xl">
-              <RevealWords text="Trim, mix," />{" "}
-              <RevealWords text="export." wordClassName="text-accent" />
-            </h2>
-            <Reveal delay={300} as="p" className="mt-6 text-lg text-zinc-400">
-              Every clip opens in ClypDat&apos;s editor. Cut it down, set the
-              level of each audio track and export it without opening another
-              program.
-            </Reveal>
-          </div>
+      <div className="mx-auto max-w-7xl">
+        <Chapter tc="00:01:02:09" label="Editor" />
 
-          <ul className="space-y-4">
-            {editorPoints.map((point, index) => (
-              <Reveal
-                key={point}
-                as="li"
-                delay={index * 70}
-                className="flex items-start gap-3.5"
-              >
-                <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                <span className="text-sm leading-6 text-zinc-300">{point}</span>
-              </Reveal>
-            ))}
-          </ul>
+        <div className="mt-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <h2 className="display text-balance text-[clamp(2.75rem,8vw,6.5rem)]">
+            Every clip opens
+            <br />
+            in the editor.
+          </h2>
+          <p className="max-w-sm text-lg leading-relaxed text-dim lg:text-right">
+            Cut it down, set each audio track&apos;s level and export, without
+            opening another program.
+          </p>
         </div>
 
-        {/* Full width, like the hero. Half a column was never enough room for a
-            window with a timeline in it. */}
-        <Reveal delay={120} className="mt-12">
-          {/* Same reasoning as the hero card: the corner radius does not scale
-              with the graphic, so it has to step down with the viewport. */}
-          <div className="overflow-hidden rounded-md border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50 sm:rounded-2xl">
+        <figure className="mx-auto mt-14 max-w-[1176px] sm:mt-20">
+          <div className="viewfinder">
             <ScaleToFit designWidth={1152}>
               <EditorGraphic />
             </ScaleToFit>
@@ -68,12 +42,21 @@ export default function Editor() {
           {/* Below lg the window is scaled down far enough that the copy of
               this line inside its description field is unreadable, so it is
               printed here instead - see EditorGraphic. */}
-          <p className="mt-4 text-xs text-zinc-500 lg:hidden">
+          <figcaption className="slate mt-3 normal-case tracking-normal lg:hidden">
             Preview footage is a six-second excerpt, re-encoded to 720p and
             muted for the page. The clip details are the original
             recording&apos;s.
-          </p>
-        </Reveal>
+          </figcaption>
+        </figure>
+
+        <ul className="mt-12 grid divide-y divide-rule border-y border-rule lg:grid-cols-5 lg:divide-x lg:divide-y-0">
+          {strip.map((item) => (
+            <li key={item.label} className="py-5 lg:px-5 lg:first:pl-0">
+              <p className="slate text-paper">{item.label}</p>
+              <p className="mt-2 text-sm leading-relaxed text-dim">{item.text}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

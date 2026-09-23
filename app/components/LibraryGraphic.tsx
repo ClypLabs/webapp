@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { Glyph, RailFooter, TitleBar, paths } from "./AppChrome";
 import RailIcon from "./RailIcon";
 
 // A designed rendering of the ClypDat library, not a screenshot and not a
@@ -19,7 +20,6 @@ type Clip = {
   date: string;
   age: string;
   thumb: string;
-  backend?: string;
   /** Set on the first clip of a day; renders in the header strip above its row. */
   dayLabel?: string;
 };
@@ -59,7 +59,6 @@ const clips: Clip[] = [
     date: "Aug 4, 2026",
     age: "17 hours ago",
     thumb: "necrodancer",
-    backend: "Windows Capture",
   },
   {
     dayLabel: "Mon, Aug 3",
@@ -100,61 +99,48 @@ const games = [
   { file: "honkai", name: "Honkai: Star Rail" },
 ];
 
-// Nine clips divides evenly by both column counts used below (1 on mobile,
-// 3 from sm up), so no row is ever left part-empty at either size.
+// Nine clips divides evenly by the three columns, so no row is ever left
+// part-empty.
 
-function ShareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5 fill-current">
-      <path d="M18 16.08a2.9 2.9 0 0 0-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.5.46 1.16.75 1.89.75a2.75 2.75 0 1 0-2.75-2.75c0 .24.04.47.09.7L8.14 10a2.75 2.75 0 1 0 0 4l7.12 4.16c-.05.21-.08.43-.08.65a2.68 2.68 0 1 0 2.68-2.73Z" />
-    </svg>
-  );
-}
-
+// One clip tile, as the app's template draws it: the thumbnail on its own
+// ground, then a meta band with game, title, age and capture backend beside a
+// square share button. Colours are the default theme's own ramp keys.
 function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
   return (
-    <div className="overflow-hidden rounded-xl bg-[#1b222c] ring-1 ring-white/[0.04]">
+    <div className="overflow-hidden rounded-xl bg-[#24303A]">
       {/* The crop is 614x331, not 16:9. Forcing it into aspect-video made
           object-cover shave the sides, which cut into the duration badge baked
           into the top-right of every frame. */}
-      <div className="relative aspect-[614/331]">
+      <div className="relative aspect-[614/331] bg-[#16202A]">
         <Image
           src={`/media/thumbs/${clip.thumb}.webp`}
           alt=""
           fill
-          // One card fills most of a phone; three share the width from sm up.
           sizes="380px"
-          // These are already WebP at exactly the size they are shown at.
-          // Letting the optimizer touch them re-encodes an encoded image at
-          // q75 - visibly soft - and generates upscaled 1080w/3840w variants
-          // that carry no extra detail, because the source has none to give.
+          // Already WebP at exactly the size they are shown at; the optimizer
+          // would only re-encode them softer.
           unoptimized
-          // The first row is on screen immediately; the rest sit below the fold
-          // of the scroll window and can wait.
           loading={eager ? "eager" : "lazy"}
           className="object-cover"
         />
       </div>
-      {/* The app sets the meta block on its own lighter panel rather than
-          letting it sit on the card background. */}
-      <div className="flex items-center justify-between gap-2 bg-[#232b37] px-3.5 py-2.5">
-        <div className="min-w-0">
-          <p className="truncate text-[11px] text-zinc-400">{clip.game}</p>
-          <p className="mt-[3px] truncate text-[14px] font-semibold text-zinc-50">
-            Clip from {clip.date}
-          </p>
-          <p className="mt-1.5 flex items-center gap-1.5 truncate text-[11px] text-zinc-400">
-            <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 shrink-0 fill-current">
-              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6-3.5 2-1-1.7 2.5-1.5V6h2v6.6Z" />
-            </svg>
-            {clip.age}
-            <span className="text-zinc-500">
-              Captured with: {clip.backend ?? "ClypDat"}
+      {/* Same numbers as the app's template: a 16x13 margin, 6px between
+          the three lines, and an 8px run between clock, age and backend with
+          everything on the row centred on one line. */}
+      <div className="flex items-center justify-between gap-2 bg-[#1E2A35] px-4 py-[13px] leading-[1.2]">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="truncate text-[12px] font-bold text-[#8C98A7]">{clip.game}</p>
+          <p className="truncate text-[15px] font-bold text-[#EDF4FB]">Clip from {clip.date}</p>
+          <p className="flex min-w-0 items-center gap-2">
+            <Glyph d={paths.clock} className="h-3 w-3 shrink-0 fill-[#8C98A7]" />
+            <span className="shrink-0 text-[12px] font-semibold text-[#8C98A7]">{clip.age}</span>
+            <span className="truncate text-[11px] text-[#5C6D7E]">
+              Captured with: ClypDat
             </span>
           </p>
         </div>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] text-zinc-200">
-          <ShareIcon />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#2A3844] text-[#C8D9E9]">
+          <Glyph d={paths.share} className="h-[17px] w-[17px] fill-current" />
         </span>
       </div>
     </div>
@@ -164,20 +150,14 @@ function ClipCard({ clip, eager }: { clip: Clip; eager: boolean }) {
 // `copy` only exists so the duplicated track does not emit duplicate React keys.
 function Track({ copy }: { copy: number }) {
   return (
-    <div className="grid grid-cols-3 gap-x-3.5 gap-y-4 pb-4">
+    <div className="grid grid-cols-3 gap-x-4 gap-y-3 pb-3">
       {clips.map((clip, index) => (
         <div key={`${copy}-${clip.thumb}`}>
-          {/* Every cell reserves the same label height whether or not it has a
-              label. That is what keeps rows aligned, and it does so at any
-              column count - the previous full-width header strip had to assume
-              three columns, which is exactly what broke on a phone. */}
-          {/* The reserved height keeps rows aligned across columns, but in one
-              column there is nothing to align to, so an empty label is just a
-              gap. Collapse it on mobile, keep it from sm up. */}
-          <p
-            className="mb-1.5 h-5 truncate text-[11px] font-semibold uppercase tracking-widest text-zinc-500"
-          >
-            {clip.dayLabel ?? " "}
+          {/* Every cell reserves the day label's height whether or not it
+              has one, which is what keeps the rows aligned: the app puts the
+              label over the clip that starts the day, not across the row. */}
+          <p className="mb-2 h-4 truncate text-[11px] font-bold uppercase tracking-wide text-[#9FB2C6]">
+            {clip.dayLabel ?? " "}
           </p>
           <ClipCard clip={clip} eager={copy === 0 && index < 3} />
         </div>
@@ -186,104 +166,76 @@ function Track({ copy }: { copy: number }) {
   );
 }
 
+// The rail's library filters, in the app's order: all clips (lit), edited,
+// auto-clips, full sessions, imports.
+const filters = ["pencil", "bolt", "clapper", "download"] as const;
+
 export default function LibraryGraphic({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-[#0d1218] ring-1 ring-white/10 ${className}`}
+      className={`relative overflow-hidden rounded-lg bg-[#0D1116] font-app ring-1 ring-white/10 ${className}`}
       // Decorative as a whole - the surrounding copy already says what the app
       // does, and reading a rebuilt window out element by element is noise.
       role="img"
       aria-label="The ClypDat library, showing captured clips grouped by day"
     >
-      {/* Title bar. The mark sits in a cell exactly as wide as the rail below
-          it, so it lines up with the column of rail buttons - but it keeps the
-          title bar's own background: the darker rail column starts below. */}
-      <div className="flex items-stretch border-b border-white/[0.06]">
-        <div className="flex w-12 shrink-0 items-center justify-center">
-          <Image src="/icon.png" alt="" width={20} height={20} unoptimized />
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-zinc-500">
-            <RailIcon name="back" />
-            <RailIcon name="forward" />
-            <RailIcon name="refresh" />
-          </span>
-          <span className="flex items-center gap-1.5 rounded-md border border-rose-400/40 bg-rose-500/10 px-2.5 py-1 text-[12px] font-semibold text-rose-300">
-            <span className="animate-pulse-soft h-1.5 w-1.5 rounded-full bg-rose-400" />
-            Replay On
-          </span>
-          <span className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-zinc-300">
-            Clip
-          </span>
-          <span className="text-[12px] text-zinc-500">Insert</span>
-          <span className="text-[12px] text-zinc-600">No game detected</span>
-          <span className="ml-auto flex gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <span key={i} className="h-2 w-2 rounded-full bg-white/15" />
-            ))}
-          </span>
-        </div>
-      </div>
+      <TitleBar refresh>No game detected</TitleBar>
 
       <div className="flex">
-        {/* Icon rail */}
-        <div className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-white/[0.06] bg-black/20 py-3">
-          {/* All clips, selected - the one lit tile in the rail. */}
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40">
-            <RailIcon name="grid" />
-          </span>
-          {(["pencil", "bolt", "clapper", "download"] as const).map((name) => (
-            <span key={name} className="text-zinc-500">
-              <RailIcon name={name} />
+        <div className="flex w-14 shrink-0 flex-col border-r border-[#1E2A33] bg-[#0D1116]">
+          <div className="flex flex-1 flex-col items-center gap-1.5 pt-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#2A3350] text-[#A8B4F5]">
+              <RailIcon name="grid" />
             </span>
-          ))}
+            {filters.map((name) => (
+              <span key={name} className="flex h-9 w-9 items-center justify-center text-[#8C98A7]">
+                <RailIcon name={name} />
+              </span>
+            ))}
 
-          <span className="h-px w-5 bg-white/10" />
+            <span className="my-1.5 h-px w-7 bg-[#1E2A33]" />
 
-          {/* Per-game shelves. These are the icons ClypDat itself caches for
-              each detected game, at the size it stores them. */}
-          {games.map((game) => (
-            <Image
-              key={game.file}
-              src={`/media/games/${game.file}.png`}
-              alt=""
-              width={28}
-              height={28}
-              unoptimized
-              className="h-7 w-7 rounded-lg object-cover"
-            />
-          ))}
-
-
-          <span className="mt-auto text-zinc-600">
-            <RailIcon name="gear" />
-          </span>
+            {/* Per-game shelves, from the app's own game-icon cache. */}
+            <div className="flex flex-col items-center gap-2.5">
+              {games.map((game) => (
+                <Image
+                  key={game.file}
+                  src={`/media/games/${game.file}.png`}
+                  alt=""
+                  width={30}
+                  height={30}
+                  unoptimized
+                  className="h-[30px] w-[30px] rounded-lg object-cover"
+                />
+              ))}
+            </div>
+          </div>
+          <RailFooter />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <p className="text-[14px] font-semibold text-zinc-200">Clips (57)</p>
-            <span className="rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-600">
-              Search clips or games
+          <div className="flex items-center justify-between border-b border-[#1E2A33] px-5 py-2.5">
+            <p className="text-[14px] font-bold text-[#EDF4FB]">Clips (57)</p>
+            <span className="flex h-8 w-56 items-center gap-2 rounded-lg border border-[#232F3A] bg-[#141D24] px-2.5 text-[12px] text-[#6B7C8C]">
+              <Glyph d={paths.search} className="h-4 w-4 shrink-0 fill-current" />
+              Search Clips or Games
             </span>
           </div>
 
           {/* The scroll viewport. Two identical tracks stacked and translated by
-              exactly half the height, so the loop has no seam. */}
-          {/* The fades sit outside the scrolling box. Inside it they were
-              clipped by its own overflow, so the top one could never reach up
-              over the boundary with the header - which is exactly where the
-              hairline of un-faded card edge was showing. */}
-          <div className="relative px-4">
-            <div className="relative h-[560px] overflow-hidden">
+              exactly half the height, so the loop has no seam. The fades sit
+              outside the scrolling box so the top one reaches over the edge
+              where the header meets it. */}
+          <div className="relative px-5 pt-3">
+            <div className="relative h-[574px] overflow-hidden">
               <div className="animate-library-scroll">
                 <Track copy={0} />
                 <Track copy={1} />
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 -top-2 h-8 bg-gradient-to-b from-[#0d1218] via-[#0d1218] to-transparent" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0d1218] to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#0D1116] to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0D1116] to-transparent" />
           </div>
         </div>
       </div>

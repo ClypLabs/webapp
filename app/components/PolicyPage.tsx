@@ -16,16 +16,18 @@ export default function PolicyPage({ title, sections, updated = "September 9, 20
   return (
     <>
     <Header />
-    <main className="flex-1 px-6 py-12 sm:py-20">
-      <article className="mx-auto w-full max-w-3xl rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 sm:p-10">
-        <nav aria-label="Policies" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-emerald-300">
+    <main className="flex-1 px-4 py-14 sm:px-6 sm:py-20">
+      {/* A plain document: no card around it. Links inside the policy text are
+          restyled from here, so the pages themselves keep their own markup. */}
+      <article className="mx-auto w-full max-w-3xl [&_a]:text-paper [&_a]:underline [&_a]:decoration-rule-strong [&_a]:underline-offset-4 [&_a:hover]:decoration-paper">
+        <nav aria-label="Policies" className="slate flex flex-wrap gap-x-6 gap-y-2">
           <Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/cookies">Cookies</Link>
         </nav>
-        <p className="mt-10 text-sm uppercase tracking-[0.22em] text-emerald-300">ClypLabs</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-        <p className="mt-4 text-sm text-zinc-400">Effective date and last updated: {updated}</p>
-        <div className="mt-10 space-y-9 text-[15px] leading-7 text-zinc-300">
-          {sections.map((section) => <section key={section.title}><h2 className="text-xl font-semibold text-white">{section.title}</h2><div className="mt-3 space-y-4">{section.content}</div></section>)}
+        <p className="slate mt-12">ClypLabs</p>
+        <h1 className="display mt-3 text-[clamp(3rem,9vw,5.5rem)]">{title}</h1>
+        <p className="slate mt-5 normal-case tracking-normal">Effective date and last updated: {updated}</p>
+        <div className="mt-12 border-t border-rule text-[15px] leading-7 text-dim [&_strong]:text-paper">
+          {sections.map((section) => <section key={section.title} className="border-b border-rule py-8"><h2 className="text-xl font-semibold text-paper">{section.title}</h2><div className="mt-3 space-y-4">{section.content}</div></section>)}
         </div>
       </article>
     </main>
