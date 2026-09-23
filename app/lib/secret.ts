@@ -14,7 +14,7 @@ export function authSecret(): string {
   return DEVELOPMENT_SECRET;
 }
 
-export type KeyPurpose = "desktop-token" | "account-merge" | "xbox-oauth" | "xbox-seal" | "stats-ip";
+export type KeyPurpose = "desktop-token" | "account-merge" | "xbox-oauth" | "xbox-seal" | "stats-ip" | "support-seal";
 
 const derived = new Map<string, Buffer>();
 

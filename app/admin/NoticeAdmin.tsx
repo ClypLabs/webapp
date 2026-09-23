@@ -242,6 +242,7 @@ export default function NoticeAdmin() {
           <p className="mt-1 text-sm text-zinc-400">Everything here reaches installed apps without an update.</p>
         </div>
         <nav className="flex gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1 text-sm">
+          <a href="/admin/support" className="rounded-full px-4 py-1.5 text-zinc-400 hover:text-zinc-200">Diagnostics</a>
           {(["notices", "switches"] as const).map((key) => (
             <button key={key} type="button" onClick={() => setTab(key)}
               className={`rounded-full px-4 py-1.5 ${tab === key ? "bg-white/10 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}>

@@ -3,6 +3,7 @@ import { pool } from "@/app/lib/auth";
 import { expireUserCache } from "@/app/lib/account-cache";
 import { purposeKey } from "@/app/lib/secret";
 import { ensureXboxSchema, moveXboxAccount } from "@/app/lib/xbox";
+import { ensureSupportSchema } from "@/app/lib/support";
 
 /**
  * Folding a duplicate account back into the one it was meant to be.
@@ -64,6 +65,7 @@ export async function mergeAccounts(firstUserId: string, secondUserId: string): 
   // Before connecting: the pool has one connection, and the transaction below
   // holds it until it ends.
   await ensureXboxSchema();
+  await ensureSupportSchema();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -106,6 +108,7 @@ export async function mergeAccounts(firstUserId: string, secondUserId: string): 
 
     await client.query('UPDATE "account" SET "userId" = $2, "updatedAt" = NOW() WHERE "userId" = $1 AND "providerId" = $3', [removed, kept, "discord"]);
     const movedXbox = await moveXboxAccount(client, removed, kept);
+    await client.query('UPDATE clypdat_support_reports SET user_id = $2 WHERE user_id = $1', [removed, kept]);
     // The same as linking Discord does (updateUserInfoOnLink in auth.ts): the
     // kept account takes the Discord name and picture. Email never changes.
     const removedUser = users.rows.find((row) => row.id === removed)!;

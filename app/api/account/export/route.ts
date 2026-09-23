@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, pool } from "@/app/lib/auth";
+import { ensureSupportSchema } from "@/app/lib/support";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
   const userId = session.user.id;
 
   try {
-    const [user, accounts, sessions, xbox] = await Promise.all([
+    await ensureSupportSchema();
+    const [user, accounts, sessions, xbox, support] = await Promise.all([
       pool.query(
         'SELECT id, name, email, "emailVerified", image, "createdAt", "updatedAt" FROM "user" WHERE id = $1',
         [userId],
@@ -40,6 +42,10 @@ export async function GET(request: Request) {
         "SELECT gamertag, xuid, console_name, token_expires_at, created_at, updated_at FROM clypdat_xbox_account WHERE user_id = $1",
         [userId],
       ).catch(() => ({ rows: [] as unknown[] })),
+      pool.query(
+        'SELECT id, message, version, build, bytes, resolved, created_at, expires_at FROM clypdat_support_reports WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at',
+        [userId],
+      ),
     ]);
 
     const payload = {
@@ -55,6 +61,7 @@ export async function GET(request: Request) {
       signInMethods: accounts.rows,
       sessions: sessions.rows,
       xboxConnection: xbox.rows[0] ?? null,
+      diagnosticReports: support.rows,
     };
 
     // Content-Disposition rather than a plain JSON response: the account page

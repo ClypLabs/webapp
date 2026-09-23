@@ -3,6 +3,28 @@
 Landing page for [ClypDat](https://github.com/ClypLabs/ClypDat), built with
 Next.js (App Router) + Tailwind CSS 4.
 
+## Diagnostic inbox
+
+Linked desktop accounts can submit recent diagnostic ZIPs through
+`POST /api/desktop/support`. Administrators use `/admin/support` (also linked
+from `/admin`) to download, resolve, reopen, or delete reports. Access uses the
+existing `ADMIN_USER_IDS` allow-list and a live website session check; desktop
+tokens cannot read the inbox or download bundles.
+
+Uploads are limited to 3 MiB, ten attempts per account per day, and thirty per
+address per day. The private database holds at most 200 reports / 100 MiB of
+bundles. ZIPs are encrypted using a separate key derived from
+`BETTER_AUTH_SECRET`; rotating that secret makes existing bundles unreadable.
+Schema creation is automatic. No public object-storage bucket or new secret is
+needed. Report IDs make retries idempotent for the same account.
+
+Reports expire after 30 days. Expired rows are purged on the next inbox request
+or submission, and account deletion removes that account's reports immediately.
+Full diagnostic exports remain local; uploads contain the last 512 KiB of the
+four most recent app logs plus the recorder log and health/environment data.
+The app asks for an issue description and explains what will be sent before
+uploading. It never uploads recordings.
+
 ## Developing
 
 ```bash
