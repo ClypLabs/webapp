@@ -2,14 +2,18 @@ export const MAX_BUNDLE_BYTES = 3 * 1024 * 1024;
 export const MAX_SUPPORT_REQUEST_BYTES = MAX_BUNDLE_BYTES + 16 * 1024;
 export const REPORT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type SupportInput = { id: string; message: string; version: string; build: string; bundle: Buffer };
+export type SupportInput = { id: string; message: string; version: string; build: string; bundle: Buffer; email: string | null };
+
+export function validSupportEmail(value: string): boolean {
+  return value.length <= 254 && /^[^\s@<>"(),;:]+@[^\s@<>"(),;:.]+(?:\.[^\s@<>"(),;:.]+)+$/.test(value);
+}
 
 export class SupportInputError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
 // Read with a hard cap even when Content-Length is missing or forged.
-export async function readSupportInput(request: Request): Promise<SupportInput> {
+export async function readSupportInput(request: Request, requireEmail = false): Promise<SupportInput> {
   const type = request.headers.get("content-type") ?? "";
   if (!type.toLowerCase().startsWith("multipart/form-data;")) throw new SupportInputError("Expected a diagnostic bundle", 415);
   const length = Number(request.headers.get("content-length"));
@@ -38,6 +42,9 @@ export async function readSupportInput(request: Request): Promise<SupportInput> 
   const version = form.get("version");
   const build = form.get("build");
   const file = form.get("bundle");
+  const rawEmail = form.get("email");
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : null;
+  if (requireEmail && (!email || !validSupportEmail(email))) throw new SupportInputError("Enter a valid email address so we can contact you");
   if (typeof id !== "string" || !REPORT_ID.test(id)) throw new SupportInputError("Invalid report ID");
   if (typeof message !== "string" || message.trim().length < 10 || message.length > 2000) throw new SupportInputError("Describe the issue in 10 to 2000 characters");
   if (typeof version !== "string" || !/^\d{1,5}\.\d{1,5}\.\d{1,5}(?:\.\d{1,5})?$/.test(version)) throw new SupportInputError("Invalid app version");
@@ -45,5 +52,5 @@ export async function readSupportInput(request: Request): Promise<SupportInput> 
   if (!(file instanceof Blob) || file.size < 22 || file.size > MAX_BUNDLE_BYTES) throw new SupportInputError("Bundle must be a ZIP under 3 MiB", 413);
   const bundle = Buffer.from(await file.arrayBuffer());
   if (bundle.readUInt32LE(0) !== 0x04034b50) throw new SupportInputError("Invalid ZIP bundle");
-  return { id: id.toLowerCase(), message: message.trim(), version, build, bundle };
+  return { id: id.toLowerCase(), message: message.trim(), version, build, bundle, email: requireEmail ? email : null };
 }

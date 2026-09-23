@@ -5,21 +5,24 @@ Next.js (App Router) + Tailwind CSS 4.
 
 ## Diagnostic inbox
 
-Linked desktop accounts can submit recent diagnostic ZIPs through
+Desktop users can submit recent diagnostic ZIPs through
 `POST /api/desktop/support`. Administrators use `/admin/support` (also linked
 from `/admin`) to download, resolve, reopen, or delete reports. Access uses the
 existing `ADMIN_USER_IDS` allow-list and a live website session check; desktop
-tokens cannot read the inbox or download bundles.
+tokens cannot read the inbox or download bundles. Users without a linked
+account must supply a contact email. Guest emails are not verified and are
+labelled as such in the inbox; they never grant access to an account or report.
 
-Uploads are limited to 3 MiB, ten attempts per account per day, and thirty per
+Uploads are limited to 3 MiB, ten attempts per account or guest email per day, and thirty per
 address per day. The private database holds at most 200 reports / 100 MiB of
 bundles. ZIPs are encrypted using a separate key derived from
 `BETTER_AUTH_SECRET`; rotating that secret makes existing bundles unreadable.
 Schema creation is automatic. No public object-storage bucket or new secret is
-needed. Report IDs make retries idempotent for the same account.
+needed. Report IDs make retries idempotent for the same account or guest email.
 
 Reports expire after 30 days. Expired rows are purged on the next inbox request
-or submission, and account deletion removes that account's reports immediately.
+or submission, and account deletion removes that account's reports immediately. Guest reports
+are not attached to accounts, even if their email matches an existing account.
 Full diagnostic exports remain local; uploads contain the last 512 KiB of the
 four most recent app logs plus the recorder log and health/environment data.
 The app asks for an issue description and explains what will be sent before

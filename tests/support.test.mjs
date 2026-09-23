@@ -22,12 +22,17 @@ function fixture() {
     if (sql.startsWith("SELECT user_id")) return { rows: state.reports.has(args[0]) ? [state.reports.get(args[0])] : [] };
     if (sql.startsWith("SELECT COALESCE(SUM(bytes)")) return { rows: [{ bytes: state.capacity, reports: state.reports.size }] };
     if (sql.startsWith("INSERT INTO clypdat_support_reports")) {
-      const [reportId, user_id, message, version, build, bundle, bytes] = args;
-      state.reports.set(reportId, { id: reportId, user_id, message, version, build, bundle, bytes, resolved: false,
+      const [reportId, user_id, message, version, build, bundle, bytes, contact_email] = args;
+      state.reports.set(reportId, { id: reportId, user_id, contact_email, message, version, build, bundle, bytes, resolved: false,
         createdAt: new Date("2026-09-23T12:00:00Z"), expiresAt: new Date("2026-10-23T12:00:00Z") });
       return { rows: [], rowCount: 1 };
     }
-    if (sql.startsWith("SELECT r.id")) return { rows: [...state.reports.values()].filter(r => !r.expired).map(({ bundle, ...metadata }) => metadata) };
+    if (sql.startsWith("SELECT r.id")) {
+      assert.match(sql, /LEFT JOIN "user"/);
+      return { rows: [...state.reports.values()].filter(r => !r.expired).map(({ bundle, ...metadata }) => ({
+        ...metadata, accountLinked: metadata.user_id !== null, email: metadata.contact_email ?? "account@example.com",
+      })) };
+    }
     if (sql.startsWith("SELECT bundle")) {
       assert.match(sql, /expires_at > NOW\(\)/);
       const report = state.reports.get(args[0]);
@@ -68,14 +73,15 @@ function fixture() {
   return { load, state };
 }
 
-function upload({ token = "valid", bundle = zip, message = "Recording stopped after the match.", headers = {} } = {}) {
+function upload({ token = "valid", bundle = zip, message = "Recording stopped after the match.", email, headers = {} } = {}) {
   const form = new FormData();
   form.set("id", id);
   form.set("message", message);
   form.set("version", "1.6.0");
   form.set("build", "1.6.0+abcdef12");
   form.set("bundle", new Blob([bundle]), "diagnostics.zip");
-  return new Request(`${origin}/api/desktop/support`, { method: "POST", headers: { authorization: `Bearer ${token}`, ...headers }, body: form });
+  if (email !== undefined) form.set("email", email);
+  return new Request(`${origin}/api/desktop/support`, { method: "POST", headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers }, body: form });
 }
 const context = { params: Promise.resolve({ id }) };
 const adminRequest = (method = "GET", body) => new Request(`${origin}/api/admin/support/${id}`, {
@@ -83,7 +89,7 @@ const adminRequest = (method = "GET", body) => new Request(`${origin}/api/admin/
   ...(body ? { body: JSON.stringify(body) } : {}),
 });
 
-test("diagnostic uploads require an active desktop account and reject browser origins", async () => {
+test("supplied desktop credentials must be active and browser origins are rejected", async () => {
   const { load, state } = fixture();
   const { POST } = load("@/app/api/desktop/support/route");
   assert.equal((await POST(upload({ token: "invalid" }))).status, 401);
@@ -91,6 +97,37 @@ test("diagnostic uploads require an active desktop account and reject browser or
   assert.equal((await POST(upload())).status, 401);
   assert.equal((await POST(upload({ headers: { origin } }))).status, 403);
   assert.equal(state.calls.length, 0);
+});
+
+test("guests must supply a valid email and cannot overwrite another sender's report", async () => {
+  const { load, state } = fixture();
+  const { POST } = load("@/app/api/desktop/support/route");
+  for (const email of [undefined, "", "not-an-email", "a@b", "a@b..com", "Name <a@example.com>", "a@example.com\nb@example.com", "x".repeat(250) + "@example.com"]) {
+    assert.equal((await POST(upload({ token: null, email }))).status, 400);
+  }
+  assert.equal(state.reports.size, 0);
+  assert.equal((await POST(upload({ token: null, email: " Guest@Example.com " }))).status, 201);
+  assert.equal(state.reports.get(id).user_id, null);
+  assert.equal(state.reports.get(id).contact_email, "guest@example.com");
+  assert.equal((await POST(upload({ token: null, email: "guest@example.com" }))).status, 200);
+  assert.equal((await POST(upload({ token: null, email: "other@example.com" }))).status, 409);
+  assert.equal((await POST(upload())).status, 409);
+  state.admin = true;
+  const inbox = await load("@/app/api/admin/support/route").GET(adminRequest());
+  const reports = (await inbox.json()).reports;
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].accountLinked, false);
+  assert.equal(reports[0].email, "guest@example.com");
+});
+
+test("linked reports ignore a supplied contact email and guests retain upload limits", async () => {
+  const { load, state } = fixture();
+  const { POST } = load("@/app/api/desktop/support/route");
+  assert.equal((await POST(upload({ email: "someone-else@example.com" }))).status, 201);
+  assert.equal(state.reports.get(id).contact_email, null);
+  assert.equal(state.reports.get(id).user_id, "user");
+  state.allowance = false;
+  assert.equal((await POST(upload({ token: null, email: "guest@example.com" }))).status, 429);
 });
 
 test("valid submissions are encrypted, private, and retry without duplicate storage", async () => {

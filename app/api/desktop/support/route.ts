@@ -12,13 +12,14 @@ export async function POST(request: Request) {
   if (request.headers.has("origin")) return reply({ error: "Use Send diagnostics in the ClypDat app" }, 403);
   try {
     const header = request.headers.get("authorization") ?? "";
-    const identity = await verifyActiveDesktopToken(header.startsWith("Bearer ") ? header.slice(7).trim() : "");
-    if (!identity) return reply({ error: "Link your ClypDat account before sending diagnostics" }, 401);
-    if (!(await takeDailyAllowance("support-user", identity.userId, 1, 10)) ||
-        !(await takeDailyAllowance("support-ip", clientAddress(request), 1, 30)))
+    const identity = header ? await verifyActiveDesktopToken(header.startsWith("Bearer ") ? header.slice(7).trim() : "") : null;
+    if (header && !identity) return reply({ error: "Your account sign-in has expired. Reconnect and try again." }, 401);
+    if (!(await takeDailyAllowance("support-ip", clientAddress(request), 1, 30)))
       return reply({ error: "Too many reports today. Please try tomorrow or export a local bundle." }, 429);
-    const input = await readSupportInput(request);
-    const result = await saveSupportReport(identity.userId, input);
+    const input = await readSupportInput(request, !identity);
+    if (!(await takeDailyAllowance(identity ? "support-user" : "support-email", identity?.userId ?? input.email!, 1, 10)))
+      return reply({ error: "Too many reports today. Please try tomorrow or export a local bundle." }, 429);
+    const result = await saveSupportReport(identity?.userId ?? null, input);
     if (result === "conflict") return reply({ error: "Start a new diagnostic report and try again" }, 409);
     if (result === "full") return reply({ error: "The diagnostic inbox is full. Please export a local bundle instead." }, 503);
     return reply({ id: input.id }, result === "saved" ? 201 : 200);

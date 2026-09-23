@@ -73,6 +73,7 @@ export default function SupportInbox({ initialReports, initialError }: { initial
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-semibold text-zinc-100">{report.name || report.email}</h2>
+                <p className="mt-1 text-xs text-zinc-400">{report.accountLinked ? "Linked account" : "Guest · email unverified"}</p>
                 <p className="mt-1 text-sm text-zinc-400">{report.email} · {report.createdAt.slice(0, 16).replace("T", " ")} UTC</p>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs ${report.resolved ? "bg-white/10 text-zinc-400" : "bg-teal-400/10 text-teal-300"}`}>{report.resolved ? "Resolved" : "Open"}</span>
