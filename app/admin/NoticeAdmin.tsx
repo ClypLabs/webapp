@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import type { ReauthMethod } from "@/app/lib/admin";
+import { authClient } from "@/app/lib/auth-client";
 
 type Severity = "feature" | "info" | "critical";
 
@@ -79,6 +81,141 @@ const SEVERITIES: { value: Severity; hint: string; dot: string; ring: string }[]
   { value: "critical", hint: "Every launch until acknowledged. Security or severe bugs only.", dot: "bg-rec", ring: "border-rec/70" },
 ];
 
+// The site-wide focus outline sits 3px outside the element, where it runs into
+// the label above; fields here show focus as a border and inner glow instead.
+const input = "[color-scheme:dark] w-full rounded-[3px] border border-rule bg-ink px-3 py-2 text-sm text-paper outline-none focus-visible:outline-none focus:border-dim focus:shadow-[inset_0_0_0_1px_rgba(236,238,240,0.35)]";
+
+// Signing in again with Discord leaves the page, so the unsaved form waits in
+// sessionStorage, along with the session the new sign-in replaces: that one is
+// signed out on the way back instead of lingering until it expires.
+const WORK_KEY = "clypdat-admin-work";
+const RETIRE_KEY = "clypdat-admin-retire";
+
+type SavedWork = { tab: "notices" | "switches"; draft: Draft; switchDraft: SwitchDraft; editingId: string | null; editingSwitchId: string | null };
+
+function takeStored(key: string): string | null {
+  try {
+    const value = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+async function sessionToken(): Promise<string | null> {
+  const result = await authClient.getSession().catch(() => null);
+  return result?.data?.session.token ?? null;
+}
+
+async function retireSession(previous: string) {
+  const current = await sessionToken();
+  // Still the same session means the new sign-in never happened.
+  if (!current || current === previous) return;
+  await authClient.revokeSession({ token: previous }).catch(() => undefined);
+}
+
+const PROVIDER_NAME = { discord: "Discord", google: "Google" } as const;
+
+// Publishing needs a recent sign-in (app/lib/admin.ts). This signs in again
+// from here: a password without leaving the page, Discord or Google through
+// their usual round trip back to /admin.
+function ReauthPanel({ email, methods, writeWindowMs, onBeforeRedirect, onSignedIn }: {
+  email: string;
+  methods: ReauthMethod[];
+  writeWindowMs: number;
+  onBeforeRedirect: () => void;
+  onSignedIn: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState<ReauthMethod | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const socials = methods.filter((method): method is "discord" | "google" => method !== "password");
+
+  async function confirmPassword() {
+    if (!password || busy) return;
+    setBusy("password");
+    setError(null);
+    try {
+      const previous = await sessionToken();
+      const result = await authClient.signIn.email({ email, password });
+      if (result.error) {
+        setError(result.error.code === "INVALID_EMAIL_OR_PASSWORD" ? "That password is not right." : result.error.message ?? "Sign-in did not go through. Try again.");
+        return;
+      }
+      setPassword("");
+      if (previous) await retireSession(previous);
+      onSignedIn();
+    } catch {
+      setError("Sign-in did not go through. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function continueWith(provider: "discord" | "google") {
+    setBusy(provider);
+    setError(null);
+    try {
+      onBeforeRedirect();
+      const previous = await sessionToken();
+      try {
+        if (previous) window.sessionStorage.setItem(RETIRE_KEY, previous);
+      } catch {
+        // The old session then expires on its own.
+      }
+      const back = new URL("/admin", window.location.origin);
+      back.searchParams.set("signed-in", "1");
+      const failed = new URL("/admin", window.location.origin);
+      failed.searchParams.set("signed-in", "failed");
+      const result = await authClient.signIn.social({ provider, callbackURL: back.toString(), errorCallbackURL: failed.toString() });
+      if (result.error) throw new Error(result.error.message);
+    } catch (reason) {
+      setError((reason instanceof Error && reason.message) || `${PROVIDER_NAME[provider]} sign-in could not start. Try again.`);
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-[3px] border border-rec/40 bg-rec/10 p-4 text-sm">
+      <p className="leading-6 text-paper">
+        Sign in again to publish. Admin changes need a sign-in from the last {Math.round(writeWindowMs / 3_600_000)} hours.
+      </p>
+      {methods.includes("password") && (
+        // No <form>: this sits inside the notice form, so Enter is caught here
+        // before it submits that one.
+        <div className="flex gap-2">
+          <input type="text" autoComplete="username" value={email} readOnly hidden />
+          <input type="password" autoComplete="current-password" value={password} placeholder="Password" aria-label="Password"
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void confirmPassword(); } }}
+            className={input} />
+          <button type="button" disabled={!password || busy !== null} onClick={() => void confirmPassword()}
+            className="shrink-0 rounded-[3px] bg-paper px-4 font-mono text-[13px] font-semibold uppercase tracking-[0.04em] text-ink transition hover:bg-white disabled:opacity-60">
+            {busy === "password" ? "Checking…" : "Confirm"}
+          </button>
+        </div>
+      )}
+      {socials.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {socials.map((provider) => (
+            <button key={provider} type="button" disabled={busy !== null} onClick={() => void continueWith(provider)}
+              className="rounded-[3px] border border-rule-strong bg-panel-2 px-4 py-2 text-paper transition hover:border-faint disabled:cursor-wait disabled:opacity-60">
+              {busy === provider ? "Opening…" : `${methods.includes("password") ? "Or continue" : "Continue"} with ${PROVIDER_NAME[provider]}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {methods.length === 0 && (
+        <p className="text-dim">
+          This account has no sign-in that works here. <a href="/account" className="text-paper underline underline-offset-4">Sign out and back in from your account</a>.
+        </p>
+      )}
+      {error && <p className="text-rec">{error}</p>}
+    </div>
+  );
+}
+
 // <input type="datetime-local"> speaks local time without a zone.
 function toLocalInput(iso: string | null): string {
   if (!iso) return "";
@@ -124,7 +261,12 @@ function Pill({ severity }: { severity: Severity }) {
   );
 }
 
-export default function NoticeAdmin() {
+export default function NoticeAdmin({ signedInAt: initialSignedInAt, writeWindowMs, email, methods }: {
+  signedInAt: number;
+  writeWindowMs: number;
+  email: string;
+  methods: ReauthMethod[];
+}) {
   const [tab, setTab] = useState<"notices" | "switches">("notices");
   const [notices, setNotices] = useState<StoredNotice[] | null>(null);
   const [switches, setSwitches] = useState<StoredSwitch[] | null>(null);
@@ -136,12 +278,59 @@ export default function NoticeAdmin() {
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showSwitchHistory, setShowSwitchHistory] = useState(false);
-  const [switchNow, setSwitchNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  const [signedInAt, setSignedInAt] = useState(initialSignedInAt);
+  const locked = now - signedInAt > writeWindowMs;
 
   useEffect(() => {
-    const timer = window.setInterval(() => setSwitchNow(Date.now()), 15_000);
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Back from signing in again with Discord or Google: put the form back the
+  // way it was and sign out the session this sign-in replaced.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const signedIn = url.searchParams.get("signed-in");
+    if (signedIn) {
+      url.searchParams.delete("signed-in");
+      url.searchParams.delete("error");
+      window.history.replaceState(null, "", url);
+    }
+    const previous = takeStored(RETIRE_KEY);
+    if (signedIn === "1" && previous) void retireSession(previous);
+    let work: SavedWork | null = null;
+    try {
+      work = JSON.parse(takeStored(WORK_KEY) ?? "null") as SavedWork | null;
+    } catch {
+      // Unreadable leftovers: start from an empty form.
+    }
+    /* eslint-disable react-hooks/set-state-in-effect -- sessionStorage is only readable after hydration */
+    if (work) {
+      setTab(work.tab);
+      setDraft(work.draft);
+      setSwitchDraft(work.switchDraft);
+      setEditingId(work.editingId);
+      setEditingSwitchId(work.editingSwitchId);
+    }
+    if (signedIn === "failed") setError("Sign-in did not finish, so publishing is still locked. Try again.");
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  function saveWork() {
+    try {
+      const work: SavedWork = { tab, draft, switchDraft, editingId, editingSwitchId };
+      window.sessionStorage.setItem(WORK_KEY, JSON.stringify(work));
+    } catch {
+      // Without storage the form is simply empty on the way back.
+    }
+  }
+
+  function signedInAgain() {
+    setSignedInAt(Date.now());
+    setNow(Date.now());
+    setError(null);
+  }
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/notices", { cache: "no-store" });
@@ -176,7 +365,9 @@ export default function NoticeAdmin() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(result.error ?? "That did not save.");
+        // The sign-in aged out while the page was open: the panel asks for a new one.
+        if (result.code === "reauth") setSignedInAt(0);
+        else setError(result.error ?? "That did not save.");
         return false;
       }
       await load();
@@ -227,12 +418,13 @@ export default function NoticeAdmin() {
   }
 
   const visible = (notices ?? []).filter((notice) => showArchived || !notice.archived);
-  const isSwitchActive = (item: StoredSwitch) => !item.cleared && new Date(item.expiresAt).getTime() > switchNow;
+  const isSwitchActive = (item: StoredSwitch) => !item.cleared && new Date(item.expiresAt).getTime() > now;
   const activeSwitches = (switches ?? []).filter(isSwitchActive);
   const visibleSwitches = showSwitchHistory ? switches ?? [] : activeSwitches;
-  // The site-wide focus outline sits 3px outside the element, where it runs into
-  // the label above; fields here show focus as a border and inner glow instead.
-  const input = "[color-scheme:dark] w-full rounded-[3px] border border-rule bg-ink px-3 py-2 text-sm text-paper outline-none focus-visible:outline-none focus:border-dim focus:shadow-[inset_0_0_0_1px_rgba(236,238,240,0.35)]";
+  const reauth = locked && (
+    <ReauthPanel email={email} methods={methods} writeWindowMs={writeWindowMs}
+      onBeforeRedirect={saveWork} onSignedIn={signedInAgain} />
+  );
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-12">
@@ -302,8 +494,9 @@ export default function NoticeAdmin() {
               </fieldset>
             </div>
             <div className="border-l-2 border-rec/60 pl-4 text-sm leading-6"><p className="font-medium text-paper">{SWITCH_LABEL[switchDraft.control]}{switchDraft.target && ` · ${GAMES.find((game) => game.id === switchDraft.target)?.name ?? switchDraft.target}`}</p><p className="text-dim">Applies when connected apps next refresh. Clear the switch to restore access sooner.</p></div>
+            {reauth}
             {error && <p className="rounded-[3px] bg-rec/10 px-3 py-2 text-sm text-rec">{error}</p>}
-            <button type="submit" disabled={busy} className="w-full rounded-[3px] bg-rec px-4 py-3 font-mono text-[13px] font-semibold uppercase tracking-[0.04em] text-white transition hover:bg-[#ff5a50] disabled:cursor-wait disabled:opacity-60">{busy ? "Saving…" : editingSwitchId ? "Update switch" : "Publish switch"}</button>
+            <button type="submit" disabled={busy || locked} className={`w-full rounded-[3px] bg-rec px-4 py-3 font-mono text-[13px] font-semibold uppercase tracking-[0.04em] text-white transition hover:bg-[#ff5a50] disabled:opacity-60 ${locked ? "disabled:cursor-not-allowed" : "disabled:cursor-wait"}`}>{busy ? "Saving…" : editingSwitchId ? "Update switch" : "Publish switch"}</button>
           </form>
           <section className="min-w-0 space-y-4 lg:pt-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -312,13 +505,13 @@ export default function NoticeAdmin() {
             </div>
             {switches === null && <p className="text-sm text-faint">Loading…</p>}
             {switches !== null && visibleSwitches.length === 0 && <div className="rounded-[3px] border border-dashed border-rule-strong bg-panel px-6 py-10 text-center"><span aria-hidden="true" className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-[3px] border border-dim/40 bg-panel-2 text-paper">✓</span><h3 className="text-sm font-medium text-paper">{showSwitchHistory ? "No switches published yet" : "No active kill switches"}</h3><p className="mx-auto mt-2 max-w-64 text-sm leading-6 text-faint">{showSwitchHistory ? "Published switches will appear here, including cleared and expired ones." : "No features are currently disabled by a kill switch."}</p></div>}
-            {visibleSwitches.map((item) => { const expired = new Date(item.expiresAt).getTime() <= switchNow; return <article key={item.id} className="rounded-[3px] border border-rule bg-panel p-5">
+            {visibleSwitches.map((item) => { const expired = new Date(item.expiresAt).getTime() <= now; return <article key={item.id} className="rounded-[3px] border border-rule bg-panel p-5">
               <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium text-paper">{SWITCH_LABEL[item.control]}</h3><span className={`rounded-[3px] px-2.5 py-1 text-xs ${item.cleared || expired ? "bg-panel text-dim" : "bg-rec/10 text-rec"}`}>{item.cleared ? "Cleared" : expired ? "Expired" : "Active"}</span></div>
               {item.target && <p className="mt-1 text-xs text-dim">{GAMES.find((game) => game.id === item.target)?.name ?? item.target}</p>}
               <p className="mt-3 text-xs text-faint">{expired ? "Expired" : "Expires"} {new Date(item.expiresAt).toLocaleString()}</p>
               <p className="mt-3 text-sm text-paper/80">{item.reason}</p>
               {(item.minVersion || item.maxVersion) && <p className="mt-2 text-xs text-faint">Installed versions: {item.minVersion ?? "any"} - {item.maxVersion ?? "any"}</p>}
-              {!item.cleared && !expired && <div className="mt-3 flex gap-4 text-sm"><button type="button" disabled={busy} className="text-paper/80 hover:text-white" onClick={() => { setEditingSwitchId(item.id); setSwitchDraft({ control: item.control, target: item.target ?? "", reason: item.reason, minVersion: item.minVersion ?? "", maxVersion: item.maxVersion ?? "", expiresAt: toLocalInput(item.expiresAt) }); window.scrollTo({ top: 0 }); }}>Edit</button><button type="button" disabled={busy} className="text-dim hover:text-paper" onClick={() => clearSwitch(item)}>Clear</button></div>}
+              {!item.cleared && !expired && <div className="mt-3 flex gap-4 text-sm"><button type="button" disabled={busy} className="text-paper/80 hover:text-white" onClick={() => { setEditingSwitchId(item.id); setSwitchDraft({ control: item.control, target: item.target ?? "", reason: item.reason, minVersion: item.minVersion ?? "", maxVersion: item.maxVersion ?? "", expiresAt: toLocalInput(item.expiresAt) }); window.scrollTo({ top: 0 }); }}>Edit</button><button type="button" disabled={busy || locked} className="text-dim hover:text-paper disabled:opacity-50" onClick={() => clearSwitch(item)}>Clear</button></div>}
             </article>; })}
           </section>
         </div>
@@ -393,9 +586,10 @@ export default function NoticeAdmin() {
               </label>
             </div>
 
+            {reauth}
             {error && <p className="rounded-[3px] bg-rec/10 px-3 py-2 text-sm text-rec">{error}</p>}
-            <button type="submit" disabled={busy}
-              className="w-full rounded-[3px] bg-paper px-4 py-3 font-mono text-[13px] font-semibold uppercase tracking-[0.04em] text-ink transition hover:bg-white disabled:cursor-wait disabled:opacity-60">
+            <button type="submit" disabled={busy || locked}
+              className={`w-full rounded-[3px] bg-paper px-4 py-3 font-mono text-[13px] font-semibold uppercase tracking-[0.04em] text-ink transition hover:bg-white disabled:opacity-60 ${locked ? "disabled:cursor-not-allowed" : "disabled:cursor-wait"}`}>
               {editingId ? "Update notice" : "Publish notice"}
             </button>
 
@@ -438,7 +632,7 @@ export default function NoticeAdmin() {
                     onClick={() => { setEditingId(notice.id); setDraft(draftFrom(notice)); window.scrollTo({ top: 0 }); }}>
                     Edit
                   </button>
-                  <button type="button" disabled={busy} className="text-dim hover:text-paper"
+                  <button type="button" disabled={busy || locked} className="text-dim hover:text-paper disabled:opacity-50"
                     onClick={() => archive(notice, !notice.archived)}>
                     {notice.archived ? "Put back up" : "Take down"}
                   </button>

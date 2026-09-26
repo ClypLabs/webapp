@@ -86,7 +86,10 @@ test("admin notice routes answer 404 to non-admins and 403 to cross-site writes"
   // An admin whose sign-in is older than 12 hours can look but not publish.
   state.session = { user: { id: "user-1" }, session: { createdAt: new Date(state.now - 13 * 60 * 60 * 1000).toISOString() } };
   assert.equal((await GET(new Request(`${origin}/api/admin/notices`))).status !== 404, true);
-  assert.equal((await POST(post({ origin, "sec-fetch-site": "same-origin" }))).status, 401);
+  const stale = await POST(post({ origin, "sec-fetch-site": "same-origin" }));
+  assert.equal(stale.status, 401);
+  // /admin shows its sign-in-again panel on this code rather than the message.
+  assert.equal((await stale.json()).code, "reauth");
   state.session = { user: { id: "user-1" }, session: { createdAt: new Date(state.now - 60 * 60 * 1000).toISOString() } };
   assert.equal((await POST(post({ origin, "sec-fetch-site": "same-origin" }))).status, 400);
   assert.equal(state.queries.filter((q) => !q.sql.startsWith("CREATE TABLE") && !q.sql.startsWith("SELECT * FROM clypdat_notices")).length, 0);

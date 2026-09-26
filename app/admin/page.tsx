@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { currentAdminId } from "@/app/lib/admin";
+import { ADMIN_WRITE_MAX_AGE_MS, currentAdmin, reauthMethods } from "@/app/lib/admin";
 import NoticeAdmin from "./NoticeAdmin";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,10 @@ export const metadata: Metadata = {
 // the page makes checks again on its own (app/api/admin/*), so rendering this is
 // not what grants anything.
 export default async function AdminPage() {
-  if (!(await currentAdminId(await headers()))) notFound();
+  const admin = await currentAdmin(await headers());
+  if (!admin) notFound();
   return (
-    <NoticeAdmin />
+    <NoticeAdmin signedInAt={admin.signedInAt} writeWindowMs={ADMIN_WRITE_MAX_AGE_MS}
+      email={admin.email} methods={await reauthMethods(admin.id)} />
   );
 }
